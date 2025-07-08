@@ -64,6 +64,10 @@ If you have suggestions, bug reports, or want to improve the code or documentati
 
 Please follow our contribution guidelines (coming soon) and adhere to best practices for clean, modular, and well-documented code.
 
+Community
+---------
+Join our Discord Server! https://discord.gg/6sYmEbUp
+
 
 List of Implemented Papers
 --------------------------
