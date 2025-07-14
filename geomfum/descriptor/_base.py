@@ -76,35 +76,6 @@ class SpectralDescriptor(Descriptor, abc.ABC):
         return gs.einsum("...j,ij->...i", coefs, vecs_term)
 
     def _compute_landmark_descriptor(self, coefs, vecs, landmarks):
-        """Compute descriptors with landmarks.
-
-        Parameters
-        ----------
-        coefs : array-like, shape=[n_domain, n_eigen]
-            Coefficients.
-        vecs : array-like, shape=[n_vertices, n_eigen]
-            Eigenvectors.
-        landmarks : array-like, shape=[n_landmarks]
-            Landmark indices.
-
-        Returns
-        -------
-        descriptors : array-like, shape=[n_landmarks * n_domain, n_vertices]
-            Descriptor values.
-        """
-        weighted_evects = vecs[None, landmarks, :] * coefs[:, None, :]
-        descriptor = gs.einsum("tpk,nk->ptn", weighted_evects, vecs)
-
-        if self.scale:
-            inv_scaling = coefs.sum(1)
-            descriptor = (1 / inv_scaling)[None, :, None] * descriptor
-
-        return gs.reshape(
-            descriptor,
-            (descriptor.shape[0] * descriptor.shape[1], vecs.shape[0]),
-        )
-
-    def _compute_landmark_descriptor(self, coefs, vecs, landmarks):
         """Compute descriptor with landmarks.
 
         Parameters
@@ -136,7 +107,7 @@ class SpectralDescriptor(Descriptor, abc.ABC):
             descriptor,
             (descriptor.shape[0] * descriptor.shape[1], vecs.shape[0]),
         )
-    
+
     def _compute(self, shape):
         """Compute descriptor.
 
@@ -152,11 +123,10 @@ class SpectralDescriptor(Descriptor, abc.ABC):
         """
         raise NotImplementedError("This method should be implemented in subclasses.")
 
-    
 
 
 class DistanceFromLandmarksDescriptor(Descriptor):
-    """Distance from landmarks descriptor. A simple descriptor that returns the distance from landmarks as a function on the shape."""
+    """Distance from landmarks descriptor. A descriptor that returns the distance from landmarks as a function on the shape."""
 
     def __call__(self, shape):
         """Compute descriptor.
