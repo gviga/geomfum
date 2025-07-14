@@ -15,19 +15,28 @@ class SpectralDescriptor(Descriptor, abc.ABC):
 
     Parameters
     ----------
+    spectral_filter : SpectralFilter
+        Spectral filter.
     domain : callable or array-like, shape=[n_domain]
         Method to compute domain points (``f(basis, n_domain)``) or
         domain points.
+    sigma : float
+        Standard deviation for the Gaussian.
+    scale : bool
+        Whether to scale weights to sum to one.
+    landmarks : bool
+        Whether to compute landmarks based descriptors.
     """
 
-    def __init__(self, domain, scale = True):
+    def __init__(self, spectral_filter=None, domain=None,sigma=1, scale = True, landmarks = False):
         super().__init__()
         self.domain = domain
+        self.sigma = sigma
         self.scale = scale
-
-
-    @abc.abstractmethod
-    def __call__(self, shape,):
+        self.landmarks = landmarks
+        self.spectral_filter = spectral_filter
+        
+    def __call__(self, shape):
         """Compute descriptor.
 
         Parameters
@@ -35,28 +44,22 @@ class SpectralDescriptor(Descriptor, abc.ABC):
         shape : Shape.
             Shape.
         """
-        if not hasattr(shape, "landmark_indices") or shape.landmark_indices is None:
-            raise AttributeError(
-                f"Shape must have 'landmark_indices' set for {self.__class__.__name__}."
-            )
-        return self._compute(shape)
+        vals = shape.basis.vals
+        vecs = shape.basis.vecs
+        
+        domain, sigma = self.domain(shape) if callable(self.domain) else (self.domain, self.sigma)
+        
+        coefs = self.spectral_filter(vals, domain, sigma)        
 
-    def _scale(self, coefs):
-        """Scale coefficients (weights) to unit sum.
-
-        Parameters
-        ----------
-        coefs : array-like, shape=[n_domain, n_eigen]
-            Coefficients to scale.
-
-        Returns
-        -------
-        coefs : array-like, shape=[n_domain, n_eigen]
-            Scaled coefficients.
-        """
-        if self.scale:
-            return la.scale_to_unit_sum(coefs)
-        return coefs
+        
+        if self.landmarks:
+            if not hasattr(shape, "landmark_indices") or shape.landmark_indices is None:
+                raise AttributeError(
+                    f"Shape must have 'landmark_indices' set for {self.__class__.__name__}."
+                )
+            return self._compute_landmark_descriptor(coefs, vecs, shape.landmark_indices)
+        else:
+            return self._compute_descriptor(coefs, vecs)
 
     def _compute_descriptor(self, coefs, vecs):
         """Compute descriptors from coefficients and eigenvectors.
@@ -73,6 +76,8 @@ class SpectralDescriptor(Descriptor, abc.ABC):
         descriptors : array-like, shape=[n_domain, n_vertices]
         """
         vecs_term = xgs.square(vecs)
+        if self.scale:
+            coefs = la.scale_to_unit_sum(coefs)
         return gs.einsum("...j,ij->...i", coefs, vecs_term)
 
     def _compute_landmark_descriptor(self, coefs, vecs, landmarks):
@@ -107,22 +112,6 @@ class SpectralDescriptor(Descriptor, abc.ABC):
             descriptor,
             (descriptor.shape[0] * descriptor.shape[1], vecs.shape[0]),
         )
-
-    def _compute(self, shape):
-        """Compute descriptor.
-
-        Parameters
-        ----------
-        shape : Shape.
-            Shape.
-
-        Returns
-        -------
-        descriptor : array-like, shape=[n_landmarks * n_domain, n_vertices]
-            Descriptor values.
-        """
-        raise NotImplementedError("This method should be implemented in subclasses.")
-
 
 
 class DistanceFromLandmarksDescriptor(Descriptor):

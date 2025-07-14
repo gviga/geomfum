@@ -13,7 +13,7 @@ from geomfum._registry import (
 )
 
 from ._base import SpectralDescriptor
-
+import abc
 
 def hks_default_domain(shape, n_domain):
     """Compute HKS default domain.
@@ -32,7 +32,6 @@ def hks_default_domain(shape, n_domain):
     """
     nonzero_vals = shape.basis.nonzero_vals
     device = getattr(nonzero_vals, "device", None)
-
     return xgs.to_device(
         xgs.geomspace(
             4 * gs.log(10) / nonzero_vals[-1],
@@ -40,7 +39,7 @@ def hks_default_domain(shape, n_domain):
             n_domain,
         ),
         device,
-    )
+    ), None
 
 
 class WksDefaultDomain:
@@ -96,8 +95,93 @@ class WksDefaultDomain:
 
         return energy, sigma
 
-class HeatKernelSignature( WhichRegistryMixins, SpectralDescriptor):
-    """Heat kernel signature.
+
+class SpectralFilter(abc.ABC):
+    """
+    Abstract base class for spectral filters used in spectral descriptors.
+
+    A spectral filter computes the coefficients for the spectral sum given eigenvalues, a domain (e.g., time or energy), and optional parameters (such as sigma).
+    Subclasses should implement the __call__ method.
+    """
+    @abc.abstractmethod
+    def __call__(self, vals, domain, sigma):
+        """
+        Compute filter coefficients for the given eigenvalues and domain.
+
+        Parameters
+        ----------
+        vals : array-like, shape=[n_eigen]
+            Eigenvalues.
+        domain : array-like, shape=[n_domain]
+            Domain points (e.g., time for HKS, energy for WKS).
+        sigma : float or None
+            Optional parameter for the filter (e.g., standard deviation for WKS).
+
+        Returns
+        -------
+        coefs : array-like, shape=[n_domain, n_eigen]
+            Filter coefficients.
+        """
+        
+class HeatKernelFilter(SpectralFilter):
+    """
+    Heat kernel filter for spectral descriptors (HKS).
+
+    Computes coefficients as exp(-t * lambda), where t is the domain (time) and lambda are the eigenvalues.
+    """
+    def __call__(self, vals, domain, sigma):
+        """
+        Compute heat kernel filter coefficients.
+
+        Parameters
+        ----------
+        vals : array-like, shape=[n_eigen]
+            Eigenvalues.
+        domain : array-like, shape=[n_domain]
+            Time points.
+        sigma : float or None
+            Unused for heat kernel filter.
+
+        Returns
+        -------
+        coefs : array-like, shape=[n_domain, n_eigen]
+            Filter coefficients.
+        """
+        return gs.exp(-la.scalarvecmul(domain, vals))
+
+class WaveKernelFilter(SpectralFilter):
+    """
+    Wave kernel filter for spectral descriptors (WKS).
+
+    Computes coefficients as a Gaussian in log-eigenvalue space, centered at each domain point (energy), with standard deviation sigma.
+    """
+    def __call__(self, vals, domain, sigma):
+        """
+        Compute wave kernel filter coefficients.
+
+        Parameters
+        ----------
+        vals : array-like, shape=[n_eigen]
+            Eigenvalues.
+        domain : array-like, shape=[n_domain]
+            Energy points (log-space).
+        sigma : float
+            Standard deviation for the Gaussian.
+
+        Returns
+        -------
+        coefs : array-like, shape=[n_domain, n_eigen]
+            Filter coefficients.
+        """
+        exp_arg = -xgs.square(gs.log(vals) - domain[:, None]) / (2 * xgs.square(sigma))
+        coefs = gs.exp(exp_arg)
+        return coefs
+
+class HeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
+    """
+    Heat kernel signature (HKS) descriptor.
+
+    Computes the heat kernel signature using the heat kernel filter. The descriptor is evaluated globally (all points).
 
     Parameters
     ----------
@@ -105,118 +189,19 @@ class HeatKernelSignature( WhichRegistryMixins, SpectralDescriptor):
         Whether to scale weights to sum to one.
     n_domain : int
         Number of domain points. Ignored if ``domain`` is not None.
-    domain : callable or array-like, shape=[n_domain]
-        Method to compute domain points (``f(shape)``) or
-        domain points.
+    domain : callable or array-like, shape=[n_domain], optional
+        Method to compute domain points (``f(shape)``) or domain points.
     """
-        
     _Registry = HeatKernelSignatureRegistry
 
     def __init__(self, scale=True, n_domain=3, domain=None):
-        super().__init__(domain or (lambda shape: hks_default_domain(shape, n_domain=n_domain)), scale=scale)
-
-    def __call__(self, shape):
-        """Compute descriptor.
-
-        Parameters
-        ----------
-        shape : Shape.
-            Shape with basis.
-
-        Returns
-        -------
-        descr : array-like, shape=[n_domain, n_vertices]
-            Descriptor.
-        """
-        domain = self.domain(shape) if callable(self.domain) else self.domain
-        evals = shape.basis.vals
-        vecs = shape.basis.vecs
-
-        coefs = gs.exp(-la.scalarvecmul(domain, evals))
-        coefs = self._scale(coefs)
-
-        return self._compute_descriptor(coefs, vecs)
+        super().__init__(spectral_filter=HeatKernelFilter(), domain=domain or (lambda shape: hks_default_domain(shape, n_domain=n_domain)), scale=scale, sigma=1, landmarks=False)
 
 class WaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
-    """Wave kernel signature."""
-
-    _Registry = WaveKernelSignatureRegistry
-
-    def __init__(self, scale=True, sigma=None, n_domain=3, domain=None):
-        domain = domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma)
-        super().__init__(domain=domain, scale=scale)
-        self.sigma = sigma
-
-    def __call__(self, shape):
-        """Compute descriptor.
-
-        Parameters
-        ----------
-        shape : Shape.
-            Shape with basis.
-
-        Returns
-        -------
-        descr : array-like, shape=[n_domain, n_vertices]
-            Descriptor.
-        """
-        if callable(self.domain):
-            domain, sigma = self.domain(shape)
-        else:
-            domain, sigma = self.domain, self.sigma
-
-        evals = shape.basis.nonzero_vals
-        vecs = shape.basis.nonzero_vecs
-
-        exp_arg = -xgs.square(gs.log(evals) - domain[:, None]) / (2 * xgs.square(sigma))
-        coefs = gs.exp(exp_arg)
-        coefs = self._scale(coefs)
-
-        return self._compute_descriptor(coefs, vecs)
-
-class LandmarkHeatKernelSignature(HeatKernelSignature):
-    """Landmark-based Heat Kernel Signature.
-
-    Parameters
-    ----------
-    scale : bool
-        Whether to scale weights to sum to one.
-    n_domain : int
-        Number of domain points. Ignored if ``domain`` is not None.
-    domain : callable or array-like, shape=[n_domain]
-        Method to compute domain points (``f(shape)``) or
-        domain points.
     """
+    Wave kernel signature (WKS) descriptor.
 
-    _Registry = LandmarkHeatKernelSignatureRegistry
-
-    def __call__(self, shape):
-        """Compute landmark-based HKS descriptor.
-
-        Parameters
-        ----------
-        shape : Shape.
-            Shape with basis and landmark_indices.
-
-        Returns
-        -------
-        descr : array-like, shape=[n_landmarks * n_domain, n_vertices]
-            Landmark-based HKS descriptor.
-        """
-        if not hasattr(shape, "landmark_indices") or shape.landmark_indices is None:
-            raise AttributeError("Shape must have 'landmark_indices' set.")
-
-        domain = self.domain(shape) if callable(self.domain) else self.domain
-        evals = shape.basis.vals
-        vecs = shape.basis.vecs
-        landmarks = shape.landmark_indices
-
-        # coefs: (n_domain, n_eigen)
-        coefs = gs.exp(-gs.outer(domain, evals))
-        return self._compute_landmark_descriptor(coefs, vecs, landmarks)
-
-class LandmarkWaveKernelSignature(WaveKernelSignature):
-    """Landmark-based Wave Kernel Signature.
+    Computes the wave kernel signature using the wave kernel filter. The descriptor is evaluated globally (all points).
 
     Parameters
     ----------
@@ -226,40 +211,55 @@ class LandmarkWaveKernelSignature(WaveKernelSignature):
         Standard deviation for the Gaussian.
     n_domain : int
         Number of domain points. Ignored if ``domain`` is not None.
-    domain : callable or array-like, shape=[n_domain]
-        Method to compute domain points (``f(shape)``) or
-        domain points.
+    domain : callable or array-like, shape=[n_domain], optional
+        Method to compute domain points (``f(shape)``) or domain points.
     """
+    _Registry = WaveKernelSignatureRegistry
 
+    def __init__(self, scale=True, sigma=None, n_domain=3, domain=None):
+
+        domain = domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma)
+        super().__init__(spectral_filter=WaveKernelFilter(), domain=domain, scale=scale, sigma=sigma, landmarks=False)
+
+class LandmarkHeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
+    """
+    Landmark-based Heat Kernel Signature (HKS) descriptor.
+
+    Computes the heat kernel signature at a set of landmark points using the heat kernel filter.
+
+    Parameters
+    ----------
+    scale : bool
+        Whether to scale weights to sum to one.
+    n_domain : int
+        Number of domain points. Ignored if ``domain`` is not None.
+    domain : callable or array-like, shape=[n_domain], optional
+        Method to compute domain points (``f(shape)``) or domain points.
+    """
+    _Registry = LandmarkHeatKernelSignatureRegistry
+
+    def __init__(self, scale=True, n_domain=3, domain=None):
+        super().__init__(spectral_filter=HeatKernelFilter(), domain=domain or (lambda shape: hks_default_domain(shape, n_domain=n_domain)), scale=scale, sigma=1, landmarks=True)
+
+class LandmarkWaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
+    """
+    Landmark-based Wave Kernel Signature (WKS) descriptor.
+
+    Computes the wave kernel signature at a set of landmark points using the wave kernel filter.
+
+    Parameters
+    ----------
+    scale : bool
+        Whether to scale weights to sum to one.
+    sigma : float
+        Standard deviation for the Gaussian.
+    n_domain : int
+        Number of domain points. Ignored if ``domain`` is not None.
+    domain : callable or array-like, shape=[n_domain], optional
+        Method to compute domain points (``f(shape)``) or domain points.
+    """
     _Registry = LandmarkWaveKernelSignatureRegistry
 
-    def __call__(self, shape):
-        """Compute landmark-based WKS descriptor.
+    def __init__(self, scale=True, sigma=None, n_domain=3, domain=None):
+        super().__init__(spectral_filter=WaveKernelFilter(), domain=domain or (lambda shape: hks_default_domain(shape, n_domain=n_domain)), scale=scale, sigma=sigma, landmarks=True)
 
-        Parameters
-        ----------
-        shape : Shape.
-            Shape with basis and landmark_indices.
-
-        Returns
-        -------
-        descr : array-like, shape=[n_landmarks * n_domain, n_vertices]
-            Landmark-based WKS descriptor.
-        """
-        if not hasattr(shape, "landmark_indices") or shape.landmark_indices is None:
-            raise AttributeError("Shape must have 'landmark_indices' set.")
-
-        if callable(self.domain):
-            domain, sigma = self.domain(shape)
-        else:
-            domain, sigma = self.domain, self.sigma
-
-
-        evals = shape.basis.nonzero_vals
-        vecs = shape.basis.nonzero_vecs
-        landmarks = shape.landmark_indices
-
-        exp_arg = -xgs.square(gs.log(gs.abs(evals)) - domain[:, None]) / (2 * sigma**2)
-        coefs = gs.exp(exp_arg)
-
-        return self._compute_landmark_descriptor(coefs, vecs, landmarks)

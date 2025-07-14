@@ -59,7 +59,7 @@ class PyfmHeatKernelSignature(SpectralDescriptor):
 
     def __init__(self, scale=True, n_domain=3, domain=None):
         super().__init__(
-            domain or (lambda shape: hks_default_domain(shape, n_domain=n_domain)),
+            domain=domain or (lambda shape: hks_default_domain(shape, n_domain=n_domain)),
         )
         self.scale = scale
 
@@ -76,7 +76,7 @@ class PyfmHeatKernelSignature(SpectralDescriptor):
         descr : array-like, shape=[n_domain, n_vertices]
             Descriptor.
         """
-        domain = self.domain(shape) if callable(self.domain) else self.domain
+        domain,_ = self.domain(shape) if callable(self.domain) else (self.domain, self.sigma)
 
         return gs.from_numpy(
             pyFM.signatures.HKS(
@@ -101,7 +101,7 @@ class PyfmLandmarkHeatKernelSignature(SpectralDescriptor):
 
     def __init__(self, scale=True, n_domain=3, domain=None):
         super().__init__(
-            domain or (lambda shape: hks_default_domain(shape, n_domain=n_domain)),
+            domain = domain or (lambda shape: hks_default_domain(shape, n_domain=n_domain)),
         )
         self.scale = scale
 
@@ -123,7 +123,7 @@ class PyfmLandmarkHeatKernelSignature(SpectralDescriptor):
                 "Shape must have 'landmark_indices' set for LandmarkHeatKernelSignature."
             )
 
-        domain = self.domain(shape) if callable(self.domain) else self.domain
+        domain, _ = self.domain(shape) if callable(self.domain) else (self.domain, self.sigma)
 
         return gs.from_numpy(
             pyFM.signatures.lm_HKS(
@@ -155,7 +155,8 @@ class PyfmWaveKernelSignature(SpectralDescriptor):
 
     def __init__(self, scale=True, sigma=None, n_domain=3, domain=None):
         super().__init__(
-            domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma),
+            domain=domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma),
+
         )
         self.scale = scale
         self.sigma = sigma
