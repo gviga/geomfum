@@ -217,7 +217,6 @@ class WaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     _Registry = WaveKernelSignatureRegistry
 
     def __init__(self, scale=True, sigma=None, n_domain=3, domain=None):
-
         domain = domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma)
         super().__init__(spectral_filter=WaveKernelFilter(), domain=domain, scale=scale, sigma=sigma, landmarks=False)
 
@@ -261,5 +260,5 @@ class LandmarkWaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     _Registry = LandmarkWaveKernelSignatureRegistry
 
     def __init__(self, scale=True, sigma=None, n_domain=3, domain=None):
-        super().__init__(spectral_filter=WaveKernelFilter(), domain=domain or (lambda shape: hks_default_domain(shape, n_domain=n_domain)), scale=scale, sigma=sigma, landmarks=True)
+        super().__init__(spectral_filter=WaveKernelFilter(), domain = domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma), scale=scale, sigma=sigma, landmarks=True)
 

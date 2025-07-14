@@ -153,14 +153,11 @@ class PyfmWaveKernelSignature(SpectralDescriptor):
         domain points.
     """
 
-    def __init__(self, scale=True, sigma=None, n_domain=3, domain=None):
+    def __init__(self, scale=True, sigma=None, n_domain=3, domain=None, landmarks=False):
         super().__init__(
-            domain=domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma),
-
+            domain=domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma),scale=scale,
+            landmarks=landmarks, sigma=sigma
         )
-        self.scale = scale
-        self.sigma = sigma
-
     def __call__(self, shape):
         """Compute descriptor.
 
@@ -205,7 +202,7 @@ class PyfmLandmarkWaveKernelSignature(SpectralDescriptor):
 
     def __init__(self, scale=True, sigma=None, n_domain=3, domain=None):
         super().__init__(
-            domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma),
+            domain = domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma),
         )
         self.scale = scale
         self.sigma = sigma
@@ -217,12 +214,8 @@ class PyfmLandmarkWaveKernelSignature(SpectralDescriptor):
                 "Shape must have 'landmark_indices' set for LandmarkHeatKernelSignature."
             )
 
-        if callable(self.domain):
-            domain, sigma = self.domain(shape)
-        else:
-            domain = self.domain
-            sigma = self.sigma
-
+        domain, sigma = self.domain(shape) if callable(self.domain) else (self.domain, self.sigma)
+        print(domain, sigma)
         return pyFM.signatures.lm_WKS(
             shape.basis.vals,
             shape.basis.vecs,
