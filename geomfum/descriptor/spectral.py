@@ -18,7 +18,7 @@ from ._base import SpectralDescriptor
 
 
 def hks_default_domain(shape, n_domain):
-    """Compute HKS default domain.
+    """Compute HKS default domain. The domain is a set of sampled time points.
 
     Parameters
     ----------
@@ -45,7 +45,7 @@ def hks_default_domain(shape, n_domain):
 
 
 class WksDefaultDomain:
-    """Compute WKS domain.
+    """Compute WKS domain. The domain is a set of sampled energy points.
 
     Parameters
     ----------
@@ -190,7 +190,7 @@ class HeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     """
     Heat kernel signature (HKS) descriptor.
 
-    Computes the heat kernel signature using the heat kernel filter. The descriptor is evaluated globally (all points).
+    Computes the heat kernel signature using the heat kernel filter. The descriptor is evaluated globally (all points) at a set of domain time points.
 
     Parameters
     ----------
@@ -199,7 +199,7 @@ class HeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     n_domain : int
         Number of domain points. Ignored if ``domain`` is not None.
     domain : callable or array-like, shape=[n_domain], optional
-        Method to compute domain points (``f(shape)``) or domain points.
+        Method to compute time domain points (``f(shape)``) or time domain points.
     """
 
     _Registry = HeatKernelSignatureRegistry
@@ -219,7 +219,7 @@ class WaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     """
     Wave kernel signature (WKS) descriptor.
 
-    Computes the wave kernel signature using the wave kernel filter. The descriptor is evaluated globally (all points).
+    Computes the wave kernel signature using the wave kernel filter. The descriptor is evaluated globally (all points) at a set of domain energy points.
 
     Parameters
     ----------
@@ -230,7 +230,7 @@ class WaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     n_domain : int
         Number of domain points. Ignored if ``domain`` is not None.
     domain : callable or array-like, shape=[n_domain], optional
-        Method to compute domain points (``f(shape)``) or domain points.
+        Method to compute energy domain points (``f(shape)``) or energy domain points.
     """
 
     _Registry = WaveKernelSignatureRegistry
@@ -250,7 +250,7 @@ class LandmarkHeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     """
     Landmark-based Heat Kernel Signature (HKS) descriptor.
 
-    Computes the heat kernel signature at a set of landmark points using the heat kernel filter.
+    Computes the heat kernel signature at a set of landmark points using the heat kernel filter. The descriptor is evaluated at a set of domain time points.
 
     Parameters
     ----------
@@ -259,7 +259,7 @@ class LandmarkHeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     n_domain : int
         Number of domain points. Ignored if ``domain`` is not None.
     domain : callable or array-like, shape=[n_domain], optional
-        Method to compute domain points (``f(shape)``) or domain points.
+        Method to compute time domain points (``f(shape)``) or time domain points.
     """
 
     _Registry = LandmarkHeatKernelSignatureRegistry
@@ -279,7 +279,7 @@ class LandmarkWaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     """
     Landmark-based Wave Kernel Signature (WKS) descriptor.
 
-    Computes the wave kernel signature at a set of landmark points using the wave kernel filter.
+    Computes the wave kernel signature at a set of landmark points using the wave kernel filter. The descriptor is evaluated at a set of domain energy points.
 
     Parameters
     ----------
@@ -290,7 +290,7 @@ class LandmarkWaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     n_domain : int
         Number of domain points. Ignored if ``domain`` is not None.
     domain : callable or array-like, shape=[n_domain], optional
-        Method to compute domain points (``f(shape)``) or domain points.
+        Method to compute energy domain points (``f(shape)``) or energy domain points.
     """
 
     _Registry = LandmarkWaveKernelSignatureRegistry
