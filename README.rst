@@ -1,7 +1,7 @@
 .. image:: GeomFuMlogo.png
   :width: 800
   :alt: GeomFuM logo
-**GeomFuM** is a Modular Python Package for Machine Learning with `Functional Maps <https://dl.acm.org/doi/10.1145/2185520.2185526>`_.
+**GeomFuM** is a Modular Python Package for Machine Learning with `Functional Maps <https://dl.acm.org/doi/10.1145/2185520.2185526>`_. 
 
 
 Installation
@@ -62,7 +62,7 @@ If you have suggestions, bug reports, or want to improve the code or documentati
 - Submit a pull request
 - Improve or add new examples/notebooks
 
-Please follow our contribution guidelines (coming soon) and adhere to best practices for clean, modular, and well-documented code.
+Please follow our 'contribution guidelines <https://dig-air.github.io/geomfum.github.io/contributing.html>'_ and adhere to best practices for clean, modular, and well-documented code.
 
 Community
 ---------
