@@ -1,5 +1,7 @@
 """Spectral descriptors."""
 
+import abc
+
 import geomstats.backend as gs
 
 import geomfum.backend as xgs
@@ -13,7 +15,7 @@ from geomfum._registry import (
 )
 
 from ._base import SpectralDescriptor
-import abc
+
 
 def hks_default_domain(shape, n_domain):
     """Compute HKS default domain.
@@ -103,6 +105,7 @@ class SpectralFilter(abc.ABC):
     A spectral filter computes the coefficients for the spectral sum given eigenvalues, a domain (e.g., time or energy), and optional parameters (such as sigma).
     Subclasses should implement the __call__ method.
     """
+
     @abc.abstractmethod
     def __call__(self, vals, domain, sigma):
         """
@@ -122,13 +125,15 @@ class SpectralFilter(abc.ABC):
         coefs : array-like, shape=[n_domain, n_eigen]
             Filter coefficients.
         """
-        
+
+
 class HeatKernelFilter(SpectralFilter):
     """
     Heat kernel filter for spectral descriptors (HKS).
 
     Computes coefficients as exp(-t * lambda), where t is the domain (time) and lambda are the eigenvalues.
     """
+
     def __call__(self, vals, domain, sigma):
         """
         Compute heat kernel filter coefficients.
@@ -147,7 +152,9 @@ class HeatKernelFilter(SpectralFilter):
         coefs : array-like, shape=[n_domain, n_eigen]
             Filter coefficients.
         """
-        return gs.exp(-la.scalarvecmul(domain, vals))
+        exp_arg = -la.scalarvecmul(domain, vals)
+        return gs.exp(exp_arg)
+
 
 class WaveKernelFilter(SpectralFilter):
     """
@@ -155,6 +162,7 @@ class WaveKernelFilter(SpectralFilter):
 
     Computes coefficients as a Gaussian in log-eigenvalue space, centered at each domain point (energy), with standard deviation sigma.
     """
+
     def __call__(self, vals, domain, sigma):
         """
         Compute wave kernel filter coefficients.
@@ -177,6 +185,7 @@ class WaveKernelFilter(SpectralFilter):
         coefs = gs.exp(exp_arg)
         return coefs
 
+
 class HeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     """
     Heat kernel signature (HKS) descriptor.
@@ -192,10 +201,19 @@ class HeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     domain : callable or array-like, shape=[n_domain], optional
         Method to compute domain points (``f(shape)``) or domain points.
     """
+
     _Registry = HeatKernelSignatureRegistry
 
     def __init__(self, scale=True, n_domain=3, domain=None):
-        super().__init__(spectral_filter=HeatKernelFilter(), domain=domain or (lambda shape: hks_default_domain(shape, n_domain=n_domain)), scale=scale, sigma=1, landmarks=False)
+        super().__init__(
+            spectral_filter=HeatKernelFilter(),
+            domain=domain
+            or (lambda shape: hks_default_domain(shape, n_domain=n_domain)),
+            scale=scale,
+            sigma=1,
+            landmarks=False,
+        )
+
 
 class WaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     """
@@ -214,11 +232,19 @@ class WaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     domain : callable or array-like, shape=[n_domain], optional
         Method to compute domain points (``f(shape)``) or domain points.
     """
+
     _Registry = WaveKernelSignatureRegistry
 
     def __init__(self, scale=True, sigma=None, n_domain=3, domain=None):
         domain = domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma)
-        super().__init__(spectral_filter=WaveKernelFilter(), domain=domain, scale=scale, sigma=sigma, landmarks=False)
+        super().__init__(
+            spectral_filter=WaveKernelFilter(),
+            domain=domain,
+            scale=scale,
+            sigma=sigma,
+            landmarks=False,
+        )
+
 
 class LandmarkHeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     """
@@ -235,10 +261,19 @@ class LandmarkHeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     domain : callable or array-like, shape=[n_domain], optional
         Method to compute domain points (``f(shape)``) or domain points.
     """
+
     _Registry = LandmarkHeatKernelSignatureRegistry
 
     def __init__(self, scale=True, n_domain=3, domain=None):
-        super().__init__(spectral_filter=HeatKernelFilter(), domain=domain or (lambda shape: hks_default_domain(shape, n_domain=n_domain)), scale=scale, sigma=1, landmarks=True)
+        super().__init__(
+            spectral_filter=HeatKernelFilter(),
+            domain=domain
+            or (lambda shape: hks_default_domain(shape, n_domain=n_domain)),
+            scale=scale,
+            sigma=1,
+            landmarks=True,
+        )
+
 
 class LandmarkWaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     """
@@ -257,8 +292,14 @@ class LandmarkWaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
     domain : callable or array-like, shape=[n_domain], optional
         Method to compute domain points (``f(shape)``) or domain points.
     """
+
     _Registry = LandmarkWaveKernelSignatureRegistry
 
     def __init__(self, scale=True, sigma=None, n_domain=3, domain=None):
-        super().__init__(spectral_filter=WaveKernelFilter(), domain = domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma), scale=scale, sigma=sigma, landmarks=True)
-
+        super().__init__(
+            spectral_filter=WaveKernelFilter(),
+            domain=domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma),
+            scale=scale,
+            sigma=sigma,
+            landmarks=True,
+        )
