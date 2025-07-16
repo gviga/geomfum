@@ -283,7 +283,7 @@ class NamFromP2pConverter(BaseFmFromP2pConverter):
 
         Parameters
         ----------
-        p2p : array-like, shape=[n_vertices_a]
+        p2p : array-like, shape=[n_vertices_b]
             Pointwise map.
         basis_a : Basis,
             Basis of the source shape.
@@ -297,8 +297,8 @@ class NamFromP2pConverter(BaseFmFromP2pConverter):
         nam: NeuralAdjointMap , shape=[spectrum_size_b, spectrum_size_a]
             Neural Adjoint Map model.
         """
-        evects2_pb = xgs.to_torch(basis_b.vecs[p2p, :]).to(self.device).double()
-        evects1 = xgs.to_torch(basis_a.vecs).to(self.device).double()
+        evects1_pb = xgs.to_torch(basis_a.vecs[p2p, :]).to(self.device).double()
+        evects2 = xgs.to_torch(basis_b.vecs).to(self.device).double()
         nam = NeuralAdjointMap(
             input_dim=basis_a.spectrum_size,
             output_dim=basis_b.spectrum_size,
@@ -314,9 +314,9 @@ class NamFromP2pConverter(BaseFmFromP2pConverter):
         for _ in range(self.iter_max):
             optimizer.zero_grad()
 
-            pred = nam(evects2_pb)
+            pred = nam(evects1_pb)
 
-            loss = torch.nn.functional.mse_loss(pred, evects1)
+            loss = torch.nn.functional.mse_loss(pred, evects2)
             loss.backward()
             optimizer.step()
 
@@ -362,13 +362,13 @@ class P2pFromNamConverter(BaseP2pFromFmConverter):
 
         Returns
         -------
-        p2p : array-like, shape=[n_vertices_a]
+        p2p : array-like, shape=[n_vertices_b]
             Pointwise map.
         """
         k2, k1 = nam.shape
 
-        emb1 = xgs.to_torch(basis_a.full_vecs[:, :k1]).to(nam.device).double()
-        emb2 = nam(xgs.to_torch(basis_b.full_vecs[:, :k2]).to(nam.device).double())
+        emb1 = nam(xgs.to_torch(basis_a.full_vecs[:, :k2]).to(nam.device).double())
+        emb2 = xgs.to_torch(basis_b.full_vecs[:, :k1]).to(nam.device).double()
 
-        p2p = self.neighbor_finder(emb1, emb2).flatten()
+        p2p = self.neighbor_finder(emb2.detach(), emb1.detach()).flatten()
         return p2p
