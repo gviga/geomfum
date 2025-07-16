@@ -35,7 +35,7 @@ class PotSinkhornNeighborFinder(BaseNeighborFinder):
         self.max_iter = max_iter
         self.method = method
 
-    def kneighbors(self, X, Y):
+    def __call__(self, X, Y):
         """Find k nearest neighbors using Sinkhorn regularization.
 
         Parameters

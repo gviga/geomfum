@@ -14,7 +14,16 @@ from geomfum.neural_adjoint_map import NeuralAdjointMap
 
 
 class BaseNeighborFinder(abc.ABC):
-    """Base class for a Neighbor finder."""
+    """Base class for a Neighbor finder.
+
+    Parameters
+    ----------
+    n_neighbors : int
+        Number of neighbors to find.
+    """
+
+    def __init__(self, n_neighbors=1):
+        self.n_neighbors = n_neighbors
 
 
 class NeighborFinder(WhichRegistryMixins, BaseNeighborFinder):
