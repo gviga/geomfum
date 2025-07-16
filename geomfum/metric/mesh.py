@@ -401,7 +401,9 @@ class _ScipyShortestPathMixins(_SingleDispatchMixins):
         * infinitely slow
         """
         dist_mat = shortest_path(
-            nx.adjacency_matrix(self._graph).tolil(),
+            nx.adjacency_matrix(
+                self._graph, nodelist=range(self._shape.vertices.shape[0])
+            ).tolil(),
             directed=False,
         )
 
@@ -441,7 +443,9 @@ class ScipyGraphShortestPathMetric(_ScipyShortestPathMixins, FinitePointSetMetri
             Target index.
         """
         dist = shortest_path(
-            nx.adjacency_matrix(self._graph).tolil(),
+            nx.adjacency_matrix(
+                self._graph, nodelist=range(self._shape.vertices.shape[0])
+            ).tolil(),
             directed=False,
             indices=source_point,
         )

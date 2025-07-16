@@ -4,6 +4,7 @@ import abc
 
 import geomstats.backend as gs
 import scipy
+import torch
 from sklearn.neighbors import NearestNeighbors
 
 import geomfum.backend as xgs
@@ -12,6 +13,7 @@ from geomfum._registry import (
     SinkhornNeighborFinderRegistry,
     WhichRegistryMixins,
 )
+from geomfum.neural_adjoint_map import NeuralAdjointMap
 
 
 class BaseP2pFromFmConverter(abc.ABC):
@@ -61,7 +63,10 @@ class P2pFromFmConverter(BaseP2pFromFmConverter):
         ----------
         fmap_matrix : array-like, shape=[spectrum_size_b, spectrum_size_a]
             Functional map matrix.
-
+        basis_a : Basis,
+            Basis of the source shape.
+        basis_b : Basis,
+            Basis of the target shape.
         Returns
         -------
         p2p : array-like, shape=[{n_vertices_b, n_vertices_a}]
@@ -213,6 +218,10 @@ class FmFromP2pConverter(BaseFmFromP2pConverter):
         ----------
         p2p : array-like, shape=[n_vertices_b]
             Poinwise map.
+        basis_a : Basis,
+            Basis of the source shape.
+        basis_b : Basis,
+            Basis of the target shape.
 
         Returns
         -------
@@ -244,6 +253,11 @@ class FmFromP2pBijectiveConverter(BaseFmFromP2pConverter):
         ----------
         p2p : array-like, shape=[n_vertices_a]
             Pointwise map.
+        basis_a : Basis,
+            Basis of the source shape.
+        basis_b : Basis,
+            Basis of the target shape.
+
 
         Returns
         -------
@@ -252,3 +266,127 @@ class FmFromP2pBijectiveConverter(BaseFmFromP2pConverter):
         """
         evects2_pb = basis_b.vecs[p2p, :]
         return gs.from_numpy(scipy.linalg.lstsq(evects2_pb, basis_a.vecs)[0])
+
+
+class NamFromP2pConverter(BaseFmFromP2pConverter):
+    """Neural Adjoint Map from pointwise map using Neural Adjoint Maps (NAMs)."""
+
+    def __init__(self, iter_max=200, patience=10, min_delta=1e-4, device="cpu"):
+        """Initialize the converter.
+
+        Parameters
+        ----------
+        iter_max : int, optional
+            Maximum number of iterations for training the Neural Adjoint Map.
+        patience : int, optional
+            Number of iterations with no improvement after which training will be stopped.
+        min_delta : float, optional
+            Minimum change in the loss to qualify as an improvement.
+        device : str, optional
+            Device to use for the Neural Adjoint Map (e.g., 'cpu' or 'cuda').
+        """
+        self.iter_max = iter_max
+        self.device = device
+        self.min_delta = min_delta
+        self.patience = patience
+
+    def __call__(self, p2p, basis_a, basis_b, optimizer=None):
+        """Convert point to point map.
+
+        Parameters
+        ----------
+        p2p : array-like, shape=[n_vertices_b]
+            Pointwise map.
+        basis_a : Basis,
+            Basis of the source shape.
+        basis_b : Basis,
+            Basis of the target shape.
+        optimizer : torch.optim.Optimizer, optional
+            Optimizer for training the Neural Adjoint Map.
+
+        Returns
+        -------
+        nam: NeuralAdjointMap , shape=[spectrum_size_b, spectrum_size_a]
+            Neural Adjoint Map model.
+        """
+        evects2_pb = xgs.to_torch(basis_b.vecs[p2p, :]).to(self.device).double()
+        evects1 = xgs.to_torch(basis_a.vecs).to(self.device).double()
+        nam = NeuralAdjointMap(
+            input_dim=basis_a.spectrum_size,
+            output_dim=basis_b.spectrum_size,
+            device=self.device,
+        ).double()
+
+        if optimizer is None:
+            optimizer = torch.optim.Adam(nam.parameters(), lr=0.01, weight_decay=1e-5)
+
+        best_loss = float("inf")
+        wait = 0
+
+        for _ in range(self.iter_max):
+            optimizer.zero_grad()
+
+            pred = nam(evects2_pb)
+
+            loss = torch.nn.functional.mse_loss(pred, evects1)
+            loss.backward()
+            optimizer.step()
+
+            if loss.item() < best_loss - self.min_delta:
+                best_loss = loss.item()
+                wait = 0
+            else:
+                wait += 1
+            if wait >= self.patience:
+                break
+
+        return nam
+
+
+class P2pFromNamConverter(BaseP2pFromFmConverter):
+    """Pointwise map from Neural Adjoint Map (NAM).
+
+    Parameters
+    ----------
+    neighbor_finder : NeighborFinder
+        Nearest neighbor finder.
+    """
+
+    def __init__(self, neighbor_finder=None):
+        if neighbor_finder is None:
+            neighbor_finder = NearestNeighbors(
+                n_neighbors=1, leaf_size=40, algorithm="kd_tree", n_jobs=1
+            )
+        if neighbor_finder.n_neighbors > 1:
+            raise ValueError("Expects `n_neighors = 1`.")
+
+        self.neighbor_finder = neighbor_finder
+
+    def __call__(self, nam, basis_a, basis_b):
+        """Convert neural adjoint map.
+
+        Parameters
+        ----------
+        nam : NeuralAdjointMap, shape=[spectrum_size_b, spectrum_size_a]
+            Nam model.
+        basis_a : Basis,
+            Basis of the source shape.
+        basis_b : Basis,
+            Basis of the target shape.
+        Returns
+        -------
+        p2p : array-like, shape=[{n_vertices_b, n_vertices_a}]
+            Pointwise map.
+        """
+        k2, k1 = nam.shape
+
+        emb1 = xgs.to_torch(basis_a.full_vecs[:, :k1]).to(nam.device).double()
+        emb2 = nam(xgs.to_torch(basis_b.full_vecs[:, :k2]).to(nam.device).double())
+
+        # TODO: update neighbor finder instead
+        self.neighbor_finder.fit(emb2.detach().cpu())
+        p2p_21 = self.neighbor_finder.kneighbors(
+            emb1.detach().cpu(), return_distance=False
+        )
+
+        return gs.from_numpy(p2p_21[:, 0])

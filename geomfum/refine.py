@@ -12,6 +12,8 @@ from geomfum.convert import (
     FmFromP2pConverter,
     P2pFromFmConverter,
     SinkhornP2pFromFmConverter,
+    P2pFromNamConverter,
+    NamFromP2pConverter,
 )
 
 
@@ -459,4 +461,34 @@ class FastSinkhornFilters(ZoomOut):
             step=step,
             p2p_from_fm_converter=SinkhornP2pFromFmConverter(neighbor_finder),
             fm_from_p2p_converter=FmFromP2pConverter(),
+        )
+
+
+class NeuralZoomOut(ZoomOut):
+    """Neural zoomout algorithm.
+
+    Parameters
+    ----------
+    nit : int
+        Number of iterations.
+    step : int or tuple[2, int]
+        How much to increase each basis per iteration.
+
+    References
+    ----------
+    .. [VOM2025] Giulio Viganò, Maks Ovsjanikov, Simone Melzi.
+        "NAM: Neural Adjoint Maps for refining shape correspondences".
+    """
+
+    def __init__(
+        self,
+        nit=10,
+        step=1,
+        device="cpu",
+    ):
+        super().__init__(
+            nit=nit,
+            step=step,
+            p2p_from_fm_converter=P2pFromNamConverter(),
+            fm_from_p2p_converter=NamFromP2pConverter(device=device),
         )
