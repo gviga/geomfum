@@ -200,11 +200,13 @@ class HeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
         Number of domain points. Ignored if ``domain`` is not None.
     domain : callable or array-like, shape=[n_domain], optional
         Method to compute time domain points (``f(shape)``) or time domain points.
+    k : int, optional
+        Number of eigenfunctions to use. If None, all eigenfunctions are used.
     """
 
     _Registry = HeatKernelSignatureRegistry
 
-    def __init__(self, scale=True, n_domain=3, domain=None):
+    def __init__(self, scale=True, n_domain=3, domain=None, k=None):
         super().__init__(
             spectral_filter=HeatKernelFilter(),
             domain=domain
@@ -212,6 +214,7 @@ class HeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
             scale=scale,
             sigma=1,
             landmarks=False,
+            k=k,
         )
 
 
@@ -231,11 +234,13 @@ class WaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
         Number of domain points. Ignored if ``domain`` is not None.
     domain : callable or array-like, shape=[n_domain], optional
         Method to compute energy domain points (``f(shape)``) or energy domain points.
+    k : int, optional
+        Number of eigenfunctions to use. If None, all eigenfunctions are used.
     """
 
     _Registry = WaveKernelSignatureRegistry
 
-    def __init__(self, scale=True, sigma=None, n_domain=3, domain=None):
+    def __init__(self, scale=True, sigma=None, n_domain=3, domain=None, k=None):
         domain = domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma)
         super().__init__(
             spectral_filter=WaveKernelFilter(),
@@ -243,6 +248,7 @@ class WaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
             scale=scale,
             sigma=sigma,
             landmarks=False,
+            k=k,
         )
 
 
@@ -260,11 +266,13 @@ class LandmarkHeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
         Number of domain points. Ignored if ``domain`` is not None.
     domain : callable or array-like, shape=[n_domain], optional
         Method to compute time domain points (``f(shape)``) or time domain points.
+    k : int, optional
+        Number of eigenfunctions to use.
     """
 
     _Registry = LandmarkHeatKernelSignatureRegistry
 
-    def __init__(self, scale=True, n_domain=3, domain=None):
+    def __init__(self, scale=True, n_domain=3, domain=None, k=None):
         super().__init__(
             spectral_filter=HeatKernelFilter(),
             domain=domain
@@ -272,6 +280,7 @@ class LandmarkHeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
             scale=scale,
             sigma=1,
             landmarks=True,
+            k=k,
         )
 
 
@@ -291,15 +300,18 @@ class LandmarkWaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
         Number of domain points. Ignored if ``domain`` is not None.
     domain : callable or array-like, shape=[n_domain], optional
         Method to compute energy domain points (``f(shape)``) or energy domain points.
+    k : int, optional
+        Number of eigenfunctions to use.
     """
 
     _Registry = LandmarkWaveKernelSignatureRegistry
 
-    def __init__(self, scale=True, sigma=None, n_domain=3, domain=None):
+    def __init__(self, scale=True, sigma=None, n_domain=3, domain=None, k=None):
         super().__init__(
             spectral_filter=WaveKernelFilter(),
             domain=domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma),
             scale=scale,
             sigma=sigma,
             landmarks=True,
+            k=k,
         )
