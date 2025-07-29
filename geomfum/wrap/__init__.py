@@ -94,10 +94,16 @@ register_feature_extractor(
     "diffusionnet", "DiffusionnetFeatureExtractor", requires="torch", as_default=True
 )
 
+register_feature_extractor(
+    "transformer",
+    "TransformerFeatureExtractor",
+    requires="torch",
+    as_default=False,
+)
+
 register_neighbor_finder(
     "pot", "PotSinkhornNeighborFinder", requires="ot", as_default=True
 )
-
 register_heat_distance_metric(
     "pp3d", "Pp3dHeatDistanceMetric", requires="potpourri3d", as_default=True
 )
