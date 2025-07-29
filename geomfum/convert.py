@@ -57,15 +57,15 @@ class NeighborFinder(WhichRegistryMixins, BaseNeighborFinder):
 
         Returns
         -------
-        indices : array-like, shape=[n_points_x, n_neighbors]
+        neigs : array-like, shape=[n_points_x, n_neighbors]
             Indices of the nearest neighbors in Y for each point in X.
         """
         self.sklearn_neighbor_finder.fit(xgs.to_device(Y, "cpu"))
-        p2p = self.sklearn_neighbor_finder.kneighbors(
+        neigs = self.sklearn_neighbor_finder.kneighbors(
             xgs.to_device(X, "cpu"), return_distance=False
         )
 
-        return gs.from_numpy(p2p)
+        return gs.from_numpy(neigs)
 
 
 class BaseP2pFromFmConverter(abc.ABC):
