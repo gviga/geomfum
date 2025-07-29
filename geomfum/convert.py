@@ -248,11 +248,11 @@ class FmFromP2pBijectiveConverter(BaseFmFromP2pConverter):
         fmap_matrix : array-like, shape=[spectrum_size_b, spectrum_size_a]
             Functional map matrix.
         """
+        evects2_pb = basis_b.vecs[p2p, :]
+
         if self.pseudo_inverse:
-            evects2_pb = basis_b.vecs[p2p, :]
             return gs.linalg.pinv(evects2_pb) @ basis_a.vecs
 
-        evects2_pb = basis_b.vecs[p2p, :]
         return gs.from_numpy(scipy.linalg.lstsq(evects2_pb, basis_a.vecs)[0])
 
 
