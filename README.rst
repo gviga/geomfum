@@ -87,5 +87,11 @@ List of Implemented Papers
 13. `DiffusionNet: Discretization Agnostic Learning on Surfaces <https://arxiv.org/abs/2012.00888>`_
 14. `PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation <https://arxiv.org/abs/1612.00593>`_
 
+Acknowledgement
+---------------
+We thank the geometry processing and functional maps community for their foundational research and ongoing contributions that inspired this work.
+This work was partially supported by the European Union (Next Generation EU), MUR (REGAINS), NVIDIA Academic Hardware Grant, and the NSF (MRSEC and CAREER awards). 
+
+
 
 **Have FuM!**
