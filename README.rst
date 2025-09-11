@@ -9,7 +9,7 @@ Installation
 
 ::
     
-    pip install geomfum@git+https://github.com/DiG-AIR/geomfum.git@main
+    pip install geomfum@git+https://github.com/3diglab/geomfum.git@main
 
 
 Or the classic pipeline: ``clone + pip install``.
