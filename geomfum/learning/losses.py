@@ -2,6 +2,7 @@
 
 import torch
 import torch.nn as nn
+import geomfum.linalg as la
 
 
 class LossManager:
@@ -156,9 +157,9 @@ class BijectivityLoss(nn.Module):
         metric = SquaredFrobeniusLoss()
         eye_b = torch.eye(fmap12.shape[0], device=fmap12.device)
         eye_a = torch.eye(fmap21.shape[1], device=fmap21.device)
-        return self.weight * metric(torch.mm(fmap12, fmap21), eye_b) + self.weight * metric(
-            torch.mm(fmap21, fmap12), eye_a
-        )
+        return self.weight * metric(
+            torch.mm(fmap12, fmap21), eye_b
+        ) + self.weight * metric(torch.mm(fmap21, fmap12), eye_a)
 
 
 class LaplacianCommutativityLoss(nn.Module):
@@ -200,8 +201,6 @@ class LaplacianCommutativityLoss(nn.Module):
             torch.einsum("bc,c->bc", fmap12, mesh_b.basis.vals),
             torch.einsum("b,bc->bc", mesh_a.basis.vals, fmap12),
         )
-
-import geomfum.linalg as la
 
 
 class DescriptorCommutativityLoss(nn.Module):
@@ -245,8 +244,8 @@ class DescriptorCommutativityLoss(nn.Module):
         # basis.pinv: (spectrum_size, num_vertices)
 
         operators = []
-        for i in range(desc.shape[0]):
-            operator = basis.pinv @ la.rowwise_scaling(desc[i, :], basis.vecs)
+        for desc_i in desc:
+            operator = basis.pinv @ la.rowwise_scaling(desc_i, basis.vecs)
             operators.append(operator)
 
         return torch.stack(operators)  # (num_descriptors, spectrum_size, spectrum_size)
@@ -283,21 +282,19 @@ class DescriptorCommutativityLoss(nn.Module):
 
         total_loss = 0
         # Compute commutativity loss for each descriptor
-        for i in range(oper_a.shape[0]):
-            left_side = torch.mm(
-                fmap12, oper_a[i]
-            )  # (spectrum_size_b, spectrum_size_a)
+        for oper_a_i, oper_b_i in zip(oper_a, oper_b):
+            left_side = torch.mm(fmap12, oper_a_i)  # (spectrum_size_b, spectrum_size_a)
             right_side = torch.mm(
-                oper_b[i], fmap12
+                oper_b_i, fmap12
             )  # (spectrum_size_b, spectrum_size_a)
             loss_12 = metric(left_side, right_side)
 
             # For fmap21: C21 @ M_b = M_a @ C21
             left_side_21 = torch.mm(
-                fmap21, oper_b[i]
+                fmap21, oper_b_i
             )  # (spectrum_size_a, spectrum_size_b)
             right_side_21 = torch.mm(
-                oper_a[i], fmap21
+                oper_a_i, fmap21
             )  # (spectrum_size_a, spectrum_size_b)
             loss_21 = metric(left_side_21, right_side_21)
 
@@ -306,7 +303,6 @@ class DescriptorCommutativityLoss(nn.Module):
         total_loss = total_loss / oper_a.shape[0]
 
         return self.weight * total_loss
-
 
 
 class GeodesicError(nn.Module):
