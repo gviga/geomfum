@@ -7,7 +7,6 @@ import scipy
 import torch
 from sklearn.neighbors import NearestNeighbors
 
-import geomfum.backend as xgs
 import geomfum.wrap as _wrap  # noqa (for register)
 from geomfum._registry import NeighborFinderRegistry, WhichRegistryMixins
 from geomfum.neural_adjoint_map import NeuralAdjointMap
@@ -60,9 +59,9 @@ class NeighborFinder(WhichRegistryMixins, BaseNeighborFinder):
         neigs : array-like, shape=[n_points_x, n_neighbors]
             Indices of the nearest neighbors in Y for each point in X.
         """
-        self.sklearn_neighbor_finder.fit(xgs.to_device(Y, "cpu"))
+        self.sklearn_neighbor_finder.fit(gs.to_device(Y, "cpu"))
         neigs = self.sklearn_neighbor_finder.kneighbors(
-            xgs.to_device(X, "cpu"), return_distance=False
+            gs.to_device(X, "cpu"), return_distance=False
         )
 
         return gs.from_numpy(neigs)
@@ -297,8 +296,8 @@ class NamFromP2pConverter(BaseFmFromP2pConverter):
         nam: NeuralAdjointMap , shape=[spectrum_size_b, spectrum_size_a]
             Neural Adjoint Map model.
         """
-        evects1_pb = xgs.to_torch(basis_a.vecs[p2p, :]).to(self.device).double()
-        evects2 = xgs.to_torch(basis_b.vecs).to(self.device).double()
+        evects1_pb = gs.to_torch(basis_a.vecs[p2p, :]).to(self.device).double()
+        evects2 = gs.to_torch(basis_b.vecs).to(self.device).double()
         nam = NeuralAdjointMap(
             input_dim=basis_a.spectrum_size,
             output_dim=basis_b.spectrum_size,
@@ -367,8 +366,8 @@ class P2pFromNamConverter(BaseP2pFromFmConverter):
         """
         k2, k1 = nam.shape
 
-        emb1 = nam(xgs.to_torch(basis_a.full_vecs[:, :k2]).to(nam.device).double())
-        emb2 = xgs.to_torch(basis_b.full_vecs[:, :k1]).to(nam.device).double()
+        emb1 = nam(gs.to_torch(basis_a.full_vecs[:, :k2]).to(nam.device).double())
+        emb2 = gs.to_torch(basis_b.full_vecs[:, :k1]).to(nam.device).double()
 
         p2p = self.neighbor_finder(emb2.detach(), emb1.detach()).flatten()
         return p2p

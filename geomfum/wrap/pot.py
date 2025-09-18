@@ -2,8 +2,6 @@
 
 import gs.backend as gs
 import ot
-
-import geomfum.backend as xgs
 from geomfum.convert import BaseNeighborFinder
 
 
@@ -59,6 +57,6 @@ class PotSinkhornNeighborFinder(BaseNeighborFinder):
         # TODO: implement as sinkhorn solver?
         Gs = ot.sinkhorn(a, b, M, self.lambd, self.method, self.max_iter)
 
-        indices = xgs.argsort(Gs, axis=1)[:, : self.n_neighbors]
+        indices = gs.argsort(Gs, axis=1)[:, : self.n_neighbors]
 
         return indices
