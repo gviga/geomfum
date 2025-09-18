@@ -11,10 +11,10 @@ https://arxiv.org/abs/2012.00888
 
 """
 
+import gs.backend as gs
 import torch
 import torch.nn as nn
 
-import gs.backend as gs
 from geomfum.descriptor.learned import BaseFeatureExtractor
 
 

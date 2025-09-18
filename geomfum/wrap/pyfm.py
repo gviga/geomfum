@@ -5,7 +5,7 @@ import numpy as np
 import pyFM.mesh
 import pyFM.mesh.geometry
 import pyFM.signatures
-import scipy
+
 from geomfum.descriptor._base import SpectralDescriptor
 from geomfum.descriptor.spectral import WksDefaultDomain, hks_default_domain
 from geomfum.laplacian import BaseLaplacianFinder
@@ -180,7 +180,6 @@ class PyfmWaveKernelSignature(SpectralDescriptor):
         descr : array-like, shape=[{n_domain, n_landmarks*n_domain}, n_vertices]
             Descriptor.
         """
-
         if callable(self.domain):
             domain, sigma = self.domain(shape)
         else:
@@ -342,7 +341,7 @@ def get_orientation_op(
     In practice, we compute < n x grad(f), grad(g) > for simpler computation.
 
     Parameters
-    --------------------------------
+    ----------
     grad_field    :
         (n_f,3) gradient field on the mesh
     vertices      :
@@ -357,7 +356,7 @@ def get_orientation_op(
         whether gradient field is already rotated by n x grad(f)
 
     Returns
-    --------------------------
+    -------
     operator : sparse.csc_matrix or list[sparse.csc_matrix], shape=[n_vertices, n_verticess]
         (n_v,n_v) orientation operator.
 

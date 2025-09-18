@@ -1,8 +1,9 @@
 """geopext wrapper."""
 
-import gs.backend as gs
 import geopext
+import gs.backend as gs
 import numpy as np
+
 from geomfum.laplacian import BaseLaplacianFinder
 
 

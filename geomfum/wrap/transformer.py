@@ -14,6 +14,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 from geomfum.descriptor.learned import BaseFeatureExtractor
+import gs.backend as gs
 
 
 class TransformerFeatureExtractor(BaseFeatureExtractor, nn.Module):

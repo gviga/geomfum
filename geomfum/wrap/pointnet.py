@@ -8,9 +8,11 @@ References
     https://github.com/riccardomarin/Diff-FMaps by Riccardo Marin
 """
 
+import gs.backend as gs
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from geomfum.descriptor.learned import BaseFeatureExtractor
 
 

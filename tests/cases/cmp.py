@@ -1,7 +1,7 @@
+import gs.backend as gs
 import numpy as np
 import pytest
 from geomstats.test.test_case import TestCase
-import gs.backend as gs
 
 
 class LaplacianFinderCmpCase(TestCase):
