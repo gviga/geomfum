@@ -1,4 +1,4 @@
-import geomstats.backend as gs
+import gs.backend as gs
 import torch as _torch
 from torch import square
 

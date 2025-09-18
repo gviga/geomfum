@@ -49,7 +49,7 @@ and in the Python3 code:
 
 ::
 
-    import geomstats.backend as gs
+    import gs.backend as gs
     import geomfum.backend as xgs
 
 Contributions

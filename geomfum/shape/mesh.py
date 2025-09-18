@@ -1,6 +1,6 @@
 """Definition of triangle mesh."""
 
-import geomstats.backend as gs
+import gs.backend as gs
 
 import geomfum.backend as xgs
 from geomfum.io import load_mesh

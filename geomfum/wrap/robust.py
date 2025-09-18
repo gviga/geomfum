@@ -1,6 +1,6 @@
 """robust_laplacian wrapper."""
 
-import geomstats.backend as gs
+import gs.backend as gs
 import robust_laplacian
 
 import geomfum.backend as xgs

@@ -5,7 +5,7 @@ import os
 import random
 import warnings
 
-import geomstats.backend as gs
+import gs.backend as gs
 import meshio
 import numpy as np
 import scipy

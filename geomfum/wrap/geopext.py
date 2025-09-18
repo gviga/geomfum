@@ -1,6 +1,6 @@
 """geopext wrapper."""
 
-import geomstats.backend as gs
+import gs.backend as gs
 import geopext
 import numpy as np
 

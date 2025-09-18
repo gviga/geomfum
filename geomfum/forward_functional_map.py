@@ -2,7 +2,7 @@
 
 import abc
 
-import geomstats.backend as gs
+import gs.backend as gs
 import torch
 import torch.nn as nn
 
@@ -30,7 +30,7 @@ class ForwardFunctionalMap(abc.ABC, nn.Module):
         self.resolvent_gamma = resolvent_gamma
         self.bijective = bijective
         self.fmap_shape = fmap_shape
-        
+
     def _compute_functional_map(self, sdescr_a, sdescr_b, mask):
         """Compute the functional map between two shapes.
 

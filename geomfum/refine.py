@@ -3,7 +3,7 @@
 import abc
 import logging
 
-import geomstats.backend as gs
+import gs.backend as gs
 import scipy
 
 import geomfum.backend as xgs

@@ -1,4 +1,4 @@
-import geomstats.backend as gs
+import gs.backend as gs
 import scipy as _scipy
 import torch as _torch
 

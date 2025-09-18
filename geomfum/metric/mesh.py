@@ -2,7 +2,7 @@
 
 import abc
 
-import geomstats.backend as gs
+import gs.backend as gs
 import networkx as nx
 from scipy.sparse.csgraph import shortest_path
 import geomfum.backend as xgs

@@ -1,6 +1,6 @@
 import abc
 
-import geomstats.backend as gs
+import gs.backend as gs
 
 import geomfum.backend as xgs
 import geomfum.linalg as la

@@ -1,6 +1,6 @@
 """Python Optimal Trasport wrapper."""
 
-import geomstats.backend as gs
+import gs.backend as gs
 import ot
 
 import geomfum.backend as xgs

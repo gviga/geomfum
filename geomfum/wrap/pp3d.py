@@ -4,7 +4,7 @@ https://github.com/nmwsharp/potpourri3d
 by Nicholas Sharp.
 """
 
-import geomstats.backend as gs
+import gs.backend as gs
 import potpourri3d as pp3d
 
 from geomfum.metric.mesh import FinitePointSetMetric, _SingleDispatchMixins
