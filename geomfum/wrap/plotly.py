@@ -53,8 +53,13 @@ class PlotlyMeshPlotter(ShapePlotter):
         data["colorscale"] = self.colormap
         self._plotter.data[0].update(data)
         return self
-    
-    def highlight_vertices(self, coords, color='red', size=4,):
+
+    def highlight_vertices(
+        self,
+        coords,
+        color="red",
+        size=4,
+    ):
         """Highlight vertices on mesh.
 
         Parameters
@@ -66,14 +71,14 @@ class PlotlyMeshPlotter(ShapePlotter):
         size : int
             Size of the highlighted vertices.
         """
-        name = 'Highlighted_points'
+        name = "Highlighted_points"
         marker = go.Scatter3d(
             x=coords[:, 0],
             y=coords[:, 1],
             z=coords[:, 2],
-            mode='markers',
+            mode="markers",
             marker=dict(size=size, color=color),
-            name=name
+            name=name,
         )
         self._plotter.add_trace(marker)
         return self

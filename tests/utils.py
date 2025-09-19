@@ -1,6 +1,6 @@
 import random
 
-import geomstats.backend as gs
+import gs.backend as gs
 import numpy as np
 import pyvista as pv
 from polpo.preprocessing import Map

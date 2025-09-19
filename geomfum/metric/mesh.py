@@ -2,10 +2,9 @@
 
 import abc
 
-import geomstats.backend as gs
+import gs.backend as gs
 import networkx as nx
 from scipy.sparse.csgraph import shortest_path
-import geomfum.backend as xgs
 import networkx as nx
 
 from geomfum._registry import HeatDistanceMetricRegistry, WhichRegistryMixins
@@ -330,7 +329,7 @@ class GraphShortestPathMetric(_NxDijkstraMixins, FinitePointSetMetric):
         )
         indices = gs.asarray(list(dist_dict.keys()))
         distances = gs.asarray(list(dist_dict.values()))
-        sort_order = xgs.argsort(indices)
+        sort_order = gs.argsort(indices)
         return gs.asarray(list(distances[sort_order])), gs.asarray(
             list(indices[sort_order])
         )

@@ -1,6 +1,6 @@
 """Definition of point cloud."""
 
-import geomstats.backend as gs
+import gs.backend as gs
 
 from geomfum.io import load_pointcloud
 

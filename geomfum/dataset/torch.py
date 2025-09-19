@@ -5,14 +5,13 @@ import os
 import random
 import warnings
 
-import geomstats.backend as gs
+import gs.backend as gs
 import meshio
 import numpy as np
 import scipy
 import torch
 from torch.utils.data import Dataset
 
-import geomfum.backend as xgs
 from geomfum.metric.mesh import ScipyGraphShortestPathMetric
 from geomfum.shape.mesh import TriangleMesh
 
@@ -140,11 +139,11 @@ class ShapeDataset(Dataset):
 
             shape_data.update({"dist_matrix": gs.array(geod_distance_matrix)})
 
-        mesh.vertices = xgs.to_device(mesh.vertices, self.device)
-        mesh.faces = xgs.to_device(mesh.faces, self.device)
-        mesh.basis.full_vals = xgs.to_device(mesh.basis.full_vals, self.device)
-        mesh.basis.full_vecs = xgs.to_device(mesh.basis.full_vecs, self.device)
-        mesh.laplacian._mass_matrix = xgs.to_device(
+        mesh.vertices = gs.to_device(mesh.vertices, self.device)
+        mesh.faces = gs.to_device(mesh.faces, self.device)
+        mesh.basis.full_vals = gs.to_device(mesh.basis.full_vals, self.device)
+        mesh.basis.full_vecs = gs.to_device(mesh.basis.full_vecs, self.device)
+        mesh.laplacian._mass_matrix = gs.to_device(
             mesh.laplacian._mass_matrix, self.device
         )
 

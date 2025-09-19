@@ -31,7 +31,7 @@ dependencies = [
     "meshio",
     "pyfmaps",
     "torch",
-    "geomstats@git+https://github.com/geomstats/geomstats.git@main",
+    "gs@git+https://github.com/luisfpereira/gs.git@main",
 ]
 
 [project.optional-dependencies]

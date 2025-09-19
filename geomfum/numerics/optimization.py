@@ -2,7 +2,7 @@
 
 import logging
 
-import geomstats.backend as gs
+import gs.backend as gs
 import scipy
 from geomstats.numerics._common import result_to_backend_type
 

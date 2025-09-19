@@ -1,10 +1,9 @@
 """geopext wrapper."""
 
-import geomstats.backend as gs
 import geopext
+import gs.backend as gs
 import numpy as np
 
-import geomfum.backend as xgs
 from geomfum.laplacian import BaseLaplacianFinder
 
 
@@ -57,7 +56,7 @@ class GeopextMeshLaplacianFinder(BaseLaplacianFinder):
 
             values.append(-value)
 
-        stiffness_matrix = xgs.sparse.csc_matrix(
+        stiffness_matrix = gs.sparse.csc_matrix(
             gs.array([indices_i, indices_j]),
             values,
             shape=(shape.n_vertices, shape.n_vertices),
@@ -65,7 +64,7 @@ class GeopextMeshLaplacianFinder(BaseLaplacianFinder):
         )
 
         indices = range(shape.n_vertices)
-        mass_matrix = xgs.sparse.csc_matrix(
+        mass_matrix = gs.sparse.csc_matrix(
             gs.array([indices, indices]),
             mass_vec,
             shape=(shape.n_vertices, shape.n_vertices),
