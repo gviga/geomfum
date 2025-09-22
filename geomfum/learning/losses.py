@@ -355,16 +355,16 @@ class GroundTruthSupervisionLoss(nn.Module):
         super().__init__()
         self.weight = weight
 
-    required_inputs = ["fmap12", "fmap21", "mesh_a", "mesh_b", "corr_a", "corr_b"]
+    required_inputs = ["fmap12", "fmap21", "shape_a", "shape_b", "corr_a", "corr_b"]
 
-    def _compute_ground_truth_map(self, mesh_a, mesh_b, corr_a, corr_b):
+    def _compute_ground_truth_map(self, shape_a, shape_b, corr_a, corr_b):
         """Compute the ground truth functional maps.
 
         Parameters
         ----------
-        mesh_a : TriangleMesh
+        shape_a : TriangleMesh
             TriangleMesh object containing source shape information.
-        mesh_b : TriangleMesh
+        shape_b : TriangleMesh
             TriangleMesh object containing target shape information.
         corr_a : torch.Tensor
             Indices of source correspondences.
@@ -376,13 +376,13 @@ class GroundTruthSupervisionLoss(nn.Module):
         fmap12_gt ,fmap21_gt : torch.Tensor
             Ground truth functional maps from shape 1 to shape 2 and from shape 2 to shape 1.
         """
-        fmap12_gt = mesh_b.basis.pinv[:, corr_b] @ mesh_a.basis.vecs[corr_a, :]
+        fmap12_gt = shape_b.basis.pinv[:, corr_b] @ shape_a.basis.vecs[corr_a, :]
 
-        fmap21_gt = mesh_a.basis.pinv[:, corr_a] @ mesh_b.basis.vecs[corr_b, :]
+        fmap21_gt = shape_a.basis.pinv[:, corr_a] @ shape_b.basis.vecs[corr_b, :]
 
         return fmap12_gt, fmap21_gt
 
-    def forward(self, fmap12, fmap21, mesh_a, mesh_b, corr_a, corr_b):
+    def forward(self, fmap12, fmap21, shape_a, shape_b, corr_a, corr_b):
         """
         Forward pass.
 
@@ -392,9 +392,9 @@ class GroundTruthSupervisionLoss(nn.Module):
             Functional map tensor from shape 1 to shape 2 of shape (spectrum_size_b, spectrum_size_a).
         fmap21 : torch.Tensor
             Functional map tensor from shape 2 to shape 1 of shape (spectrum_size_a, spectrum_size_b).
-        mesh_a : TriangleMesh
+        shape_a : TriangleMesh
             TriangleMesh object containing source shape information.
-        mesh_b : TriangleMesh
+        shape_b : TriangleMesh
             TriangleMesh object containing target shape information.
         corr_a : torch.Tensor
             Indices of source correspondences.
@@ -408,7 +408,7 @@ class GroundTruthSupervisionLoss(nn.Module):
         """
         metric = SquaredFrobeniusLoss()
         fmap12_gt, fmap21_gt = self._compute_ground_truth_map(
-            mesh_a, mesh_b, corr_a, corr_b
+            shape_a, shape_b, corr_a, corr_b
         )
         return self.weight * metric(fmap12, fmap12_gt) + self.weight * metric(
             fmap21, fmap21_gt
