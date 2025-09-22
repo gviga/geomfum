@@ -1,6 +1,7 @@
 """Functional operators."""
 
 import abc
+
 import geomstats.backend as gs
 
 from geomfum._registry import (
@@ -223,7 +224,7 @@ class Gradient(FunctionalOperator):
 
     Parameters
     ----------
-    gradient_matrix : array-like, shape=[2*n_vertices, n_vertices]
+    gradient_matrix : array-like, shape=[n_vertices, n_vertices]
         Gradient matrix.
     """
 
@@ -239,7 +240,7 @@ class Gradient(FunctionalOperator):
 
         Returns
         -------
-        grad_op : xgs.sparse.csc_matrix, shape=[n_vertices, n_vertices]
+        grad_op : complex xgs.sparse.csc_matrix, shape=[n_vertices, n_vertices]
             Complex sparse matrix representing the gradient operator.
             The real part corresponds to the X component in the local tangent frame,
             and the imaginary part corresponds to the Y component.
@@ -266,13 +267,8 @@ class Gradient(FunctionalOperator):
             Gradient of the function at the vertices, where the last dimension
             contains the X and Y components in the local tangent frame.
         """
-        if self._gradient_matrix is None:
-            self.gradient_matrix
-        elif point.ndim == 2 and point.shape[1] == self._shape.n_vertices:
-            point = point.T
-
-        feat_gradX = self._gradient_matrix.real @ point
-        feat_gradY = self._gradient_matrix.imag @ point
+        feat_gradX = self.gradient_matrix.real @ point
+        feat_gradY = self.gradient_matrix.imag @ point
         return gs.stack((feat_gradX, feat_gradY), -1)
 
 
