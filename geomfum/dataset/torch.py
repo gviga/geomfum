@@ -19,7 +19,7 @@ from geomfum.shape import PointCloud, TriangleMesh
 
 
 class ShapeDataset(Dataset):
-    """General dataset for loading and preprocessing shape data (meshes or point clouds).
+    """General dataset for loading and preprocessing meshes or point clouds.
 
     Parameters
     ----------
