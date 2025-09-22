@@ -288,35 +288,27 @@ class DescriptorCommutativityLoss(nn.Module):
 
     def forward(self, fmap12, fmap21, desc_a, desc_b, shape_a, shape_b):
         """
-                        Forward pass.
+        Forward pass.
 
-                Parameters
-                ----------
-                fmap12 : torch.Tensor
-        <<<<<<<<< Temporary merge branch 1
-                    Functional map tensor from source to target shape, of shape (batch_size, dim_out, dim_in).
-                fmap12_sup : torch.Tensor
-                    Supervised functional map tensor from source to target shape, of shape (batch_size, dim_out, dim_in).
-        =========
-                    Functional map tensor from shape 1 to shape 2 of shape (spectrum_size_b, spectrum_size_a).
-                fmap21 : torch.Tensor
-                    Functional map tensor from shape 2 to shape 1 of shape (spectrum_size_a, spectrum_size_b).
-                desc_a : torch.Tensor
-                    Descriptors for shape A of shape (num_vertices_a, num_descriptors).
-                desc_b : torch.Tensor
-                    Descriptors for shape B of shape (num_vertices_b, num_descriptors).
-                shape_a : TriangleMesh or PointCloud
-                    TriangleMesh object containing source shape information.
-                shape_b : TriangleMesh or PointCloud
-                    TriangleMesh object containing target shape information.
-        >>>>>>>>> Temporary merge branch 2
+        Parameters
+        ----------
+        fmap12 : torch.Tensor
+            Functional map tensor from shape 1 to shape 2 of shape (spectrum_size_b, spectrum_size_a).
+        fmap21 : torch.Tensor
+            Functional map tensor from shape 2 to shape 1 of shape (spectrum_size_a, spectrum_size_b).
+        desc_a : torch.Tensor
+            Descriptors for shape A of shape (num_vertices_a, num_descriptors).
+        desc_b : torch.Tensor
+            Descriptors for shape B of shape (num_vertices_b, num_descriptors).
+        shape_a : TriangleMesh or PointCloud
+            TriangleMesh object containing source shape information.
+        shape_b : TriangleMesh or PointCloud
+            TriangleMesh object containing target shape information.
 
-                        Returns
-                        -------
-                        torch.Tensor
-                =======
-                >>>>>>> origin/main
-                            Scalar tensor representing the weighted descriptor commutativity loss.
+        Returns
+        -------
+        torch.Tensor
+            Scalar tensor representing the weighted descriptor commutativity loss.
         """
         metric = SquaredFrobeniusLoss()
 
