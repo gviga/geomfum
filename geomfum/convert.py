@@ -140,7 +140,7 @@ class P2pFromFmConverter(BaseP2pFromFmConverter):
         return p2p
 
 
-class SoftmaxNeighborFinder(NeighborFinder, nn.Module):
+class SoftmaxNeighborFinder(BaseNeighborFinder, nn.Module):
     """Softmax neighbor finder.
 
     Finds neighbors using softmax regularization.
