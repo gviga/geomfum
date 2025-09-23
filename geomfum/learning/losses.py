@@ -94,6 +94,7 @@ class OrthonormalityLoss(nn.Module):
     def __init__(self, weight=1):
         super().__init__()
         self.weight = weight
+        self.metric = SquaredFrobeniusLoss()
 
     required_inputs = ["fmap12", "fmap21"]
 
@@ -113,12 +114,11 @@ class OrthonormalityLoss(nn.Module):
         torch.Tensor
             Scalar tensor representing the weighted mean squared Frobenius norm between C^T C and the identity matrix.
         """
-        metric = SquaredFrobeniusLoss()
         eye_b = torch.eye(fmap12.shape[0], device=fmap12.device)
         eye_a = torch.eye(fmap21.shape[1], device=fmap21.device)
         return self.weight * (
-            metric(torch.mm(fmap12.T, fmap12), eye_b)
-            + metric(torch.mm(fmap21.T, fmap21), eye_a)
+            self.metric(torch.mm(fmap12.T, fmap12), eye_b)
+            + self.metric(torch.mm(fmap21.T, fmap21), eye_a)
         )
 
 
@@ -135,6 +135,7 @@ class BijectivityLoss(nn.Module):
     def __init__(self, weight=1):
         super().__init__()
         self.weight = weight
+        self.metric = SquaredFrobeniusLoss()
 
     required_inputs = ["fmap12", "fmap21"]
 
@@ -154,12 +155,11 @@ class BijectivityLoss(nn.Module):
         torch.Tensor
             Scalar tensor representing the weighted mean squared Frobenius norm between fmap12 fmap21 and the identity matrix, and between fmap21 fmap12 and the identity matrix.
         """
-        metric = SquaredFrobeniusLoss()
         eye_b = torch.eye(fmap12.shape[0], device=fmap12.device)
         eye_a = torch.eye(fmap21.shape[0], device=fmap21.device)
-        return self.weight * metric(
+        return self.weight * self.metric(
             torch.mm(fmap12, fmap21), eye_b
-        ) + self.weight * metric(torch.mm(fmap21, fmap12), eye_a)
+        ) + self.weight * self.metric(torch.mm(fmap21, fmap12), eye_a)
 
 
 class LaplacianCommutativityLoss(nn.Module):
@@ -175,6 +175,7 @@ class LaplacianCommutativityLoss(nn.Module):
     def __init__(self, weight=1):
         super().__init__()
         self.weight = weight
+        self.metric = SquaredFrobeniusLoss()
 
     required_inputs = ["fmap12", "shape_a", "shape_b"]
 
@@ -196,8 +197,7 @@ class LaplacianCommutativityLoss(nn.Module):
         torch.Tensor
             Scalar tensor representing the weighted squared Frobenius norm of the Laplacian commutativity error.
         """
-        metric = SquaredFrobeniusLoss()
-        return self.weight * metric(
+        return self.weight * self.metric(
             torch.einsum("bc,c->bc", fmap12, shape_b.basis.vals),
             torch.einsum("b,bc->bc", shape_a.basis.vals, fmap12),
         )
@@ -216,7 +216,7 @@ class Fmap_Supervision(nn.Module):
     def __init__(self, weight=1):
         super().__init__()
         self.weight = weight
-
+        self.metric=SquaredFrobeniusLoss()
     required_inputs = ["fmap12", "fmap12_sup"]
 
     def forward(self, fmap12, fmap12_sup):
@@ -235,8 +235,7 @@ class Fmap_Supervision(nn.Module):
         torch.Tensor
             Scalar tensor representing the weighted squared Frobenius norm of the difference between predicted and supervised functional maps.
         """
-        metric = SquaredFrobeniusLoss()
-        return self.weight * metric(fmap12, fmap12_sup)
+        return self.weight * self.metric(fmap12, fmap12_sup)
 
 
 class DescriptorCommutativityLoss(nn.Module):
@@ -256,6 +255,7 @@ class DescriptorCommutativityLoss(nn.Module):
     def __init__(self, weight=1):
         super().__init__()
         self.weight = weight
+        self.metric = SquaredFrobeniusLoss()
 
     required_inputs = ["fmap12", "fmap21", "desc_a", "desc_b", "shape_a", "shape_b"]
 
@@ -310,7 +310,6 @@ class DescriptorCommutativityLoss(nn.Module):
         torch.Tensor
             Scalar tensor representing the weighted descriptor commutativity loss.
         """
-        metric = SquaredFrobeniusLoss()
 
         # Compute multiplication operators for each descriptor
         oper_a = self._compute_multiplication_operators(shape_a.basis, desc_a)
@@ -323,7 +322,7 @@ class DescriptorCommutativityLoss(nn.Module):
             right_side = torch.mm(
                 oper_b_i, fmap12
             )  # (spectrum_size_b, spectrum_size_a)
-            loss_12 = metric(left_side, right_side)
+            loss_12 = self.metric(left_side, right_side)
 
             # For fmap21: C21 @ M_b = M_a @ C21
             left_side_21 = torch.mm(
@@ -332,7 +331,7 @@ class DescriptorCommutativityLoss(nn.Module):
             right_side_21 = torch.mm(
                 oper_a_i, fmap21
             )  # (spectrum_size_a, spectrum_size_b)
-            loss_21 = metric(left_side_21, right_side_21)
+            loss_21 = self.metric(left_side_21, right_side_21)
 
             total_loss += loss_12 + loss_21
 
@@ -354,6 +353,7 @@ class GroundTruthSupervisionLoss(nn.Module):
     def __init__(self, weight=1):
         super().__init__()
         self.weight = weight
+        self.metric = SquaredFrobeniusLoss()
 
     required_inputs = ["fmap12", "fmap21", "shape_a", "shape_b", "corr_a", "corr_b"]
 
@@ -406,11 +406,10 @@ class GroundTruthSupervisionLoss(nn.Module):
         torch.Tensor
             Scalar tensor representing the weighted mean squared Frobenius norm between fmap12 and the ground truth functional map, and between fmap21 and the ground truth functional map.
         """
-        metric = SquaredFrobeniusLoss()
         fmap12_gt, fmap21_gt = self._compute_ground_truth_map(
             shape_a, shape_b, corr_a, corr_b
         )
-        return self.weight * metric(fmap12, fmap12_gt) + self.weight * metric(
+        return self.weight * self.metric(fmap12, fmap12_gt) + self.weight * self.metric(
             fmap21, fmap21_gt
         )
 
@@ -428,6 +427,7 @@ class FmapDescriptorsSupervisionLoss(nn.Module):
     def __init__(self, weight=1):
         super().__init__()
         self.weight = weight
+        self.metric=SquaredFrobeniusLoss()
 
     required_inputs = ["fmap12", "fmap21", "fmap12_desc", "fmap21_desc"]
 
@@ -451,8 +451,7 @@ class FmapDescriptorsSupervisionLoss(nn.Module):
         torch.Tensor
             Scalar tensor representing the weighted mean squared Frobenius norm between fmap12 and fmap12_desc, and between fmap21 and fmap21_desc.
         """
-        metric = SquaredFrobeniusLoss()
-        return self.weight * metric(fmap12, fmap12_desc) + self.weight * metric(
+        return self.weight * self.metric(fmap12, fmap12_desc) + self.weight * self.metric(
             fmap21, fmap21_desc
         )
 
