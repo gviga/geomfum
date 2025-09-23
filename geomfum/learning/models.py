@@ -158,8 +158,8 @@ class RobustFMNet(BaseModel):
         desc_a = self.descriptors_module(mesh_a)
         desc_b = self.descriptors_module(mesh_b)
 
-        P12 = self.neighbor_finder.softmax_matrix(desc_b.T, desc_a.T)
-        P21 = self.neighbor_finder.softmax_matrix(desc_a.T, desc_b.T)
+        P12 = self.neighbor_finder.softmax_matrix(desc_a.T, desc_b.T)
+        P21 = self.neighbor_finder.softmax_matrix(desc_b.T, desc_a.T)
         fmap12, fmap21 = self.fmap_module(mesh_a, mesh_b, desc_a, desc_b)
         p2p12 = p2p21 = None
 

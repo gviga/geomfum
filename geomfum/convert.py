@@ -207,10 +207,10 @@ class SoftmaxNeighborFinder(BaseNeighborFinder, nn.Module):
 
         Returns
         -------
-        P : array-like, shape=[n_points_y, n_points_x]
+        P : array-like, shape=[n_points_x, n_points_y]
             Permutation matrix, where each row sums to 1.
         """
-        similarity = torch.mm(Y, X.T)
+        similarity = torch.mm( X, Y.T)
 
         P = torch.exp(
             similarity / self.tau
