@@ -114,8 +114,8 @@ class OrthonormalityLoss(nn.Module):
         torch.Tensor
             Scalar tensor representing the weighted mean squared Frobenius norm between C^T C and the identity matrix.
         """
-        eye_b = torch.eye(fmap12.shape[0], device=fmap12.device)
-        eye_a = torch.eye(fmap21.shape[1], device=fmap21.device)
+        eye_b = torch.eye(fmap12.shape[1], device=fmap12.device)
+        eye_a = torch.eye(fmap21.shape[0], device=fmap21.device)
         return self.weight * (
             self.metric(torch.mm(fmap12.T, fmap12), eye_b)
             + self.metric(torch.mm(fmap21.T, fmap21), eye_a)
