@@ -7,8 +7,9 @@ References
 """
 
 import abc
-import geomstats.backend as gs
+
 import geomfum.backend as xgs
+import geomstats.backend as gs
 import torch.nn as nn
 
 from geomfum.convert import (
