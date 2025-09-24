@@ -21,7 +21,8 @@ followed by
 
 ::
     
-    pip install geomfum@git+https://github.com/3diglab/geomfum.git@main
+    pip install geomstats@git+https://github.com/geomstats/geomstats.git@main
+
 
 
 Or the classic pipeline: ``clone + pip install``.
