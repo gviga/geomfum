@@ -114,7 +114,7 @@ class RobustFMNet(BaseModel):
         self,
         feature_extractor=FeatureExtractor.from_registry(which="diffusionnet"),
         fmap_module=ForwardFunctionalMap(),
-        converter=P2pFromFmConverter(SoftmaxNeighborFinder(0.07)),
+        converter=P2pFromFmConverter(SoftmaxNeighborFinder(n_neighbors=1,tau=0.07)),
     ):
         super(RobustFMNet, self).__init__()
 
