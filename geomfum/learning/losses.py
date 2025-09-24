@@ -177,9 +177,9 @@ class LaplacianCommutativityLoss(nn.Module):
         self.weight = weight
         self.metric = SquaredFrobeniusLoss()
 
-    required_inputs = ["fmap12", "shape_a", "shape_b"]
+    required_inputs = ["fmap12", "fmap21", "shape_a", "shape_b"]
 
-    def forward(self, fmap12, shape_a, shape_b):
+    def forward(self, fmap12, fmap21, shape_a, shape_b):
         """
         Forward pass.
 
@@ -200,6 +200,9 @@ class LaplacianCommutativityLoss(nn.Module):
         return self.weight * self.metric(
             torch.einsum("bc,c->bc", fmap12, shape_b.basis.vals),
             torch.einsum("b,bc->bc", shape_a.basis.vals, fmap12),
+        ) + self.weight * self.metric(
+            torch.einsum("bc,c->bc", fmap21, shape_a.basis.vals),
+            torch.einsum("b,bc->bc", shape_b.basis.vals, fmap21),
         )
 
 
@@ -216,7 +219,8 @@ class Fmap_Supervision(nn.Module):
     def __init__(self, weight=1):
         super().__init__()
         self.weight = weight
-        self.metric=SquaredFrobeniusLoss()
+        self.metric = SquaredFrobeniusLoss()
+
     required_inputs = ["fmap12", "fmap12_sup"]
 
     def forward(self, fmap12, fmap12_sup):
@@ -427,7 +431,7 @@ class FmapDescriptorsSupervisionLoss(nn.Module):
     def __init__(self, weight=1):
         super().__init__()
         self.weight = weight
-        self.metric=SquaredFrobeniusLoss()
+        self.metric = SquaredFrobeniusLoss()
 
     required_inputs = ["fmap12", "fmap21", "fmap12_desc", "fmap21_desc"]
 
@@ -451,9 +455,9 @@ class FmapDescriptorsSupervisionLoss(nn.Module):
         torch.Tensor
             Scalar tensor representing the weighted mean squared Frobenius norm between fmap12 and fmap12_desc, and between fmap21 and fmap21_desc.
         """
-        return self.weight * self.metric(fmap12, fmap12_desc) + self.weight * self.metric(
-            fmap21, fmap21_desc
-        )
+        return self.weight * self.metric(
+            fmap12, fmap12_desc
+        ) + self.weight * self.metric(fmap21, fmap21_desc)
 
 
 class GeodesicError(nn.Module):
