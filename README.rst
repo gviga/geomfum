@@ -15,7 +15,7 @@ Or
 
 ::
     
-pip install geomfum
+    pip install geomfum
 
 followed by 
 
