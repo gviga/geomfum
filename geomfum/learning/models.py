@@ -7,6 +7,7 @@ References
 """
 
 import abc
+import geomstats.backend as gs
 import geomfum.backend as xgs
 import torch.nn as nn
 
@@ -114,7 +115,7 @@ class RobustFMNet(BaseModel):
         self,
         feature_extractor=FeatureExtractor.from_registry(which="diffusionnet"),
         fmap_module=ForwardFunctionalMap(),
-        converter=P2pFromFmConverter(SoftmaxNeighborFinder(n_neighbors=1,tau=0.07)),
+        converter=P2pFromFmConverter(SoftmaxNeighborFinder(n_neighbors=1, tau=0.07)),
     ):
         super(RobustFMNet, self).__init__()
 
@@ -158,9 +159,14 @@ class RobustFMNet(BaseModel):
         desc_a = self.descriptors_module(mesh_a)
         desc_b = self.descriptors_module(mesh_b)
 
+        fmap12, fmap21 = self.fmap_module(mesh_a, mesh_b, desc_a, desc_b)
+
+        desc_a = desc_a / gs.linalg.norm(desc_a, axis=0, keepdims=True)
+        desc_b = desc_b / gs.linalg.norm(desc_b, axis=0, keepdims=True)
+
         P12 = self.neighbor_finder.softmax_matrix(desc_a.T, desc_b.T)
         P21 = self.neighbor_finder.softmax_matrix(desc_b.T, desc_a.T)
-        fmap12, fmap21 = self.fmap_module(mesh_a, mesh_b, desc_a, desc_b)
+
         p2p12 = p2p21 = None
 
         fmap21_desc = mesh_a.basis.pinv @ (P12 @ mesh_b.basis.vecs)
