@@ -102,7 +102,7 @@ List of Implemented Papers
 
 Acknowledgement
 ---------------
-We thank the geometry processing and functional maps community for their foundational research and ongoing contributions that inspired this work, particularly open-source libraries on functional maps such as pyFM (RobinMagnet), FMNet (pvnieo), and Unsupervised-Learning-of-Robust-Spectral-Shape-Matching (dongliangcao), which provided valuable implementations and examples.
+We thank the geometry processing and functional maps community for their foundational research and ongoing contributions that inspired this work, particularly open-source libraries on functional maps such as pyFM (RobinMagnet), FMNet (pvnieo), and Unsupervised-Learning-of-Robust-Spectral-Shape-Matching (dongliangcao), which provided valuable implementations and examples. We tried our best, referencing all relevant works in the library to give credit to researchers and developers; however, we acknowledge that we could have missed some! Please contact us and propose a change if you want recognition and think something is missing!
 
 If you use Geomfum, please cite the `Software <https://doi.org/10.5281/zenodo.17194577>`_ to give recognition to any contributor of the project.
 
