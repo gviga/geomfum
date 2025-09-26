@@ -76,7 +76,7 @@ class RobustPointCloudLaplacianFinder(BaseLaplacianFinder):
             Diagonal lumped mass matrix.
         """
         stiffness_matrix, mass_matrix = robust_laplacian.point_cloud_laplacian(
-            shape.vertices,
+            gs.to_numpy(xgs.to_device(shape.vertices, "cpu")),
             mollify_factor=self.mollify_factor,
             n_neighbors=self.n_neighbors,
         )
