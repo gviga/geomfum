@@ -79,7 +79,7 @@ Please follow our `contribution guidelines <https://dig-air.github.io/geomfum.gi
 
 Community
 ---------
-Join our Discord Server! https://discord.gg/6sYmEbUp
+Join our Discord Server! https://discord.gg/THHku2ckJs
 
 
 List of Implemented Papers
