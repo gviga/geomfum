@@ -8,7 +8,7 @@ import geomfum.backend as xgs
 from geomfum.numerics.graph import single_source_partial_dijkstra_path_length
 
 from ._base import FinitePointSetMetric, VertexEuclideanMetric, _SingleDispatchMixins
-
+from geomfum._registry import PreciseGeodesicDistanceMetricRegistry, WhichRegistryMixins
 
 def to_nx_edge_graph(shape):
     """Convert a shape to a networkx graph.
@@ -245,3 +245,15 @@ class ScipyGraphShortestPathMetric(_ScipyShortestPathMixins, FinitePointSetMetri
             indices=source_point,
         )
         return gs.array(list(dist)), gs.arange(len(dist))
+
+
+class PreciseGeodesicDistanceMetric(WhichRegistryMixins):
+    """Precise geodesic distance metric on mesh.
+
+    Parameters
+    ----------
+    shape : Shape
+        Shape.
+    """
+
+    _Registry = PreciseGeodesicDistanceMetricRegistry

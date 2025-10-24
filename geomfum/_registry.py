@@ -370,6 +370,10 @@ class HeatDistanceMetricRegistry(NestedRegistry):
         False: _PointSetHeatDistanceMetricRegistry,
     }
 
+class PreciseGeodesicDistanceMetricRegistry(Registry):
+    has_internal = False
+    MAP = {}
+
 
 def _create_register_funcs(module):
     """Create ``register`` functions for each class registry in this module.

@@ -14,6 +14,7 @@ from geomfum._registry import (
     register_point_cloud_plotter,
     register_poisson_sampler,
     register_wave_kernel_signature,
+    register_precise_geodesic_distance_metric
 )
 from geomfum._utils import has_package
 
@@ -96,7 +97,6 @@ register_point_cloud_plotter(
     "polyscope", "PsPointCloudPlotter", requires="polyscope", as_default=False
 )
 
-
 register_feature_extractor(
     "pointnet", "PointnetFeatureExtractor", requires="torch", as_default=False
 )
@@ -125,6 +125,13 @@ register_heat_distance_metric(
     False,
     "pp3d",
     "Pp3dPointSetHeatDistanceMetric",
+    requires="potpourri3d",
+    as_default=True,
+)
+
+register_precise_geodesic_distance_metric(
+    "pp3d",
+    "Pp3dEdgeFlipGeodesicMetric",
     requires="potpourri3d",
     as_default=True,
 )
