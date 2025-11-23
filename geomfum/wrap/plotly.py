@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 
 from geomfum.plot import ShapePlotter
 from geomfum.shape.convert import to_go_mesh3d, to_go_pointcloud
+from matplotlib import colors as mcolors
 
 
 class PlotlyShapePlotter(ShapePlotter):
@@ -144,6 +145,13 @@ class PlotlyMeshPlotter(PlotlyShapePlotter):
         self._plotter.data[0].update(data)
         return self
 
+    def set_vertex_colors(self, colors):
+        """Set vertex colors on mesh."""
+        data = self._plotter.data[0]
+        data["vertexcolor"] = colors
+        self._plotter.data[0].update(data)
+        return self
+
 
 class PlotlyPointCloudPlotter(PlotlyShapePlotter):
     """Plotting object to display point clouds."""
@@ -174,5 +182,13 @@ class PlotlyPointCloudPlotter(PlotlyShapePlotter):
         data = self._plotter.data[0]
         data["marker"]["color"] = scalars
         data["marker"]["colorscale"] = self.colormap
+        self._plotter.data[0].update(data)
+        return self
+
+    def set_vertex_colors(self, colors):
+        """Set vertex colors on point cloud."""
+        data = self._plotter.data[0]
+        colors_hex = [mcolors.rgb2hex(color) for color in colors]
+        data["marker"]["color"] = colors_hex
         self._plotter.data[0].update(data)
         return self

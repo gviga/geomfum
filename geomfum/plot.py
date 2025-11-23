@@ -9,8 +9,8 @@ import abc
 
 from geomfum._registry import (
     MeshPlotterRegistry,
-    WhichRegistryMixins,
     PointCloudPlotterRegistry,
+    WhichRegistryMixins,
 )
 
 
@@ -31,6 +31,10 @@ class ShapePlotter(abc.ABC):
 
     def highlight_vertices(self, coords, color, size):
         """Highlight vertices on mesh."""
+        raise NotImplementedError("Not implemented for this plotter.")
+
+    def set_vertex_colors(self, colors):
+        """Set vertex colors on mesh."""
         raise NotImplementedError("Not implemented for this plotter.")
 
 
