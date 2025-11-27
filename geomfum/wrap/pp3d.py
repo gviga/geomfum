@@ -4,7 +4,7 @@ https://github.com/nmwsharp/potpourri3d
 by Nicholas Sharp.
 """
 
-import gs.backend as gs
+import gsops.backend as gs
 import potpourri3d as pp3d
 
 

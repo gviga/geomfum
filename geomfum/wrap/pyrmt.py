@@ -1,6 +1,6 @@
 """pyRMT wrapper."""
 
-import gs.backend as gs
+import gsops.backend as gs
 import numpy as np
 from PyRMT import RMTMesh
 

@@ -1,6 +1,6 @@
 """Python Optimal Trasport wrapper."""
 
-import gs.backend as gs
+import gsops.backend as gs
 import ot
 
 from geomfum.convert import BaseNeighborFinder

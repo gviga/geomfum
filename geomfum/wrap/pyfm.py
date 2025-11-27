@@ -1,6 +1,6 @@
 """pyFM wrapper."""
 
-import gs.backend as gs
+import gsops.backend as gs
 import numpy as np
 import pyFM.mesh
 import pyFM.mesh.geometry

@@ -3,7 +3,7 @@
 import abc
 import logging
 
-import gs.backend as gs
+import gsops.backend as gs
 import scipy
 
 from geomfum.convert import (

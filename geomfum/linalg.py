@@ -1,6 +1,6 @@
 """Linear algebra utils."""
 
-import gs.backend as gs
+import gsops.backend as gs
 
 
 def _prefix_with_ellipsis(string):

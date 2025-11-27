@@ -1,6 +1,6 @@
 """Module containing metrics to calculate distances on a TriangleMesh."""
 
-import gs.backend as gs
+import gsops.backend as gs
 import networkx as nx
 from scipy.sparse.csgraph import shortest_path
 import networkx as nx

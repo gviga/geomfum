@@ -1,6 +1,6 @@
 """Definition of triangle mesh."""
 
-import gs.backend as gs
+import gsops.backend as gs
 
 from geomfum.io import load_mesh
 from geomfum.metric import HeatDistanceMetric

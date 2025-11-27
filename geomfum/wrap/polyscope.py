@@ -1,6 +1,6 @@
 """Wraps polyscope functions."""
 
-import gs.backend as gs
+import gsops.backend as gs
 import polyscope as ps
 
 from geomfum.plot import ShapePlotter

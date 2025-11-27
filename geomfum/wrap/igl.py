@@ -1,6 +1,6 @@
 """igl wrapper."""
 
-import gs.backend as gs
+import gsops.backend as gs
 import igl
 
 from geomfum.laplacian import BaseLaplacianFinder

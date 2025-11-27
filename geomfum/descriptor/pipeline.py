@@ -2,7 +2,7 @@
 
 import abc
 
-import gs.backend as gs
+import gsops.backend as gs
 import torch
 
 import geomfum.linalg as la

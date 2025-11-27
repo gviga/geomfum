@@ -1,4 +1,4 @@
-import gs.backend as gs
+import gsops.backend as gs
 import scipy
 
 

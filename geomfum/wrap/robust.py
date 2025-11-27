@@ -1,6 +1,6 @@
 """robust_laplacian wrapper."""
 
-import gs.backend as gs
+import gsops.backend as gs
 import robust_laplacian
 from geomfum.laplacian import BaseLaplacianFinder
 

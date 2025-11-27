@@ -5,7 +5,7 @@ import os
 import random
 import warnings
 
-import gs.backend as gs
+import gsops.backend as gs
 import meshio
 import numpy as np
 import scipy

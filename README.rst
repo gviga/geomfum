@@ -56,7 +56,7 @@ and in the Python3 code:
 
 ::
 
-    import gs.backend as gs
+    import gsops.backend as gs
 
 Contributions
 -------------

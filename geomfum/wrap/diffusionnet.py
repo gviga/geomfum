@@ -11,7 +11,7 @@ https://arxiv.org/abs/2012.00888
 
 """
 
-import gs.backend as gs
+import gsops.backend as gs
 import torch
 import torch.nn as nn
 

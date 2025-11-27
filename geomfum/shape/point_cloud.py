@@ -1,6 +1,6 @@
 """Definition of point cloud."""
 
-import gs.backend as gs
+import gsops.backend as gs
 import sklearn.neighbors as neighbors
 
 
