@@ -2,7 +2,7 @@
 
 import abc
 
-import geomstats.backend as gs
+import gsops.backend as gs
 
 from geomfum._registry import (
     FaceDivergenceOperatorRegistry,
@@ -240,7 +240,7 @@ class Gradient(FunctionalOperator):
 
         Returns
         -------
-        grad_op : complex xgs.sparse.csc_matrix, shape=[n_vertices, n_vertices]
+        grad_op : complex gs.sparse.csc_matrix, shape=[n_vertices, n_vertices]
             Complex sparse matrix representing the gradient operator.
             The real part corresponds to the X component in the local tangent frame,
             and the imaginary part corresponds to the Y component.

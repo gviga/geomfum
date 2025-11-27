@@ -31,7 +31,7 @@ dependencies = [
     "meshio",
     "pyfmaps",
     "torch",
-    "gs@git+https://github.com/luisfpereira/gs.git@main",
+    "gsops",
 ]
 
 [project.optional-dependencies]

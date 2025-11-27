@@ -170,7 +170,7 @@ class ShapeDataset(Dataset):
 
         # Only move faces to device for meshes
         if self.shape_type == "mesh":
-            shape.faces = xgs.to_device(shape.faces, self.device)
+            shape.faces = gs.to_device(shape.faces, self.device)
 
         shape_data.update({"shape": shape})
 
