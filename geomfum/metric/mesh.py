@@ -1,10 +1,10 @@
 """Module containing metrics to calculate distances on a TriangleMesh."""
 
-import geomstats.backend as gs
+import gsops.backend as gs
 import networkx as nx
 from scipy.sparse.csgraph import shortest_path
+import networkx as nx
 
-import geomfum.backend as xgs
 from geomfum.numerics.graph import single_source_partial_dijkstra_path_length
 
 from ._base import FinitePointSetMetric, VertexEuclideanMetric, _SingleDispatchMixins
@@ -30,7 +30,9 @@ def to_nx_edge_graph(shape):
     weighted_edges = [
         (vertex_a_, vertex_b_, length)
         for vertex_a_, vertex_b_, length in zip(
-            gs.to_numpy(vertex_a), gs.to_numpy(vertex_b), gs.to_numpy(lengths)
+            gs.to_numpy(gs.to_device(vertex_a, "cpu")),
+            gs.to_numpy(gs.to_device(vertex_b, "cpu")),
+            gs.to_numpy(gs.to_device(lengths, "cpu")),
         )
     ]
 
@@ -136,7 +138,7 @@ class GraphShortestPathMetric(_NxDijkstraMixins, FinitePointSetMetric):
         )
         indices = gs.asarray(list(dist_dict.keys()))
         distances = gs.asarray(list(dist_dict.values()))
-        sort_order = xgs.argsort(indices)
+        sort_order = gs.argsort(indices)
         return gs.asarray(list(distances[sort_order])), gs.asarray(
             list(indices[sort_order])
         )

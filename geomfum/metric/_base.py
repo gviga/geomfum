@@ -2,7 +2,7 @@
 
 import abc
 
-import geomstats.backend as gs
+import gsops.backend as gs
 
 from geomfum._registry import (
     HeatDistanceMetricRegistry,

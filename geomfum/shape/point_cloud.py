@@ -1,9 +1,10 @@
 """Definition of point cloud."""
 
-import geomstats.backend as gs
+import gsops.backend as gs
 import sklearn.neighbors as neighbors
 
-import geomfum.backend as xgs
+
+import gsops.backend as gs
 from geomfum.io import load_pointcloud
 from geomfum.metric import HeatDistanceMetric
 from geomfum.shape.shape_utils import (
@@ -76,7 +77,7 @@ class PointCloud(Shape):
             - 'nbrs_model': sklearn.neighbors.NearestNeighbors - fitted model for reuse
         """
         if self._knn_graph is None:
-            vertices_np = gs.to_numpy(xgs.to_device(self.vertices, "cpu"))
+            vertices_np = gs.to_numpy(gs.to_device(self.vertices, "cpu"))
 
             neigs = neighbors.NearestNeighbors(
                 n_neighbors=self.n_neighbors, algorithm="kd_tree"

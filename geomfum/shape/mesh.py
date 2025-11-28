@@ -1,8 +1,7 @@
 """Definition of triangle mesh."""
 
-import geomstats.backend as gs
+import gsops.backend as gs
 
-import geomfum.backend as xgs
 from geomfum.io import load_mesh
 from geomfum.metric import HeatDistanceMetric
 from geomfum.operator import (
@@ -202,16 +201,16 @@ class TriangleMesh(Shape):
             vind012 = gs.concatenate(
                 [self.faces[:, 0], self.faces[:, 1], self.faces[:, 2]]
             )
-            zeros = xgs.to_device(gs.zeros(len(vind012)), device)
+            zeros = gs.to_device(gs.zeros(len(vind012)), device)
 
             normals_repeated = gs.vstack([self.face_normals] * 3)
-            vertex_normals = xgs.to_device(gs.zeros_like(self.vertices), device)
+            vertex_normals = gs.to_device(gs.zeros_like(self.vertices), device)
             for c in range(3):
                 normals = normals_repeated[:, c]
 
                 vertex_normals[:, c] = gs.asarray(
-                    xgs.sparse.to_dense(
-                        xgs.sparse.coo_matrix(
+                    gs.sparse.to_dense(
+                        gs.sparse.coo_matrix(
                             gs.stack((vind012, zeros)),
                             normals,
                             shape=(self.n_vertices, 1),
@@ -259,7 +258,7 @@ class TriangleMesh(Shape):
             gs.broadcast_to(gs.expand_dims(area, axis=-1), (self.n_faces, 3)),
             (-1,),
         )
-        incident_areas = xgs.scatter_sum_1d(
+        incident_areas = gs.scatter_sum_1d(
             index=id_vertices,
             src=val,
         )

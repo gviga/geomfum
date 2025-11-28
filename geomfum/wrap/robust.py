@@ -1,9 +1,8 @@
 """robust_laplacian wrapper."""
 
-import geomstats.backend as gs
+import gsops.backend as gs
 import robust_laplacian
 
-import geomfum.backend as xgs
 from geomfum.laplacian import BaseLaplacianFinder
 
 
@@ -35,12 +34,12 @@ class RobustMeshLaplacianFinder(BaseLaplacianFinder):
             Diagonal lumped mass matrix.
         """
         stiffness_matrix, mass_matrix = robust_laplacian.mesh_laplacian(
-            gs.to_numpy(xgs.to_device(shape.vertices, "cpu")),
-            gs.to_numpy(xgs.to_device(shape.faces, "cpu")),
+            gs.to_numpy(gs.to_device(shape.vertices, "cpu")),
+            gs.to_numpy(gs.to_device(shape.faces, "cpu")),
             mollify_factor=self.mollify_factor,
         )
 
-        return xgs.sparse.from_scipy_csc(stiffness_matrix), xgs.sparse.from_scipy_csc(
+        return gs.sparse.from_scipy_csc(stiffness_matrix), gs.sparse.from_scipy_csc(
             mass_matrix
         )
 
@@ -76,11 +75,11 @@ class RobustPointCloudLaplacianFinder(BaseLaplacianFinder):
             Diagonal lumped mass matrix.
         """
         stiffness_matrix, mass_matrix = robust_laplacian.point_cloud_laplacian(
-            shape.vertices,
+            gs.to_numpy(gs.to_device(shape.vertices, "cpu")),
             mollify_factor=self.mollify_factor,
             n_neighbors=self.n_neighbors,
         )
 
-        return xgs.sparse.from_scipy_csc(stiffness_matrix), xgs.sparse.from_scipy_csc(
+        return gs.sparse.from_scipy_csc(stiffness_matrix), gs.sparse.from_scipy_csc(
             mass_matrix
         )
