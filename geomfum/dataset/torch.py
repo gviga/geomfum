@@ -5,14 +5,13 @@ import os
 import random
 import warnings
 
-import geomstats.backend as gs
+import gsops.backend as gs
 import meshio
 import numpy as np
 import scipy
 import torch
 from torch.utils.data import Dataset
 
-import geomfum.backend as xgs
 from geomfum.metric import VertexEuclideanMetric
 from geomfum.metric.mesh import ScipyGraphShortestPathMetric
 from geomfum.shape import PointCloud, TriangleMesh
@@ -162,16 +161,16 @@ class ShapeDataset(Dataset):
             shape_data.update({"dist_matrix": gs.array(geod_distance_matrix)})
 
         # Move shape data to device
-        shape.vertices = xgs.to_device(shape.vertices, self.device)
-        shape.basis.full_vals = xgs.to_device(shape.basis.full_vals, self.device)
-        shape.basis.full_vecs = xgs.to_device(shape.basis.full_vecs, self.device)
-        shape.laplacian._mass_matrix = xgs.to_device(
+        shape.vertices = gs.to_device(shape.vertices, self.device)
+        shape.basis.full_vals = gs.to_device(shape.basis.full_vals, self.device)
+        shape.basis.full_vecs = gs.to_device(shape.basis.full_vecs, self.device)
+        shape.laplacian._mass_matrix = gs.to_device(
             shape.laplacian._mass_matrix, self.device
         )
 
         # Only move faces to device for meshes
         if self.shape_type == "mesh":
-            shape.faces = xgs.to_device(shape.faces, self.device)
+            shape.faces = gs.to_device(shape.faces, self.device)
 
         shape_data.update({"shape": shape})
 

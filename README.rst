@@ -56,8 +56,7 @@ and in the Python3 code:
 
 ::
 
-    import geomstats.backend as gs
-    import geomfum.backend as xgs
+    import gsops.backend as gs
 
 Contributions
 -------------

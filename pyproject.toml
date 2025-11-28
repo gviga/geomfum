@@ -31,7 +31,7 @@ dependencies = [
     "meshio",
     "pyfmaps",
     "torch",
-    "geomstats@git+https://github.com/geomstats/geomstats.git@main",
+    "gsops",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +47,7 @@ test-scripts = ["nbformat", "nbconvert", "ipykernel", "ipython", "pyvista", "plo
 test = [
     "pytest",
     "polpo@git+https://github.com/geometric-intelligence/polpo.git@main",
+    "geomstats",
     "geomfum[opt,test-scripts,plotting-all]",
 ]
 plotly = ["plotly", "nbformat"]

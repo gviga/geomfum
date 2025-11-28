@@ -3,7 +3,7 @@
 import abc
 import logging
 
-import geomstats.backend as gs
+import gsops.backend as gs
 
 from geomfum.operator import Gradient, Laplacian
 
