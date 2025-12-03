@@ -102,7 +102,7 @@ To run these tutorials:
 1. **Install GeomFuM with all dependencies**:
    .. code-block:: bash
 
-       pip install geomfum[opt,test-scripts,plotting-all]@git+https://github.com/DiG-AIR/geomfum.git@main
+       pip install geomfum[opt,test-scripts,plotting-all]@git+https://github.com/3diglab/geomfum.git@main
 
 2. **Start Jupyter**:
    .. code-block:: bash
@@ -144,4 +144,4 @@ After completing the tutorials:
 3. **Check the API** - Reference the complete API in :doc:`../api/index`
 4. **Join the community** - Visit our `Discord server <https://discord.gg/6sYmEbUp>`_
 
-For questions and issues, visit our `GitHub repository <https://github.com/DiG-AIR/geomfum>`_. 
+For questions and issues, visit our `GitHub repository <https://github.com/3diglab/geomfum>`_. 

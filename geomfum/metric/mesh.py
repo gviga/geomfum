@@ -183,19 +183,6 @@ class KClosestGraphShortestPathMetric(_NxDijkstraMixins, FinitePointSetMetric):
         return gs.array(list(dist_dict.values())), gs.array(list(dist_dict.keys()))
 
 
-class HeatDistanceMetric(WhichRegistryMixins):
-    """Heat distance metric between vertices of a mesh.
-
-    References
-    ----------
-    .. [CWW2013] Crane, K., Weischedel, C., Wardetzky, M., 2017.
-        The heat method for distance computation. Commun. ACM 60, 90–99.
-        https://doi.org/10.1145/3131280
-    """
-
-    _Registry = HeatDistanceMetricRegistry
-
-
 class _ScipyShortestPathMixins(_SingleDispatchMixins):
     """Mixin implementing distance computations using SciPy shortest path solver."""
 

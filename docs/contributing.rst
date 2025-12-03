@@ -14,7 +14,7 @@ process on setting up your development environment before
 contribution.
 
 We recommend using  `Git` for source control to allow collaboration. Typical interaction with the project involves using `git` to pull/push code and 
-submitting bugs/feature requests to the `GeomFuM repository <https://github.com/DiG-AIR/geomfum>`_.
+submitting bugs/feature requests to the `GeomFuM repository <https://github.com/3diglab/geomfum>`_.
 
 Be sure to follow the Git installation and configuration instructions for your
 respective operating system from the 
@@ -23,7 +23,7 @@ before you follow along the next section of this documentation.
 
 
 1. **Fork the repository**:
-   Visit `https://github.com/DiG-AIR/geomfum` and click "Fork"
+   Visit `https://github.com/3diglab/geomfum` and click "Fork"
 
 2. **Clone your fork**:
    .. code-block:: bash
@@ -65,7 +65,7 @@ Documentation
 ~~~~~~~~~~~~~
 
 The documentation is written in `rst` format and is located in the `docs/` directory.
-The documentation is built using `sphinx` and is located in `https://DiG-AIR.github.io/geomfum.github.io/` directory.
+The documentation is built using `sphinx` and is located in `https://3diglab.github.io/geomfum.github.io/` directory.
 The documentation is viewable in a web browser.
 
 Writing Documentation

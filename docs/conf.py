@@ -53,9 +53,9 @@ nbsphinx_prolog = r"""
 
     <div class="admonition note">
       <p>Notebook source code:
-        <a class="reference external" href="https://github.com/DiG-AIR/geomfum/main/{{ docname|e }}">{{ docname|e }}</a>
+        <a class="reference external" href="https://github.com/3diglab/geomfum/main/{{ docname|e }}">{{ docname|e }}</a>
         <br>Run it yourself on binder
-        <a href="https://mybinder.org/v2/gh/DiG-AIR/geomfum/main?filepath={{ docname|e }}"><img alt="Binder badge"
+        <a href="https://mybinder.org/v2/gh/3diglab/geomfum/main?filepath={{ docname|e }}"><img alt="Binder badge"
         src="https://mybinder.org/badge_logo.svg"
         style="vertical-align:text-bottom"></a>
       </p>
@@ -100,7 +100,7 @@ html_last_updated_fmt = "%c"
 
 # GitHub context for edit page button
 html_context = {
-    "github_user": "DiG-AIR",
+    "github_user": "3diglab",
     "github_repo": "geomfum",
     "github_version": "main",
     "doc_path": "docs",
@@ -108,14 +108,14 @@ html_context = {
 
 # PyData theme options
 html_theme_options = {
-    "github_url": "https://github.com/DiG-AIR/geomfum",
+    "github_url": "https://github.com/3diglab/geomfum",
     "use_edit_page_button": False,
     "show_toc_level": 2,
     "navbar_end": ["theme-switcher", "navbar-icon-links"],
     "icon_links": [
         {
             "name": "Discord",
-            "url": "https://discord.gg/6sYmEbUp",
+            "url": "https://discord.gg/THHku2ckJs",
             "icon": "fab fa-discord",
         },
     ],
@@ -158,3 +158,22 @@ intersphinx_mapping = {
     "torch": ("https://pytorch.org/docs/stable", None),
 }
 intersphinx_timeout = 6
+
+# Handle import errors gracefully
+autodoc_default_options = {
+    "members": True,
+    "undoc-members": True,
+    "show-inheritance": True,
+    "imported-members": False,
+}
+
+# Suppress import warnings for circular dependencies during doc build
+# Suppress duplicate object description warnings
+suppress_warnings = [
+    "app.add_node",
+    "app.add_directive",
+    "app.add_role",
+    "autosummary",
+    "ref.ref",
+]
+nitpicky = False

@@ -11,7 +11,6 @@ from geomfum._registry import (
     WhichRegistryMixins,
 )
 from geomfum.laplacian import LaplacianFinder, LaplacianSpectrumFinder
-from geomfum.shape.shape_utils import compute_gradient_matrix_fem
 
 
 # TODO: remove functional; simply use operator
@@ -246,6 +245,8 @@ class Gradient(FunctionalOperator):
             and the imaginary part corresponds to the Y component.
         """
         if self._gradient_matrix is None:
+            from geomfum.shape.shape_utils import compute_gradient_matrix_fem
+
             self._gradient_matrix = compute_gradient_matrix_fem(
                 self._shape.vertices,
                 self._shape.edges,

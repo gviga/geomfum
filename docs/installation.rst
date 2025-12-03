@@ -10,13 +10,13 @@ Install GeomFuM directly from GitHub:
 
 .. code-block:: bash
 
-    pip install geomfum@git+https://github.com/DiG-AIR/geomfum.git@main
+    pip install geomfum@git+https://github.com/3diglab/geomfum.git@main
 
 For development installation with all dependencies:
 
 .. code-block:: bash
 
-    pip install geomfum[opt]@git+https://github.com/DiG-AIR/geomfum.git@main
+    pip install geomfum[opt]@git+https://github.com/3diglab/geomfum.git@main
 
 Prerequisites
 -------------
@@ -150,7 +150,7 @@ Install everything:
 
 .. code-block:: bash
 
-    pip install geomfum[opt,test-scripts,plotting-all]@git+https://github.com/DiG-AIR/geomfum.git@main
+    pip install geomfum[opt,test-scripts,plotting-all]@git+https://github.com/3diglab/geomfum.git@main
 
 Backend Configuration
 ---------------------
@@ -232,4 +232,4 @@ After installation, explore:
 2. :doc:`functional_maps_basics` - Basic functional maps tutorial
 3. :doc:`../api/index` - API reference
 
-For issues and questions, visit our `GitHub repository <https://github.com/DiG-AIR/geomfum>`_ or join our `Discord server <https://discord.gg/6sYmEbUp>`_.
+For issues and questions, visit our `GitHub repository <https://github.com/3diglab/geomfum>`_ or join our `Discord server <https://discord.gg/6sYmEbUp>`_.

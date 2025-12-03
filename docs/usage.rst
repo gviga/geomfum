@@ -246,4 +246,4 @@ Now that you understand the basic usage patterns:
 3. **Check the API** - Reference the complete API documentation
 4. **Join the community** - Visit our Discord server
 
-For questions and issues, visit our `GitHub repository <https://github.com/DiG-AIR/geomfum>`_.
+For questions and issues, visit our `GitHub repository <https://github.com/3diglab/geomfum>`_.

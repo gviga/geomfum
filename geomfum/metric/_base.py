@@ -4,10 +4,7 @@ import abc
 
 import gsops.backend as gs
 
-from geomfum._registry import (
-    HeatDistanceMetricRegistry,
-    MeshWhichRegistryMixins,
-)
+from geomfum._registry import HeatDistanceMetricRegistry, MeshWhichRegistryMixins
 
 
 class Metric(abc.ABC):
