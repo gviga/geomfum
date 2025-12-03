@@ -9,10 +9,10 @@ import scipy
 from geomfum.convert import (
     FmFromP2pBijectiveConverter,
     FmFromP2pConverter,
-    P2pFromFmConverter,
-    SinkhornP2pFromFmConverter,
-    P2pFromNamConverter,
     NamFromP2pConverter,
+    P2pFromFmConverter,
+    P2pFromNamConverter,
+    SinkhornP2pFromFmConverter,
 )
 
 

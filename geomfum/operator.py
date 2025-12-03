@@ -1,4 +1,4 @@
-"""Functional operators."""
+"""Functional operators. This module defines various class to support implementation of functional operators, like Gradient and Laplacian."""
 
 import abc
 
@@ -16,7 +16,7 @@ from geomfum.shape.shape_utils import compute_gradient_matrix_fem
 
 # TODO: remove functional; simply use operator
 class FunctionalOperator(abc.ABC):
-    """Functional operator."""
+    """Abstract class fot Functional operator."""
 
     # TODO: move to operator
     def __init__(self, shape):
@@ -52,7 +52,7 @@ class VectorFieldOperator(abc.ABC):
 
 
 class Laplacian(FunctionalOperator):
-    """Laplacian.
+    """Laplacian operator on a shape.
 
     Check [P2016]_ for representation choice.
 
@@ -120,7 +120,7 @@ class Laplacian(FunctionalOperator):
         return self._basis
 
     def find(self, laplacian_finder=None, recompute=False):
-        """Find Laplacian.
+        """Compute the laplacian matrices using an indicated algorithm.
 
         Parameters
         ----------
@@ -159,7 +159,7 @@ class Laplacian(FunctionalOperator):
         set_as_basis=True,
         recompute=False,
     ):
-        """Find Laplacian spectrum.
+        """Compute the sapactrum of the Laplacian operator.
 
         Parameters
         ----------

@@ -1,4 +1,4 @@
-"""Conversion between pointwise and functional maps."""
+"""Conversion between pointwise and functional maps. In this module we define various converters to go from pointwise maps to functional maps and viceversa."""
 
 import abc
 
