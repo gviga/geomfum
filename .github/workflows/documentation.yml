@@ -54,7 +54,7 @@ jobs:
       - name: Deployment of Docs
         uses: JamesIves/github-pages-deploy-action@v4.2.2
         # Temporarily allow deployment from your test branch
-        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/test-docs-deploy') }}
+        if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
         with:
           branch: master
           folder: docs/_build/html
