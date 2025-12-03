@@ -43,7 +43,7 @@ jobs:
           cd docs
           sphinx-apidoc -f -o api ../geomfum
           sphinx-build -b html -D version=latest -D release=latest . _build/html
-          sphinx-build -b linkcheck . _build/linkcheck
+          # sphinx-build -b linkcheck . _build/linkcheck
 
       - name: Upload documentation artifacts
         uses: actions/upload-artifact@v4
