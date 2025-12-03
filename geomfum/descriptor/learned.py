@@ -5,7 +5,7 @@ The learned descriptor is a descriptor that uses a neural network to compute fea
 
 import abc
 
-import geomstats.backend as gs
+import gsops.backend as gs
 import torch
 import torch.nn as nn
 
@@ -14,10 +14,11 @@ from geomfum.descriptor._base import Descriptor
 
 
 class BaseFeatureExtractor(abc.ABC):
-    """Base class for feature extractor."""
+    """Abstract base class for neural network feature extractors."""
 
     def __init__(self):
         super().__init__()
+        self.model = None  # Placeholder, must be set in subclass
 
     def load_from_path(self, path):
         """Load model parameters from the provided file path.
@@ -46,13 +47,13 @@ class BaseFeatureExtractor(abc.ABC):
 
 
 class FeatureExtractor(WhichRegistryMixins):
-    """Feature extractor."""
+    """Factory for creating feature extractors from registry."""
 
     _Registry = FeatureExtractorRegistry
 
 
 class LearnedDescriptor(Descriptor, abc.ABC, nn.Module):
-    """Learned descriptor.
+    """Descriptor computed using neural network feature extractors.
 
     Parameters
     ----------

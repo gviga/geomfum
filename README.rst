@@ -1,15 +1,22 @@
 .. image:: GeomFuMlogo.png
   :width: 800
   :alt: GeomFuM logo
-**GeomFuM** is a Modular Python Package for Machine Learning with `Functional Maps <https://dl.acm.org/doi/10.1145/2185520.2185526>`_.
-
+**GeomFuM** is a Modular Python Package for Machine Learning with `Functional Maps <https://dl.acm.org/doi/10.1145/2185520.2185526>`_. 
+Have a look at our `Software Paper Preprint <https://drive.google.com/file/d/1zr7ml2QWEOOlS9S3imER_HBuvYwMm3oo/view?usp=sharing>`_.
 
 Installation
 ------------
 
 ::
     
-    pip install geomfum@git+https://github.com/DiG-AIR/geomfum.git@main
+    pip install geomfum@git+https://github.com/3diglab/geomfum.git@main
+
+Or
+
+::
+    
+    pip install geomfum 
+    pip install geomstats@git+https://github.com/geomstats/geomstats.git@main
 
 
 Or the classic pipeline: ``clone + pip install``.
@@ -49,8 +56,7 @@ and in the Python3 code:
 
 ::
 
-    import geomstats.backend as gs
-    import geomfum.backend as xgs
+    import gsops.backend as gs
 
 Contributions
 -------------
@@ -62,11 +68,11 @@ If you have suggestions, bug reports, or want to improve the code or documentati
 - Submit a pull request
 - Improve or add new examples/notebooks
 
-Please follow our contribution guidelines (coming soon) and adhere to best practices for clean, modular, and well-documented code.
+Please follow our `contribution guidelines <https://dig-air.github.io/geomfum.github.io/contributing.html>`_ and adhere to best practices for clean, modular, and well-documented code.
 
 Community
 ---------
-Join our Discord Server! https://discord.gg/6sYmEbUp
+Join our Discord Server! https://discord.gg/THHku2ckJs
 
 
 List of Implemented Papers
@@ -86,6 +92,14 @@ List of Implemented Papers
 12. `Informative Descriptor Preservation via Commutativity for Shape Matching <https://www.lix.polytechnique.fr/Labo/Ovsjanikov.Maks/papers/fundescEG17.pdf>`_
 13. `DiffusionNet: Discretization Agnostic Learning on Surfaces <https://arxiv.org/abs/2012.00888>`_
 14. `PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation <https://arxiv.org/abs/1612.00593>`_
+
+Acknowledgement
+---------------
+We thank the geometry processing and functional maps community for their foundational research and ongoing contributions that inspired this work, particularly open-source libraries on functional maps such as pyFM (RobinMagnet), FMNet (pvnieo), and Unsupervised-Learning-of-Robust-Spectral-Shape-Matching (dongliangcao), which provided valuable implementations and examples. We tried our best, referencing all relevant works in the library to give credit to researchers and developers; however, we acknowledge that we could have missed some! Please contact us and propose a change if you want recognition and think something is missing!
+
+If you use Geomfum, please cite the `Software <https://doi.org/10.5281/zenodo.17194577>`_ to give recognition to any contributor of the project.
+
+This work was partially supported by the European Union (Next Generation EU), MUR (REGAINS), NVIDIA Academic Hardware Grant, and the NSF (MRSEC and CAREER awards). 
 
 
 **Have FuM!**

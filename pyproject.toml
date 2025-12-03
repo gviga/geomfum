@@ -3,7 +3,13 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-authors = [{ name = "Luís F. Pereira", email = "luisfgper@gmail.com" }]
+authors = [
+    { name = "Giulio Viganò", email = "g.vigano36@campus.unimib.it" },
+    { name = "Giorgio Longari", email = "giorgio.longari@unimib.it" },
+    { name = "Luís F. Pereira", email = "luisfpereira@ucsb.edu" },
+    { name = "Nina Miolane", email = "ninamiolane@ucsb.edu" },
+    { name = "Simone Melzi", email = "simone.melzi@unimib.it" }
+]
 name = "geomfum"
 dynamic = ["version"]
 readme = "README.rst"
@@ -25,7 +31,7 @@ dependencies = [
     "meshio",
     "pyfmaps",
     "torch",
-    "geomstats@git+https://github.com/geomstats/geomstats.git@main",
+    "gsops",
 ]
 
 [project.optional-dependencies]
@@ -37,13 +43,11 @@ rematching = [
 ]
 sinkhorn = ["POT"]
 opt = ["geomfum[lapl,metric,sampling,rematching,sinkhorn]"]
-fun = [
-    "geopext@git+https://github.com/luisfpereira/geopext.git@2b7a7be1a8fdc6e5755e5f4bda88bc284065e829",
-]
 test-scripts = ["nbformat", "nbconvert", "ipykernel", "ipython", "pyvista", "plotly"]
 test = [
     "pytest",
     "polpo@git+https://github.com/geometric-intelligence/polpo.git@main",
+    "geomstats",
     "geomfum[opt,test-scripts,plotting-all]",
 ]
 plotly = ["plotly", "nbformat"]
@@ -52,7 +56,7 @@ polyscope = ["polyscope"]
 plotting-all = ["geomfum[plotly,pyvista,polyscope]"]
 
 [project.urls]
-repository = "http://github.com/luisfpereira/geomfum"
+repository = "http://github.com/3diglab/geomfum"
 
 [tool.setuptools.dynamic]
 version = { attr = "geomfum.__version__" }

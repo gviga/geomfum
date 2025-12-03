@@ -1,15 +1,12 @@
-"""Module containing metrics to calcualte distances on a mesh."""
+"""Module containing metrics to calculate distances on a TriangleMesh."""
 
-import abc
-
-import geomstats.backend as gs
+import gsops.backend as gs
 import networkx as nx
 from scipy.sparse.csgraph import shortest_path
-import geomfum.backend as xgs
-import networkx as nx
 
-from geomfum._registry import HeatDistanceMetricRegistry, WhichRegistryMixins
 from geomfum.numerics.graph import single_source_partial_dijkstra_path_length
+
+from ._base import FinitePointSetMetric, VertexEuclideanMetric, _SingleDispatchMixins
 
 
 def to_nx_edge_graph(shape):
@@ -32,7 +29,9 @@ def to_nx_edge_graph(shape):
     weighted_edges = [
         (vertex_a_, vertex_b_, length)
         for vertex_a_, vertex_b_, length in zip(
-            gs.to_numpy(vertex_a), gs.to_numpy(vertex_b), gs.to_numpy(lengths)
+            gs.to_numpy(gs.to_device(vertex_a, "cpu")),
+            gs.to_numpy(gs.to_device(vertex_b, "cpu")),
+            gs.to_numpy(gs.to_device(lengths, "cpu")),
         )
     ]
 
@@ -42,199 +41,9 @@ def to_nx_edge_graph(shape):
     return graph
 
 
-class Metric(abc.ABC):
-    """Metric.
-
-    Parameters
-    ----------
-    shape : Shape
-        Considered as a manifold.
-    """
-
-    def __init__(self, shape):
-        self._shape = shape
-
-    @abc.abstractmethod
-    def dist(self, point_a, point_b):
-        """Distance between points.
-
-        Parameters
-        ----------
-        point_a : array-like, shape=[...]
-            Index Point.
-        point_b : array-like, shape=[...]
-            Index Point.
-
-        Returns
-        -------
-        dist : array-like, shape=[...,]
-            Distance.
-        """
-
-
-class FinitePointSetMetric(Metric, abc.ABC):
-    """Metric on a finite set of indexed points."""
-
-    @abc.abstractmethod
-    def dist_matrix(self):
-        """Distance between all the points of a shape.
-
-        Returns
-        -------
-        dist_matrix : array-like, shape=[n_vertices, n_vertices]
-            Distance matrix.
-        """
-
-    @abc.abstractmethod
-    def dist_from_source(self, source_point):
-        """Distance from source point.
-
-        Parameters
-        ----------
-        source_point : array-like, shape=[...]
-            Index of source point.
-
-        Returns
-        -------
-        dist : array-like, shape=[...] or list-like[array-like]
-            Distance.
-        target_point : array-like, shape=[n_targets] or list-like[array-like]
-            Target index.
-        """
-
-
-class VertexEuclideanMetric(FinitePointSetMetric):
-    """Euclidean metric between vertices of a mesh."""
-
-    def dist(self, point_a, point_b):
-        """Distance between mesh vertices.
-
-        Parameters
-        ----------
-        point_a : array-like, shape=[...]
-            Index of source point.
-        point_b : array-like, shape=[...]
-            Index of target point.
-
-        Returns
-        -------
-        dist : array-like, shape=[...]
-            Distance.
-        """
-        vertices = self._shape.vertices
-
-        diff = vertices[point_a] - vertices[point_b]
-        return gs.linalg.norm(diff, axis=diff.ndim - 1)
-
-    def dist_from_source(self, source_point):
-        """Distance from source point.
-
-        Parameters
-        ----------
-        source_point : array-like, shape=[...]
-            Index of source point.
-
-        Returns
-        -------
-        dist : array-like, shape=[...] or array-like[array-like]
-            Distance.
-        target_point : array-like, shape=[n_targets] or array-like[array-like]
-            Target index.
-        """
-        vertices = self._shape.vertices
-
-        source_vertices = vertices[source_point]
-        if source_vertices.ndim > 1:
-            source_vertices = gs.expand_dims(source_vertices, 1)
-
-        diff = source_vertices - vertices
-
-        dist = gs.linalg.norm(diff, axis=diff.ndim - 1)
-
-        target_point = gs.arange(self._shape.n_vertices)
-        if diff.ndim > 1:
-            target_point = gs.broadcast_to(
-                target_point, dist.shape[:-1] + target_point.shape
-            )
-
-        return dist, target_point
-
-    def dist_matrix(self):
-        """Distance between mesh vertices.
-
-        Returns
-        -------
-        dist_matrix : array-like, shape=[n_vertices, n_vertices]
-            Distance matrix.
-        """
-        return self.dist_from_source(gs.arange(self._shape.n_vertices))[0]
-
-
-class _SingleDispatchMixins:
-    def dist(self, point_a, point_b):
-        """Distance between mesh vertices.
-
-        Parameters
-        ----------
-        point_a : array-like, shape=[...]
-            Index of source point.
-        point_b : array-like, shape=[...]
-            Index of target point.
-
-        Returns
-        -------
-        dist : array-like, shape=[...,]
-            Distance.
-        """
-        point_a = gs.asarray(point_a)
-        point_b = gs.asarray(point_b)
-
-        if point_a.ndim == 0 and point_b.ndim == 0:
-            return self._dist_single(point_a, point_b)
-
-        point_a, point_b = gs.broadcast_arrays(point_a, point_b)
-        return gs.stack(
-            [
-                self._dist_single(point_a_, point_b_)
-                for point_a_, point_b_ in zip(point_a, point_b)
-            ]
-        )
-
-    def dist_from_source(self, source_point):
-        """Distance between mesh vertices.
-
-        Parameters
-        ----------
-        source_point : array-like, shape=[...]
-            Index of source point.
-
-        Returns
-        -------
-        dist : array-like, shape=[...,] or list[array-like]
-            Distance.
-        target_point : array-like, shape=[n_targets,] or list[array-like]
-            Target index.
-        """
-        source_point = gs.asarray(source_point)
-        if source_point.ndim == 0:
-            return self._dist_from_source_single(source_point)
-
-        out = [
-            self._dist_from_source_single(source_index_)
-            for source_index_ in source_point
-        ]
-        return list(zip(*out))
-
-    @abc.abstractmethod
-    def _dist_from_source_single(self, source_point):
-        pass
-
-    @abc.abstractmethod
-    def _dist_single(self, point_a, point_b):
-        pass
-
-
 class _NxDijkstraMixins(_SingleDispatchMixins):
+    """Mixin implementing distance computations using NetworkX Dijkstra algorithm."""
+
     def dist_matrix(self):
         """Distance between mesh vertices.
 
@@ -288,7 +97,7 @@ class _NxDijkstraMixins(_SingleDispatchMixins):
 
 
 class GraphShortestPathMetric(_NxDijkstraMixins, FinitePointSetMetric):
-    """Shortest path on edge graph of mesh with single source Dijkstra.
+    """Geodesic distance approximation using Dijkstra's algorithm on mesh edge graph.
 
     Parameters
     ----------
@@ -330,14 +139,14 @@ class GraphShortestPathMetric(_NxDijkstraMixins, FinitePointSetMetric):
         )
         indices = gs.asarray(list(dist_dict.keys()))
         distances = gs.asarray(list(dist_dict.values()))
-        sort_order = xgs.argsort(indices)
+        sort_order = gs.argsort(indices)
         return gs.asarray(list(distances[sort_order])), gs.asarray(
             list(indices[sort_order])
         )
 
 
 class KClosestGraphShortestPathMetric(_NxDijkstraMixins, FinitePointSetMetric):
-    """Shortest path on edge graph of mesh with Dijkstra.
+    """K-nearest neighbors geodesic distance using partial Dijkstra search.
 
     Parameters
     ----------
@@ -388,6 +197,8 @@ class HeatDistanceMetric(WhichRegistryMixins):
 
 
 class _ScipyShortestPathMixins(_SingleDispatchMixins):
+    """Mixin implementing distance computations using SciPy shortest path solver."""
+
     def dist_matrix(self):
         """Distance between mesh vertices.
 
@@ -411,7 +222,7 @@ class _ScipyShortestPathMixins(_SingleDispatchMixins):
 
 
 class ScipyGraphShortestPathMetric(_ScipyShortestPathMixins, FinitePointSetMetric):
-    """Shortest path on edge graph of mesh with Scipy shortest path solver.
+    """Geodesic distance approximation using SciPy's shortest path algorithm.
 
     Parameters
     ----------
