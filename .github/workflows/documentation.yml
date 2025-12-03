@@ -56,7 +56,7 @@ jobs:
         # Temporarily allow deployment from your test branch
         if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
         with:
-          branch: master
+          branch: main
           folder: docs/_build/html
           token: ${{ secrets.DOCUMENTATION_KEY }}
           repository-name: 3diglab/geomfum.github.io
