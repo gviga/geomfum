@@ -58,6 +58,6 @@ jobs:
         with:
           branch: master
           folder: docs/_build/html
-          token: ${{ secrets.DEPLOYEMENT_SECRETS }}
+          token: ${{ secrets.DOCUMENTATION_KEY }}
           repository-name: 3diglab/geomfum.github.io
           clean: true
