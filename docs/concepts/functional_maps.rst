@@ -24,6 +24,12 @@ In practice, shapes are discretized as point clouds or meshes, with :math:`n_1` 
 
 The Laplace-Beltrami operator :math:`\Delta_1` is discretized as a matrix. Its eigendecomposition yields eigenvalues :math:`\{\lambda_1^i\}` and eigenfunctions :math:`\{\phi_1^i\}` forming an orthonormal basis (LBO basis). For efficiency, we use a truncated basis :math:`\Phi_1^k = [\phi_1^1, \ldots, \phi_1^k] \in \mathbb{R}^{n_1 \times k}`.
 
+.. figure:: ../_static/LaplacianBase.png
+    :width: 110%
+    :align: center
+
+    **Figure:** Illustration of four Laplacian eigenfunctions on a mesh.
+
 Functional Maps
 ---------------
 
@@ -40,6 +46,12 @@ In a chosen basis, this operator is represented as a matrix :math:`C_{21}` mappi
     C_{21} = \Phi_1^\dagger \Pi_{12} \Phi_2
 
 where :math:`\dagger` denotes the Moore–Penrose pseudoinverse.
+
+.. figure:: ../_static/FunctionalMaps.png
+    :width: 110%
+    :align: center
+
+    **Figure:** Example of a Functional Map calculation, highlighting the correspondences between the Laplacian eigenfunctions..
 
 
 Pointwise Map Recovery
