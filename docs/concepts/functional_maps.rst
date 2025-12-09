@@ -51,7 +51,7 @@ where :math:`\dagger` denotes the Moore–Penrose pseudoinverse.
     :width: 110%
     :align: center
 
-    **Figure:** Example of a Functional Map calculation, highlighting the correspondences between the Laplacian eigenfunctions..
+    **Figure:** Example of a Functional Map calculation, highlighting the correspondences between the Laplacian eigenfunctions.
 
 
 Pointwise Map Recovery
@@ -66,6 +66,11 @@ To recover pointwise correspondences from functional maps, we use the nearest se
 Here, :math:`\mathrm{NS}` denotes nearest search in the embedding space.
 
 
+.. figure:: ../_static/p2p.png
+    :width: 110%
+    :align: center
+
+    **Figure:** Example of resulting pointwise correspondences.
 
 Truncated Basis and Approximations
 ----------------------------------
@@ -82,4 +87,4 @@ Key Papers
 4. `Fast Sinkhorn Filters: Using Matrix Scaling for Non-Rigid Shape Correspondence <https://openaccess.thecvf.com/content/CVPR2021/html/Pai_Fast_Sinkhorn_Filters_Using_Matrix_Scaling_for_Non-Rigid_Shape_Correspondence_CVPR_2021_paper.html>`_
 5. `Elastic Functional Maps <https://arxiv.org/abs/2307.12913>`_
 
-For more detailed examples and tutorials, see the :doc:`../geomfum/tutorials/` section. 
+For more detailed examples and tutorials, see the :doc:`tutorials <../tutorials/index>` section. 
