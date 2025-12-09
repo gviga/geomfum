@@ -30,6 +30,13 @@ This allows us to write, for example, the relationship between vertex matrices :
 
 where :math:`V_1 \in \mathbb{R}^{n_1 \times 3}` and :math:`V_2 \in \mathbb{R}^{n_2 \times 3}` are the matrices of 3D coordinates.
 
+.. figure:: ../_static/ShapeMatching.png
+    :width: 110%
+    :align: center
+
+    **Figure:** Example of pointwise correspondence between two meshes.
+
+
 Functional Representation
 -------------------------
 
@@ -42,3 +49,10 @@ A pointwise correspondence induces a linear operator between function spaces (se
 This operator, known as the functional map, enables efficient and robust computation of correspondences by working in the space of functions rather than directly with points.
 
 For more details on functional maps and their properties, see the :doc:`functional_maps` section.
+
+.. figure:: ../_static/ShapeMatchingDense.png
+    :width: 110%
+    :align: center
+
+    **Figure:** Example of dense shape correspondence between two meshes. Points with the same color indicate corresponding locations.
+
