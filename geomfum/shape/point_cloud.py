@@ -60,7 +60,6 @@ class PointCloud(Shape):
         """
         return self.vertices.shape[0]
 
-    # TODO: check if we can impleemnt this somewhere else ar make it a callable
     @property
     def knn_graph(self):
         """K-nearest neighbors connectivity graph.
