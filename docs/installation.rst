@@ -33,13 +33,13 @@ Required Dependencies
 
 Core dependencies (installed automatically):
 
-- `numpy` - Numerical computing
-- `scipy` - Scientific computing
-- `scikit-learn` - Machine learning utilities
-- `meshio` - Mesh I/O
-- `pyfmaps` - Functional maps in python
-- `torch` - Deep learning (PyTorch backend)
-- `geomstats` - Geometric Riemannian statistics
+- ``numpy`` - Numerical computing
+- ``scipy`` - Scientific computing
+- ``scikit-learn`` - Machine learning utilities
+- ``meshio`` - Mesh I/O
+- ``pyfmaps`` - Functional maps in python
+- ``torch`` - Deep learning (PyTorch backend)
+- ``geomstats`` - Geometric Riemannian statistics
 
 Optional Dependencies
 ---------------------
@@ -56,8 +56,9 @@ For robust Laplacian computation:
     pip install geomfum[lapl]
 
 This installs:
-- `robust-laplacian` - Robust Laplacian computation
-- `libigl` - Geometric processing library
+
+- ``robust-laplacian`` - Robust Laplacian computation
+- ``libigl`` - Geometric processing library
 
 Metric Computation
 ~~~~~~~~~~~~~~~~~~
@@ -69,8 +70,9 @@ For advanced metric computations:
     pip install geomfum[metric]
 
 This installs:
-- `networkx` - Graph algorithms
-- `potpourri3d` - 3D geometry processing
+
+- ``networkx`` - Graph algorithms
+- ``potpourri3d`` - 3D geometry processing
 
 Sampling Tools
 ~~~~~~~~~~~~~~
@@ -82,7 +84,8 @@ For mesh sampling utilities:
     pip install geomfum[sampling]
 
 This installs:
-- `pymeshlab` - MeshLab Python bindings
+
+- ``pymeshlab`` - MeshLab Python bindings
 
 Rematching Algorithm
 ~~~~~~~~~~~~~~~~~~~~
@@ -94,7 +97,8 @@ For the Rematching algorithm:
     pip install geomfum[rematching]
 
 This installs:
-- `Rematching` - Low-resolution shape correspondence
+
+- ``Rematching`` - Low-resolution shape correspondence
 
 Sinkhorn Filtering
 ~~~~~~~~~~~~~~~~~~
@@ -106,7 +110,8 @@ For optimal transport-based refinement:
     pip install geomfum[sinkhorn]
 
 This installs:
-- `POT` - Python Optimal Transport
+
+- ``POT`` - Python Optimal Transport
 
 Visualization
 ~~~~~~~~~~~~~
@@ -138,8 +143,9 @@ For development and testing:
     pip install geomfum[test]
 
 This installs:
-- `pytest` - Testing framework
-- `polpo` - Geometric processing utilities
+
+- ``pytest`` - Testing framework
+- ``polpo`` - Geometric processing utilities
 - All optional dependencies
 - Testing scripts and notebooks
 
@@ -201,13 +207,33 @@ C++ Dependencies
 Some dependencies require C++ compilation. If you encounter issues:
 
 1. **Install build tools**:
-   - **Linux**: `sudo apt-get install build-essential`
-   - **macOS**: Install Xcode Command Line Tools
-   - **Windows**: Install Visual Studio Build Tools
 
-2. **Install specific C++ libraries**:
-   - **Linux**: `sudo apt-get install libeigen3-dev`
-   - **macOS**: `brew install eigen`
+   - **Linux**:
+
+     .. code-block:: bash
+
+         sudo apt-get install build-essential
+   - **macOS**:
+
+     .. code-block:: bash
+
+         Install Xcode Command Line Tools
+   - **Windows**:
+
+       Install ``Visual Studio Build Tools``
+
+2. **Install Eigen (if required)**:
+
+   - **Linux**:
+
+     .. code-block:: bash
+
+         sudo apt-get install libeigen3-dev
+   - **macOS**:
+
+     .. code-block:: bash
+
+         brew install eigen
 
 PyRMT Installation
 ^^^^^^^^^^^^^^^^^^
@@ -228,8 +254,8 @@ Next Steps
 
 After installation, explore:
 
-1. :doc:`getting_started` - Quick start guide
-2. :doc:`functional_maps_basics` - Basic functional maps tutorial
+1. :doc:`../tutorials/getting_started` - Quick start guide
+2. `First Functional Map Tutorial <../notebooks/demo/First-FunctionalMap-Demo.ipynb>`_
 3. :doc:`../api/index` - API reference
 
 For issues and questions, visit our `GitHub repository <https://github.com/3diglab/geomfum>`_ or join our `Discord server <https://discord.gg/6sYmEbUp>`_.
