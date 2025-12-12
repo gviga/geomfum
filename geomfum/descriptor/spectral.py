@@ -167,7 +167,7 @@ class WaveKernelFilter(SpectralFilter):
         coefs : array-like, shape=[n_domain, n_eigen]
             Filter coefficients.
         """
-        nonzero_vals = vals[gs.sum(gs.isclose(vals, 0.0)) :]
+        nonzero_vals = vals[gs.sum(gs.isclose(vals, 0.0, atol=1e-3)) :]
         zeros = gs.to_device(
             gs.zeros((domain.shape[0], vals.shape[0] - nonzero_vals.shape[0])),
             device=getattr(nonzero_vals, "device", None),

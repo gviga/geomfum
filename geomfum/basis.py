@@ -30,7 +30,7 @@ class EigenBasis(Basis):
         self.use_k = use_k
 
         # NB: assumes sorted
-        self._n_zeros = gs.sum(gs.isclose(vals, 0.0))
+        self._n_zeros = gs.sum(gs.isclose(vals, 0.0, atol=1e-3))
 
     @property
     def vals(self):
