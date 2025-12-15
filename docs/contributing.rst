@@ -23,15 +23,18 @@ before you follow along the next section of this documentation.
 
 
 1. **Fork the repository**:
-   Visit `https://github.com/3diglab/geomfum` and click "Fork"
+
+   Visit `https://github.com/3diglab/geomfum <https://github.com/3diglab/geomfum>`_ and click "Fork"
 
 2. **Clone your fork**:
+
    .. code-block:: bash
 
        git clone https://github.com/<your-username>/geomfum.git
        cd geomfum
 
 3. **Install in development mode**:
+
    .. code-block:: bash
 
        pip install -e .[test,,plotting-all]
@@ -65,7 +68,7 @@ Documentation
 ~~~~~~~~~~~~~
 
 The documentation is written in `rst` format and is located in the `docs/` directory.
-The documentation is built using `sphinx` and is located in `https://3diglab.github.io/geomfum.github.io/` directory.
+The documentation is built using `sphinx` and is located in `https://3diglab.github.io/geomfum.github.io/ <https://3diglab.github.io/geomfum.github.io/>`_ directory.
 The documentation is viewable in a web browser.
 
 Writing Documentation
@@ -117,45 +120,51 @@ Pull Request Process
 --------------------
 
 1. **Create a feature branch**:
+
    .. code-block:: bash
 
-       git checkout -b feature/your-feature-name
+      git checkout -b feature/your-feature-name
 
 2. **Make your changes**:
+
    - Write code following our style guidelines
-   - Add tests for new functionality 
+   - Add tests for new functionality
    - Update documentation
 
 3. **Run tests and checks**:
+
    .. code-block:: bash
 
-       # Run tests
-       pytest
+      # Run tests
+      pytest
 
-       
 4. **Commit your changes**:
+
    .. code-block:: bash
 
-       git add .
-       git commit -m "Add feature: brief description"
-       
-       # Use conventional commit format:
-       # feat: add new functional map refinement
-       # fix: resolve memory leak in laplacian computation
-       # docs: update installation instructions
+      git add .
+      git commit -m "Add feature: brief description"
 
-5. **Push and create PR**:
+      # Use conventional commit format:
+      # feat: add new functional map refinement
+      # fix: resolve memory leak in laplacian computation
+      # docs: update installation instructions
+
+5. **Push and create the branch on the remote**:
+
    .. code-block:: bash
 
-       git push origin feature/your-feature-name
+      git push origin feature/your-feature-name
 
-6. **Create Pull Request**:
+6. **Create the Pull Request**:
+
    - Use the PR template
    - Describe your changes clearly
    - Link related issues
    - Request reviews from maintainers
 
 7. **Wait for review**:
+
    - Address feedback from maintainers
    - Make changes as requested
    - Re-request review when ready
@@ -169,18 +178,21 @@ Review Process
 ~~~~~~~~~~~~~~
 
 1. **Automated checks** must pass:
+
    - Tests
    - Code style
    - Documentation build
    - Type checking
 
 2. **Manual review** by maintainers:
+
    - Code quality
    - Algorithm correctness
    - Performance considerations
    - Documentation quality
 
 3. **Address feedback**:
+
    - Respond to review comments
    - Make requested changes
    - Re-request review when ready
@@ -247,7 +259,7 @@ Getting Help
 If you need help:
 
 1. **Check existing issues**: Search for similar problems
-2. **Join Discord**: `https://discord.gg/6sYmEbUp`
+2. **Join Discord**: `https://discord.gg/THHku2ckJs <https://discord.gg/THHku2ckJs>`_
 3. **Create an issue**: For bugs or feature requests
 4. **Ask questions**: In GitHub Discussions
 
@@ -265,7 +277,7 @@ Code of Conduct
 ~~~~~~~~~~~~~~~
 
 We follow the Contributor Covenant Code of Conduct. Please read it at:
-`https://www.contributor-covenant.org/version/2/0/code_of_conduct.html`
+`https://www.contributor-covenant.org/version/2/0/code_of_conduct.html <https://www.contributor-covenant.org/version/2/0/code_of_conduct.>`_
 
 Recognition
 -----------
