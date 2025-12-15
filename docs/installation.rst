@@ -252,10 +252,14 @@ For the Rematching algorithm, follow the specific instructions:
 Next Steps
 ----------
 
-After installation, explore:
+.. toctree::
+   :maxdepth: 1
 
-1. :doc:`../tutorials/getting_started` - Quick start guide
-2. `First Functional Map Tutorial <../notebooks/demo/First-FunctionalMap-Demo.ipynb>`_
-3. :doc:`../api/index` - API reference
+   ../tutorials/getting_started
+   notebooks/demo/First-FunctionalMap-Demo
+   ../api/index
+
+
+
 
 For issues and questions, visit our `GitHub repository <https://github.com/3diglab/geomfum>`_ or join our `Discord server <https://discord.gg/6sYmEbUp>`_.
