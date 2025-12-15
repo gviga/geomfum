@@ -16,7 +16,6 @@ Or
 ::
     
     pip install geomfum 
-    pip install geomstats@git+https://github.com/geomstats/geomstats.git@main
 
 
 Or the classic pipeline: ``clone + pip install``.
