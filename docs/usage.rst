@@ -6,11 +6,15 @@ This page provides comprehensive usage examples for GeomFuM, referencing our int
 Quick Start
 -----------
 
-The best way to learn GeomFuM is through our interactive notebook tutorials. Start with:
+The best way to learn GeomFuM is through our interactive notebook tutorials.
 
-- **Loading Meshes** - :doc:`notebooks/how_to/00_load_mesh_from_file.ipynb`
-- **Laplace-Beltrami Operator** - :doc:`notebooks/how_to/01_mesh_laplacian.ipynb`
-- **Functional Maps** - :doc:`notebooks/how_to/07_functional_map.ipynb`
+.. toctree::
+   :maxdepth: 1
+   :caption: Start with:
+
+   notebooks/how_to/00_load_mesh_from_file
+   notebooks/how_to/01_mesh_laplacian
+   notebooks/how_to/07_functional_map
 
 Basic Usage Examples
 --------------------
@@ -19,8 +23,10 @@ Here are some key code snippets from our tutorials:
 
 Loading and Working with Meshes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. toctree::
+   :maxdepth: 1
 
-From :doc:`notebooks/how_to/00_load_mesh_from_file.ipynb`:
+   notebooks/how_to/00_load_mesh_from_file
 
 .. code-block:: python
 
@@ -35,8 +41,10 @@ From :doc:`notebooks/how_to/00_load_mesh_from_file.ipynb`:
 
 Computing Laplace-Beltrami Spectrum
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. toctree::
+   :maxdepth: 1
 
-From :doc:`notebooks/how_to/02_mesh_laplacian_spectrum.ipynb`:
+   notebooks/how_to/02_mesh_laplacian_spectrum
 
 .. code-block:: python
 
@@ -51,8 +59,10 @@ From :doc:`notebooks/how_to/02_mesh_laplacian_spectrum.ipynb`:
 
 Computing Shape Descriptors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. toctree::
+   :maxdepth: 1
 
-From :doc:`notebooks/how_to/03_descriptors.ipynb`:
+   notebooks/how_to/03_descriptors
 
 .. code-block:: python
 
@@ -68,8 +78,10 @@ From :doc:`notebooks/how_to/03_descriptors.ipynb`:
 
 Creating Descriptor Pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. toctree::
+   :maxdepth: 1
 
-From :doc:`notebooks/how_to/04_descriptor_pipeline.ipynb`:
+   notebooks/how_to/04_descriptor_pipeline
 
 .. code-block:: python
     
@@ -89,8 +101,10 @@ From :doc:`notebooks/how_to/04_descriptor_pipeline.ipynb`:
 
 Computing Functional Maps
 -------------------------
+.. toctree::
+   :maxdepth: 1
 
-From :doc:`notebooks/how_to/07_functional_map.ipynb`:
+   notebooks/how_to/07_functional_map
 
 .. code-block:: python
 
@@ -127,8 +141,10 @@ From :doc:`notebooks/how_to/07_functional_map.ipynb`:
 
 Converting to Pointwise Correspondences
 ---------------------------------------
+.. toctree::
+   :maxdepth: 1
 
-From :doc:`notebooks/how_to/10_pointwise_from_functional.ipynb`:
+   notebooks/how_to/10_pointwise_from_functional
 
 .. code-block:: python
 
@@ -141,8 +157,10 @@ From :doc:`notebooks/how_to/10_pointwise_from_functional.ipynb`:
 
 Refining Functional Maps
 ------------------------
+.. toctree::
+   :maxdepth: 1
 
-From :doc:`notebooks/how_to/15_refine_functional_map.ipynb`:
+   notebooks/how_to/15_refine_functional_map
 
 .. code-block:: python
 
@@ -161,8 +179,10 @@ Advanced Techniques
 
 Rematching Algorithm
 ~~~~~~~~~~~~~~~~~~~~
+.. toctree::
+   :maxdepth: 1
 
-From :doc:`notebooks/how_to/13_rematching.ipynb`:
+   notebooks/how_to/13_rematching
 
 .. code-block:: python
 
@@ -175,8 +195,10 @@ From :doc:`notebooks/how_to/13_rematching.ipynb`:
 
 Deep Functional Maps
 ~~~~~~~~~~~~~~~~~~~~
+.. toctree::
+   :maxdepth: 1
 
-From :doc:`notebooks/how_to/14_deep_functional_maps_models.ipynb`:
+   notebooks/how_to/14_deep_functional_maps_models
 
 .. code-block:: python
 
@@ -193,8 +215,11 @@ From :doc:`notebooks/how_to/14_deep_functional_maps_models.ipynb`:
 
 Neural Adjoint Maps
 ~~~~~~~~~~~~~~~~~~~
+.. toctree::
+   :maxdepth: 1
 
-From :doc:`notebooks/how_to/18_neural_adjoint_maps.ipynb`:
+   notebooks/how_to/18_neural_adjoint_maps
+
 
 .. code-block:: python
 
@@ -211,8 +236,11 @@ Visualization
 
 Basic Visualization
 ~~~~~~~~~~~~~~~~~~~
+.. toctree::
+   :maxdepth: 1
 
-From :doc:`notebooks/how_to/16_vis_basic.ipynb`:
+   notebooks/how_to/16_vis_basic
+
 
 .. code-block:: python
 
