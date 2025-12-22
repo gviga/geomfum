@@ -41,7 +41,7 @@ Choose the backend
 GeomFuM can run seamlessly with ``numpy`` and ``pytorch``. 
 By default, the ``numpy`` backend is used. The visualizations are only available with this backend.
 
-The backend is based on the `Geomstats <https://github.com/geomstats/geomstats>`_ backend, which is installed via its standalone package gsops <https://github.com/luisfpereira/gsops>`_ .
+The backend is based on the `Geomstats <https://github.com/geomstats/geomstats>`_ backend, which is installed via its standalone package `gsops <https://github.com/luisfpereira/gsops>`_ .
 
 You can choose your backend by setting the environment variable
 ``GEOMSTATS_BACKEND`` to ``numpy``, or ``pytorch``, and
