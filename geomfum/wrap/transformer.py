@@ -109,7 +109,6 @@ class TransformerFeatureExtractor(BaseFeatureExtractor, nn.Module):
         else:
             input_feat = self.descriptor(shape).T
 
-        xyz = gs.to_torch(input_feat).to(self.device).float().unsqueeze(0)
         input_feat = gs.to_torch(input_feat).to(self.device).float()
         input_feat = input_feat.unsqueeze(0)
         # Project input features

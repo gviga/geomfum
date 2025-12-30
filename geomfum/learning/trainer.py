@@ -1,6 +1,7 @@
 """Trainer for Deep Functional Maps (DFM) using PyTorch."""
 
 import logging
+import random
 
 import torch
 from tqdm import tqdm
@@ -9,12 +10,20 @@ from tqdm import tqdm
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
-import random
 
 
 # helper function
 def get_dataset_attr(dataset, attr):
-    # Recursively get the attribute from Subset or the base dataset
+    """
+    Recursively get the attribute from Subset or the base dataset.
+
+    Args
+    ----
+    dataset:  torch.nn.data.Dataset
+        The dataset from which we want to get the attribute
+    attr: Str
+        The attribute string
+    """
     while isinstance(dataset, torch.utils.data.Subset):
         dataset = dataset.dataset
     return getattr(dataset, attr)
