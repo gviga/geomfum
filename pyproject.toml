@@ -46,8 +46,8 @@ opt = ["geomfum[lapl,metric,sampling,rematching,sinkhorn]"]
 test-scripts = ["nbformat", "nbconvert", "ipykernel", "ipython", "pyvista", "plotly"]
 test = [
     "pytest",
+    "geomstats@git+https://github.com/geomstats/geomstats.git@main",
     "polpo@git+https://github.com/geometric-intelligence/polpo.git@main",
-    "geomstats",
     "geomfum[opt,test-scripts,plotting-all]",
 ]
 plotly = ["plotly", "nbformat"]
