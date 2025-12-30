@@ -1,10 +1,10 @@
 """pyFM wrapper."""
 
+import gsops.backend as gs
 import numpy as np
 import pyFM.mesh
 import pyFM.mesh.geometry
 import pyFM.signatures
-import scipy
 
 from geomfum.descriptor._base import SpectralDescriptor
 from geomfum.descriptor.spectral import WksDefaultDomain, hks_default_domain
@@ -26,14 +26,18 @@ class PyfmMeshLaplacianFinder(BaseLaplacianFinder):
 
         Returns
         -------
-        stiffness_matrix : scipy.sparse.csc_matrix, shape=[n_vertices, n_vertices]
+        stiffness_matrix : sparse.csc_matrix, shape=[n_vertices, n_vertices]
             Stiffness matrix.
-        mass_matrix : scipy.sparse.csc_matrix, shape=[n_vertices, n_vertices]
+        mass_matrix : sparse.csc_matrix, shape=[n_vertices, n_vertices]
             Diagonal lumped mass matrix.
         """
         return (
-            pyFM.mesh.laplacian.cotangent_weights(shape.vertices, shape.faces),
-            pyFM.mesh.laplacian.dia_area_mat(shape.vertices, shape.faces),
+            gs.sparse.from_scipy_csc(
+                pyFM.mesh.laplacian.cotangent_weights(shape.vertices, shape.faces)
+            ),
+            gs.sparse.from_scipy_dia(
+                pyFM.mesh.laplacian.dia_area_mat(shape.vertices, shape.faces)
+            ),
         )
 
 
@@ -49,14 +53,12 @@ class PyfmHeatKernelSignature(SpectralDescriptor):
     domain : callable or array-like, shape=[n_domain]
         Method to compute time points (``f(shape, n_domain)``) or
         time points.
-    use_landmarks : bool
-        Whether to use landmarks.
     """
 
-    def __init__(self, scale=True, n_domain=3, domain=None, use_landmarks=False):
+    def __init__(self, scale=True, n_domain=3, domain=None):
         super().__init__(
-            domain or (lambda shape: hks_default_domain(shape, n_domain=n_domain)),
-            use_landmarks=use_landmarks,
+            domain=domain
+            or (lambda shape: hks_default_domain(shape, n_domain=n_domain)),
         )
         self.scale = scale
 
@@ -73,20 +75,69 @@ class PyfmHeatKernelSignature(SpectralDescriptor):
         descr : array-like, shape=[n_domain, n_vertices]
             Descriptor.
         """
-        domain = self.domain(shape) if callable(self.domain) else self.domain
+        domain, _ = (
+            self.domain(shape) if callable(self.domain) else (self.domain, self.sigma)
+        )
 
-        if self.use_landmarks:
-            return pyFM.signatures.lm_HKS(
+        return gs.from_numpy(
+            pyFM.signatures.HKS(
+                shape.basis.vals, shape.basis.vecs, domain, scaled=self.scale
+            ).T
+        )
+
+
+class PyfmLandmarkHeatKernelSignature(SpectralDescriptor):
+    """Landmark-based Heat kernel signature using pyFM.
+
+    Parameters
+    ----------
+    scale : bool
+        Whether to scale weights to sum to one.
+    n_domain : int
+        Number of domain points. Ignored if ``domain`` is not None.
+    domain : callable or array-like, shape=[n_domain]
+        Method to compute domain points (``f(shape)``) or
+        domain points.
+    """
+
+    def __init__(self, scale=True, n_domain=3, domain=None):
+        super().__init__(
+            domain=domain
+            or (lambda shape: hks_default_domain(shape, n_domain=n_domain)),
+        )
+        self.scale = scale
+
+    def __call__(self, shape):
+        """Compute landmark descriptor.
+
+        Parameters
+        ----------
+        shape : Shape.
+            Shape with basis.
+
+        Returns
+        -------
+        descr : array-like, shape=[n_domain, n_vertices]
+            Descriptor.
+        """
+        if not hasattr(shape, "landmark_indices") or shape.landmark_indices is None:
+            raise AttributeError(
+                "Shape must have 'landmark_indices' set for LandmarkHeatKernelSignature."
+            )
+
+        domain, _ = (
+            self.domain(shape) if callable(self.domain) else (self.domain, self.sigma)
+        )
+
+        return gs.from_numpy(
+            pyFM.signatures.lm_HKS(
                 shape.basis.vals,
                 shape.basis.vecs,
                 shape.landmark_indices,
                 domain,
                 scaled=self.scale,
             ).T
-
-        return pyFM.signatures.HKS(
-            shape.basis.vals, shape.basis.vecs, domain, scaled=self.scale
-        ).T
+        )
 
 
 class PyfmWaveKernelSignature(SpectralDescriptor):
@@ -104,19 +155,17 @@ class PyfmWaveKernelSignature(SpectralDescriptor):
     domain : callable or array-like, shape=[n_domain]
         Method to compute domain points (``f(shape)``) or
         domain points.
-    use_landmarks : bool
-        Whether to use landmarks.
     """
 
     def __init__(
-        self, scale=True, sigma=None, n_domain=3, domain=None, use_landmarks=False
+        self, scale=True, sigma=None, n_domain=3, domain=None, landmarks=False
     ):
         super().__init__(
-            domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma),
-            use_landmarks=use_landmarks,
+            domain=domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma),
+            scale=scale,
+            landmarks=landmarks,
+            sigma=sigma,
         )
-        self.scale = scale
-        self.sigma = sigma
 
     def __call__(self, shape):
         """Compute descriptor.
@@ -137,18 +186,52 @@ class PyfmWaveKernelSignature(SpectralDescriptor):
             domain = self.domain
             sigma = self.sigma
 
-        if self.use_landmarks:
-            return pyFM.signatures.lm_WKS(
-                shape.basis.vals,
-                shape.basis.vecs,
-                shape.landmark_indices,
-                domain,
-                sigma,
-                scaled=self.scale,
-            ).T
-
         return pyFM.signatures.WKS(
             shape.basis.vals, shape.basis.vecs, domain, sigma, scaled=self.scale
+        ).T
+
+
+class PyfmLandmarkWaveKernelSignature(SpectralDescriptor):
+    """Landmark-based Wave kernel signature using pyFM.
+
+    Parameters
+    ----------
+    scale : bool
+        Whether to scale weights to sum to one.
+    sigma : float
+        Standard deviation. Ignored if ``domain`` is a callable (other
+        than default one).
+    n_domain : int
+        Number of energy points. Ignored if ``domain`` is not a callable.
+    domain : callable or array-like, shape=[n_domain]
+        Method to compute domain points (``f(shape)``) or
+        domain points.
+    """
+
+    def __init__(self, scale=True, sigma=None, n_domain=3, domain=None):
+        super().__init__(
+            domain=domain or WksDefaultDomain(n_domain=n_domain, sigma=sigma),
+        )
+        self.scale = scale
+        self.sigma = sigma
+
+    def __call__(self, shape):
+        """Compute landmark descriptor."""
+        if not hasattr(shape, "landmark_indices") or shape.landmark_indices is None:
+            raise AttributeError(
+                "Shape must have 'landmark_indices' set for LandmarkHeatKernelSignature."
+            )
+
+        domain, sigma = (
+            self.domain(shape) if callable(self.domain) else (self.domain, self.sigma)
+        )
+        return pyFM.signatures.lm_WKS(
+            shape.basis.vals,
+            shape.basis.vecs,
+            shape.landmark_indices,
+            domain,
+            sigma,
+            scaled=self.scale,
         ).T
 
 
@@ -180,7 +263,7 @@ class PyfmFaceValuedGradient(FunctionalOperator):
             face_areas=self._shape.face_areas,
         )
         if gradient.ndim > 2:
-            return np.moveaxis(gradient, 0, 1)
+            return gs.moveaxis(gradient, 0, 1)
 
         return gradient
 
@@ -236,7 +319,7 @@ class PyFmFaceOrientationOperator(VectorFieldOperator):
 
         Returns
         -------
-        operator : scipy.sparse.csc_matrix or list[sparse.csc_matrix], shape=[n_vertices, n_vertices]
+        operator : sparse.csc_matrix or list[sparse.csc_matrix], shape=[n_vertices, n_vertices]
             Orientation operator.
         """
         return get_orientation_op(
@@ -258,7 +341,7 @@ def get_orientation_op(
     In practice, we compute < n x grad(f), grad(g) > for simpler computation.
 
     Parameters
-    --------------------------------
+    ----------
     grad_field    :
         (n_f,3) gradient field on the mesh
     vertices      :
@@ -273,7 +356,7 @@ def get_orientation_op(
         whether gradient field is already rotated by n x grad(f)
 
     Returns
-    --------------------------
+    -------
     operator : sparse.csc_matrix or list[sparse.csc_matrix], shape=[n_vertices, n_verticess]
         (n_v,n_v) orientation operator.
 
@@ -282,7 +365,7 @@ def get_orientation_op(
     * vectorized version of ``pyFm.geometry.mesh.get_orientation_op``.
     """
     n_vertices = per_vert_area.shape[0]
-    per_vert_area = np.asarray(per_vert_area)
+    per_vert_area = gs.asarray(per_vert_area)
 
     v1 = vertices[faces[:, 0]]  # (n_f,3)
     v2 = vertices[faces[:, 1]]  # (n_f,3)
@@ -290,29 +373,29 @@ def get_orientation_op(
 
     # Define (normalized) gradient directions for each barycentric coordinate on each face
     # Remove normalization since it will disappear later on after multiplcation
-    Jc1 = np.cross(normals, v3 - v2) / 2
-    Jc2 = np.cross(normals, v1 - v3) / 2
-    Jc3 = np.cross(normals, v2 - v1) / 2
+    Jc1 = gs.cross(normals, v3 - v2) / 2
+    Jc2 = gs.cross(normals, v1 - v3) / 2
+    Jc3 = gs.cross(normals, v2 - v1) / 2
 
     # Rotate the gradient field
     if rotated:
         rot_field = grad_field
     else:
-        rot_field = np.cross(normals, grad_field)  # (n_f,3)
+        rot_field = gs.cross(normals, grad_field)  # (n_f,3)
 
-    I = np.concatenate([faces[:, 0], faces[:, 1], faces[:, 2]])
-    J = np.concatenate([faces[:, 1], faces[:, 2], faces[:, 0]])
+    I = gs.concatenate([faces[:, 0], faces[:, 1], faces[:, 2]])
+    J = gs.concatenate([faces[:, 1], faces[:, 2], faces[:, 0]])
 
     # Compute pairwise dot products between the gradient directions
     # and the gradient field
     Sij = (
         1
         / 3
-        * np.concatenate(
+        * gs.concatenate(
             [
-                np.einsum("ij,...ij->...i", Jc2, rot_field),
-                np.einsum("ij,...ij->...i", Jc3, rot_field),
-                np.einsum("ij,...ij->...i", Jc1, rot_field),
+                gs.einsum("ij,...ij->...i", Jc2, rot_field),
+                gs.einsum("ij,...ij->...i", Jc3, rot_field),
+                gs.einsum("ij,...ij->...i", Jc1, rot_field),
             ],
             axis=-1,
         )
@@ -321,36 +404,35 @@ def get_orientation_op(
     Sji = (
         1
         / 3
-        * np.concatenate(
+        * gs.concatenate(
             [
-                np.einsum("ij,...ij->...i", Jc1, rot_field),
-                np.einsum("ij,...ij->...i", Jc2, rot_field),
-                np.einsum("ij,...ij->...i", Jc3, rot_field),
+                gs.einsum("ij,...ij->...i", Jc1, rot_field),
+                gs.einsum("ij,...ij->...i", Jc2, rot_field),
+                gs.einsum("ij,...ij->...i", Jc3, rot_field),
             ],
             axis=-1,
         )
     )
 
-    In = np.concatenate([I, J, I, J])
-    Jn = np.concatenate([J, I, I, J])
-    Sn = np.concatenate([Sij, Sji, -Sij, -Sji], axis=-1)
+    In = gs.concatenate([I, J, I, J])
+    Jn = gs.concatenate([J, I, I, J])
+    Sn = gs.concatenate([Sij, Sji, -Sij, -Sji], axis=-1)
 
-    inv_area = scipy.sparse.diags(
-        1 / per_vert_area, shape=(n_vertices, n_vertices), format="csc"
-    )
+    inv_area = gs.sparse.dia_matrix(1 / per_vert_area, shape=(n_vertices, n_vertices))
 
+    indices = gs.stack([In, Jn])
     if Sn.ndim == 1:
-        W = scipy.sparse.coo_matrix(
-            (Sn, (In, Jn)), shape=(n_vertices, n_vertices)
-        ).tocsc()
+        W = gs.sparse.csc_matrix(
+            indices, Sn, shape=(n_vertices, n_vertices), coalesce=True
+        )
 
         return inv_area @ W
 
     out = []
     for Sn_ in Sn:
-        W = scipy.sparse.coo_matrix(
-            (Sn_, (In, Jn)), shape=(n_vertices, n_vertices)
-        ).tocsc()
+        W = gs.sparse.csc_matrix(
+            indices, Sn_, shape=(n_vertices, n_vertices), coalesce=True
+        )
         out.append(inv_area @ W)
 
     return out

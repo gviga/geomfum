@@ -2,15 +2,17 @@
 
 import abc
 
-import numpy as np
+import gsops.backend as gs
+import torch
 
 import geomfum.linalg as la
+from geomfum.descriptor.learned import LearnedDescriptor
 
 from ._base import Descriptor
 
 
 class Subsampler(abc.ABC):
-    """Subsampler."""
+    """Abstract base class for array subsampling operations."""
 
     @abc.abstractmethod
     def __call__(self, array):
@@ -29,7 +31,7 @@ class Subsampler(abc.ABC):
 
 
 class ArangeSubsampler(Subsampler):
-    """Subsampler based on arange method.
+    """Subsampler using uniform stride-based indexing.
 
     Parameters
     ----------
@@ -56,7 +58,7 @@ class ArangeSubsampler(Subsampler):
         array : array-like, shape=[..., d, ...]
             Subsampled array.
         """
-        indices = np.arange(0, array.shape[self.axis], self.subsample_step)
+        indices = gs.arange(0, array.shape[self.axis], self.subsample_step)
         slc = [slice(None)] * array.ndim
         slc[self.axis] = indices
 
@@ -64,7 +66,7 @@ class ArangeSubsampler(Subsampler):
 
 
 class Normalizer(abc.ABC):
-    """Normalizer."""
+    """Abstract base class for descriptor normalization."""
 
     @abc.abstractmethod
     def __call__(self, shape, array):
@@ -85,7 +87,7 @@ class Normalizer(abc.ABC):
 
 
 class L2InnerNormalizer(Normalizer):
-    """L2 inner normalizer."""
+    """Normalizer using L2 inner product with mass matrix."""
 
     def __call__(self, shape, array):
         """Normalize array with respect to L2 inner product.
@@ -102,8 +104,8 @@ class L2InnerNormalizer(Normalizer):
         array : array-like, shape=[..., n]
             Normalized array.
         """
-        coeff = np.sqrt(
-            np.einsum(
+        coeff = gs.sqrt(
+            gs.einsum(
                 "...n,...n->...",
                 array,
                 la.matvecmul(shape.laplacian.mass_matrix, array),
@@ -113,7 +115,7 @@ class L2InnerNormalizer(Normalizer):
 
 
 class DescriptorPipeline:
-    """Descriptor pipeline.
+    """Sequential pipeline for computing and processing shape descriptors.
 
     Parameters
     ----------
@@ -128,7 +130,7 @@ class DescriptorPipeline:
     def _update_descr(self, current, new):
         if current is None:
             return new
-        return np.r_[current, new]
+        return gs.vstack([current, new])
 
     def apply(self, shape):
         """Apply descriptor pipeline.
@@ -146,8 +148,12 @@ class DescriptorPipeline:
         descr = None
         for step in self.steps:
             if isinstance(step, Descriptor):
-                descr = self._update_descr(descr, step(shape))
-
+                if isinstance(step, LearnedDescriptor):
+                    with torch.no_grad():
+                        new = step(shape)
+                    descr = self._update_descr(descr, new)
+                else:
+                    descr = self._update_descr(descr, step(shape))
             elif isinstance(step, Subsampler):
                 descr = step(descr)
 

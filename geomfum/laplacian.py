@@ -2,8 +2,7 @@
 
 import abc
 
-import numpy as np
-import scipy.sparse as sparse
+import gsops.backend as gs
 
 import geomfum.wrap as _wrap  # noqa (for register)
 from geomfum._registry import LaplacianFinderRegistry, MeshWhichRegistryMixins
@@ -47,48 +46,47 @@ class LaplacianFinder(MeshWhichRegistryMixins, BaseLaplacianFinder):
 
         Returns
         -------
-        stiffness_matrix : scipy.sparse.csc_matrix, shape=[n_vertices, n_vertices]
+        stiffness_matrix : sparse.csc_matrix, shape=[n_vertices, n_vertices]
             Stiffness matrix.
-        mass_matrix : scipy.sparse.csc_matrix, shape=[n_vertices, n_vertices]
+        mass_matrix : scipy.sparse.dia_matrix or sparse.csc_matrix, shape=[n_vertices, n_vertices]
             Diagonal lumped mass matrix.
         """
-        v0 = shape.vertices[shape.faces[:, 0]]
-        v1 = shape.vertices[shape.faces[:, 1]]
-        v2 = shape.vertices[shape.faces[:, 2]]
+        face_vertex_coords = shape.face_vertex_coords
 
-        edges21 = v2 - v1
-        edges02 = v0 - v2
-        edges10 = v1 - v0
+        edges21 = face_vertex_coords[:, 2] - face_vertex_coords[:, 1]
+        edges02 = face_vertex_coords[:, 0] - face_vertex_coords[:, 2]
+        edges10 = face_vertex_coords[:, 1] - face_vertex_coords[:, 0]
 
-        elen21 = np.linalg.norm(edges21, axis=1)
-        elen02 = np.linalg.norm(edges02, axis=1)
-        elen10 = np.linalg.norm(edges10, axis=1)
+        elen21 = gs.linalg.norm(edges21, axis=1)
+        elen02 = gs.linalg.norm(edges02, axis=1)
+        elen10 = gs.linalg.norm(edges10, axis=1)
 
-        cos_angle12 = np.einsum("ij,ij->i", -edges02, edges10) / (elen02 * elen10)
-        cos_angle20 = np.einsum("ij,ij->i", edges21, -edges10) / (elen21 * elen10)
-        cos_angle01 = np.einsum("ij,ij->i", -edges21, edges02) / (elen21 * elen02)
+        cos_angle12 = gs.einsum("ij,ij->i", -edges02, edges10) / (elen02 * elen10)
+        cos_angle20 = gs.einsum("ij,ij->i", edges21, -edges10) / (elen21 * elen10)
+        cos_angle01 = gs.einsum("ij,ij->i", -edges21, edges02) / (elen21 * elen02)
 
-        vind012 = np.concatenate(
+        vind012 = gs.concatenate(
             [shape.faces[:, 0], shape.faces[:, 1], shape.faces[:, 2]]
         )
-        vind120 = np.concatenate(
+        vind120 = gs.concatenate(
             [shape.faces[:, 1], shape.faces[:, 2], shape.faces[:, 0]]
         )
-        cos_angles = np.concatenate([cos_angle01, cos_angle12, cos_angle20])
+        cos_angles = gs.concatenate([cos_angle01, cos_angle12, cos_angle20])
 
-        cot_angles = 0.5 * cos_angles / np.sqrt(1 - cos_angles**2)
+        cot_angles = 0.5 * cos_angles / gs.sqrt(1 - cos_angles**2)
 
-        row = np.concatenate([vind012, vind120, vind012, vind120])
-        col = np.concatenate([vind120, vind012, vind012, vind120])
-        data = np.concatenate([-cot_angles, -cot_angles, cot_angles, cot_angles])
+        row = gs.concatenate([vind012, vind120, vind012, vind120])
+        col = gs.concatenate([vind120, vind012, vind012, vind120])
+        data = gs.concatenate([-cot_angles, -cot_angles, cot_angles, cot_angles])
 
-        stiffness_matrix = sparse.coo_matrix(
-            (data, (row, col)), shape=(shape.n_vertices, shape.n_vertices)
-        ).tocsc()
-
-        mass_matrix = sparse.dia_matrix(
-            (shape.vertex_areas, 0), shape=(shape.n_vertices, shape.n_vertices)
+        stiffness_matrix = gs.sparse.csc_matrix(
+            gs.stack([row, col]),
+            data,
+            shape=(shape.n_vertices, shape.n_vertices),
+            coalesce=True,
         )
+
+        mass_matrix = gs.sparse.dia_matrix(shape.vertex_areas)
         return stiffness_matrix, mass_matrix
 
 

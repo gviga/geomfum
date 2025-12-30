@@ -1,5 +1,6 @@
 import random
 
+import gsops.backend as gs
 import numpy as np
 import pyvista as pv
 from polpo.preprocessing import Map
@@ -26,7 +27,7 @@ def MeshDecimationPipeline(target_reduction=0.95):
             if target_reduction is not None
             else []
         )
-        + [DataFromPv()]
+        + [DataFromPv() + (lambda x: (gs.cast(x[0], gs.get_default_dtype()), x[1]))]
     )
     return Map(steps, force_iter=True)
 

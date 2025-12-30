@@ -1,20 +1,20 @@
-"""Sampling methods."""
+"""Sampling methods. This module defines various sampling strategies for geometric shapes, including Poisson disk sampling and farthest point sampling to sample sets of point following geometric indications."""
 
 import abc
+import warnings
 
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
 import geomfum.wrap as _wrap  # noqa (for register)
 from geomfum._registry import (
-    FarthestPointSamplerRegistry,
     PoissonSamplerRegistry,
     WhichRegistryMixins,
 )
 
 
 class BaseSampler(abc.ABC):
-    """Sampler."""
+    """Abstract Sampler."""
 
     @abc.abstractmethod
     def sample(self, shape):
@@ -27,10 +27,70 @@ class PoissonSampler(WhichRegistryMixins):
     _Registry = PoissonSamplerRegistry
 
 
-class FarthestPointSampler(WhichRegistryMixins):
-    """Farthest point Euclidean sampling."""
+class FarthestPointSampler(BaseSampler):
+    """Farthest point sampling.
 
-    _Registry = FarthestPointSamplerRegistry
+    Parameters
+    ----------
+    min_n_samples : int
+        Minimum number of samples to target.
+    """
+
+    def __init__(self, min_n_samples):
+        super().__init__()
+        self.min_n_samples = min_n_samples
+
+    def sample(self, shape, first_point=None, points_pool=None):
+        """
+        Perform farthest point sampling on a mesh.
+
+        Parameters
+        ----------
+        shape : TriangleMesh
+            The mesh to sample points from.
+        first_point : int, optional
+            Index of the initial point to start sampling from. If None, a random point is chosen.
+        points_pool : array-like or int, optional
+            Pool of candidate points to sample from. If None, all vertices in the mesh are used.
+
+        Returns
+        -------
+        samples : array-like of shape (min_n_samples,)
+            Indices of sampled points.
+        """
+        if shape.metric is None:
+            raise ValueError("d_func should be a callable")
+        dist_func = shape.metric.dist_from_source
+
+        sub_points = (
+            np.arange(shape.n_vertices)
+            if points_pool is None
+            else np.array(points_pool)
+        )
+
+        if first_point is None:
+            rng = np.random.default_rng()
+            inds = [rng.choice(sub_points)]
+        else:
+            if first_point not in sub_points:
+                warnings.warn(
+                    f"First index {first_point} is not in the points pool {sub_points}.",
+                    UserWarning,
+                )
+            sub_points = np.append(sub_points, first_point)
+            inds = [first_point]
+
+        dists = dist_func(inds[0])[0][sub_points]
+
+        for i in range(self.min_n_samples - 1):
+            if i == self.min_n_samples - 1:
+                continue
+            new_subid = np.argmax(dists)
+            newid = sub_points[new_subid]
+            inds.append(newid)
+            dists = np.minimum(dists, dist_func(newid)[0][sub_points])
+
+        return np.asarray(inds)
 
 
 class VertexProjectionSampler(BaseSampler):
@@ -65,7 +125,7 @@ class VertexProjectionSampler(BaseSampler):
                 n_neighbors=1, leaf_size=40, algorithm="kd_tree", n_jobs=1
             )
         if neighbor_finder.n_neighbors > 1:
-            raise ValueError("Expects `n_neighors = 1`.")
+            raise ValueError("Expects `n_neighbors = 1`.")
 
         self.neighbor_finder = neighbor_finder
         self.sampler = sampler

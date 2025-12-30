@@ -1,3 +1,4 @@
+import gsops.backend as gs
 import numpy as np
 import pytest
 from geomstats.test.test_case import TestCase
@@ -22,9 +23,15 @@ class LaplacianFinderCmpCase(TestCase):
         laplacian_matrix_, mass_matrix_ = self.finder_b(other_shape)
 
         self.assertAllClose(
-            laplacian_matrix.todense(), laplacian_matrix_.todense(), atol=atol
+            gs.sparse.to_dense(laplacian_matrix),
+            gs.sparse.to_dense(laplacian_matrix_),
+            atol=atol,
         )
-        self.assertAllClose(mass_matrix.todense(), mass_matrix_.todense(), atol=atol)
+        self.assertAllClose(
+            gs.sparse.to_dense(mass_matrix),
+            gs.sparse.to_dense(mass_matrix_),
+            atol=atol,
+        )
 
 
 class LaplacianSpectrumFinderCmpCase(TestCase):

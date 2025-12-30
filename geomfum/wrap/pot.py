@@ -1,6 +1,6 @@
 """Python Optimal Trasport wrapper."""
 
-import numpy as np
+import gsops.backend as gs
 import ot
 
 from geomfum.convert import BaseNeighborFinder
@@ -33,50 +33,31 @@ class PotSinkhornNeighborFinder(BaseNeighborFinder):
         self.lambd = lambd
         self.max_iter = max_iter
         self.method = method
-        self.X_ = None
 
-    def fit(self, X):
-        """Store the reference points.
-
-        Parameters
-        ----------
-        X : array-like, shape=[n_points_x, n_features]
-            Reference points.
-        """
-        self.X_ = X
-        return self
-
-    def kneighbors(self, X, return_distance=True):
+    def __call__(self, X, Y):
         """Find k nearest neighbors using Sinkhorn regularization.
 
         Parameters
         ----------
-        X : array-like, shape=[n_points_y, n_features]
+        X : array-like, shape=[n_points_x, n_features]
             Query points.
-        return_distance : bool
-            Whether to return the distances.
+        Y : array-like, shape=[n_points_y, n_features]
+            Reference points.
 
         Returns
         -------
-        distances : array-like, shape=[n_points_y, n_neighbors]
-            Distances to the nearest neighbors.
-        indices : array-like, shape=[n_points_y, n_neighbors]
+        indices : array-like, shape=[n_points_x, n_neighbors]
             Indices of the nearest neighbors.
         """
-        M = np.exp(-self.lambd * ot.dist(X, self.X_))
+        M = gs.exp(-self.lambd * ot.dist(X, Y))
 
         n, m = M.shape
-        a = np.ones(n) / n
-        b = np.ones(m) / m
+        a = gs.ones(n) / n
+        b = gs.ones(m) / m
 
         # TODO: implement as sinkhorn solver?
         Gs = ot.sinkhorn(a, b, M, self.lambd, self.method, self.max_iter)
 
-        indices = np.argsort(Gs, axis=1)[:, : self.n_neighbors]
+        indices = gs.argsort(Gs, axis=1)[:, : self.n_neighbors]
 
-        if not return_distance:
-            return indices
-
-        distances = np.array([M[i, indices[i]] for i in range(X.shape[0])])
-
-        return distances, indices
+        return indices

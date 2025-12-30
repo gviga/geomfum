@@ -3,13 +3,15 @@
 import abc
 import logging
 
-import numpy as np
+import gsops.backend as gs
 import scipy
 
 from geomfum.convert import (
     FmFromP2pBijectiveConverter,
     FmFromP2pConverter,
+    NamFromP2pConverter,
     P2pFromFmConverter,
+    P2pFromNamConverter,
     SinkhornP2pFromFmConverter,
 )
 
@@ -101,15 +103,62 @@ class OrthogonalRefiner(Refiner):
         U, _, VT = scipy.linalg.svd(fmap_matrix)
 
         if k1 != k2 or not self.flip_neg_det:
-            return U @ np.eye(k2, k1) @ VT
+            return gs.asarray(U @ gs.to_numpy(gs.eye(k2, k1)) @ VT)
 
-        opt_rot = np.matmul(U, VT)
-        if np.linalg.det(opt_rot) < 0.0:
-            diag_sign = np.diag(np.ones(VT.shape[0]))
+        opt_rot = gs.asarray(gs.matmul(U, VT))
+        if gs.linalg.det(opt_rot) < 0.0:
+            diag_sign = gs.diag(gs.ones(VT.shape[0]))
             diag_sign[-1, -1] = -1
-            opt_rot = np.matmul(U, np.matmul(diag_sign, VT))
+            opt_rot = gs.matmul(U, gs.matmul(diag_sign, VT))
 
         return opt_rot
+
+
+class ProperRefiner(Refiner):
+    """Refinement projecting the functional map to the proper functional map space.
+
+    Parameters
+    ----------
+    p2p_from_fm_converter : P2pFromFmConverter
+        Pointwise map from functional map.
+    fm_from_p2p_converter : FmFromP2pConverter
+        Functional map from pointwise map.
+    """
+
+    def __init__(
+        self,
+        p2p_from_fm_converter=None,
+        fm_from_p2p_converter=None,
+    ):
+        super().__init__()
+        if p2p_from_fm_converter is None:
+            p2p_from_fm_converter = P2pFromFmConverter()
+
+        if fm_from_p2p_converter is None:
+            fm_from_p2p_converter = FmFromP2pConverter()
+
+        self.p2p_from_fm_converter = p2p_from_fm_converter
+        self.fm_from_p2p_converter = fm_from_p2p_converter
+
+    def __call__(self, fmap_matrix, basis_a, basis_b):
+        """Apply refiner.
+
+        Parameters
+        ----------
+        fmap_matrix : array-like, shape=[spectrum_size_b, spectrum_size_a]
+            Functional map matrix.
+        basis_a : Eigenbasis.
+            Basis.
+        basis_b: Eigenbasis.
+            Basis.
+
+        Returns
+        -------
+        fmap_matrix : array-like, shape=[spectrum_size_b, spectrum_size_a]
+            Refined functional map matrix.
+        """
+        p2p_21 = self.p2p_from_fm_converter(fmap_matrix, basis_a, basis_b)
+        return self.fm_from_p2p_converter(p2p_21, basis_a, basis_b)
 
 
 class IterativeRefiner(Refiner):
@@ -257,7 +306,7 @@ class IterativeRefiner(Refiner):
 
             if (
                 self.atol is not None
-                and np.amax(np.abs(new_fmap_matrix - fmap_matrix)) < self.atol
+                and gs.amax(gs.abs(new_fmap_matrix - fmap_matrix)) < self.atol
             ):
                 break
 
@@ -360,10 +409,7 @@ class AdjointBijectiveZoomOut(ZoomOut):
 
     References
     ----------
-    .. [VM2023] Giulio Viganò, Simone Melzi.
-        Adjoint Bijective ZoomOut: Efficient upsampling for learned linearly-invariant
-        embedding. 2023
-        https://github.com/gviga/AB-ZoomOut
+    :cite:`VM2024`
     """
 
     def __init__(
@@ -411,4 +457,34 @@ class FastSinkhornFilters(ZoomOut):
             step=step,
             p2p_from_fm_converter=SinkhornP2pFromFmConverter(neighbor_finder),
             fm_from_p2p_converter=FmFromP2pConverter(),
+        )
+
+
+class NeuralZoomOut(ZoomOut):
+    """Neural zoomout algorithm.
+
+    Parameters
+    ----------
+    nit : int
+        Number of iterations.
+    step : int or tuple[2, int]
+        How much to increase each basis per iteration.
+
+    References
+    ----------
+    .. [VOM2025] Giulio Viganò, Maks Ovsjanikov, Simone Melzi.
+        "NAM: Neural Adjoint Maps for refining shape correspondences".
+    """
+
+    def __init__(
+        self,
+        nit=10,
+        step=1,
+        device="cpu",
+    ):
+        super().__init__(
+            nit=nit,
+            step=step,
+            p2p_from_fm_converter=P2pFromNamConverter(),
+            fm_from_p2p_converter=NamFromP2pConverter(device=device),
         )

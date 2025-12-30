@@ -1,4 +1,4 @@
-"""Datasets for noteboos/docs."""
+"""Datasets for notebooks/docs."""
 
 import os
 
@@ -24,7 +24,7 @@ class NotebooksDataset:
         self.data_dir = data_dir
 
         pyfm_data_url = "https://raw.githubusercontent.com/RobinMagnet/pyFM/refs/heads/master/examples/data/"
-        
+
         self.files = {
             "cat-00": DownloadableFile("cat-00.off", f"{pyfm_data_url}/cat-00.off"),
             "lion-00": DownloadableFile("lion-00.off", f"{pyfm_data_url}/lion-00.off"),

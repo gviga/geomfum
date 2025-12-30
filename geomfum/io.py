@@ -1,3 +1,4 @@
+import gsops.backend as gs
 import meshio
 
 
@@ -15,7 +16,7 @@ def load_mesh(filename):
     faces : array_like, shape=[n_faces, 3]
     """
     mesh = meshio.read(filename)
-    return mesh.points, mesh.cells[0].data
+    return gs.from_numpy(mesh.points), gs.from_numpy(mesh.cells[0].data)
 
 
 def load_pointcloud(filename):
@@ -31,4 +32,4 @@ def load_pointcloud(filename):
     vertices : array-like, shape=[n_vertices, 3]
     """
     point_cloud = meshio.read(filename)
-    return point_cloud.points
+    return gs.from_numpy(point_cloud.points)
