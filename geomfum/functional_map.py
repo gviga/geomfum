@@ -126,6 +126,20 @@ class LBCommutativityEnforcing(WeightedFactor):
 
     @staticmethod
     def from_bases(basis_a, basis_b, weight=1.0):
+        """Compute the commutativity constrain as a constrai on the spectrum coefficient.
+
+        Parameters
+        ----------
+        basis_a: Basis
+            Basis of source shape
+        basis_b: Basis
+            Basis of target shape
+
+        Returns
+        -------
+        constraint: LBCommutativityEnforcings
+            class for the LBCommutativityEnforcings constraint
+        """
         vals_sqdiff = gs.square(basis_a.vals[None, :] - basis_b.vals[:, None])
         vals_sqdiff /= vals_sqdiff.sum()
         return LBCommutativityEnforcing(vals_sqdiff, weight=weight)
@@ -261,11 +275,18 @@ class OperatorCommutativityEnforcing(WeightedFactor):
     @classmethod
     def from_multiplication(cls, basis_a, descr_a, basis_b, descr_b, weight=1.0):
         """
+        Compute the OperatorCommutativityEnforcing constrain from the operator induced by descriptors.
 
         Parameters
         ----------
+        basis_a : Basis
+            Basis of the source shape.
         descr_a : array-like, shape=[..., n_vertices]
+            descriptor for the source shape.
+        basis_b : Basis
+            Basis of the target shape.
         descr_b : array-like, shape=[..., n_vertices]
+            descriptor for the target shape.
         """
         oper_a = cls.compute_multiplication_operator(basis_a, descr_a)
         oper_b = cls.compute_multiplication_operator(basis_b, descr_b)
@@ -284,11 +305,30 @@ class OperatorCommutativityEnforcing(WeightedFactor):
         weight=1.0,
     ):
         """
+        Compute the OperatorCommutativityEnforcing constrain from the operator induced by gradient Operators.
 
         Parameters
         ----------
+        basis_a : Basis
+            Basis of the source shape.
         descr_a : array-like, shape=[..., n_vertices]
+            descriptor for the source shape.
+        basis_b : Basis
+            Basis of the target shape.
         descr_b : array-like, shape=[..., n_vertices]
+            descriptor for the target shape.
+        reversing_a : bool
+            whether to return operators associated to orientation inversion instead
+                of orientation preservation (return the opposite of the second operator) for source shape
+        reversing_b : bool
+            whether to return operators associated to orientation inversion instead
+                of orientation preservation (return the opposite of the second operator) for target shape
+        normalize : bool
+            whether to normalize the gradient on each face.
+        weight : float
+            Weight of the factor.
+
+
         """
         oper_a = cls.compute_orientation_operator(
             shape_a, descr_a, reversing=reversing_a, normalize=normalize

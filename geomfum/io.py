@@ -1,3 +1,5 @@
+"""Utilities for loading geometric data."""
+
 import gsops.backend as gs
 import meshio
 

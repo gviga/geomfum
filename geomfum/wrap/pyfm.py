@@ -383,8 +383,8 @@ def get_orientation_op(
     else:
         rot_field = gs.cross(normals, grad_field)  # (n_f,3)
 
-    I = gs.concatenate([faces[:, 0], faces[:, 1], faces[:, 2]])
-    J = gs.concatenate([faces[:, 1], faces[:, 2], faces[:, 0]])
+    face_i = gs.concatenate([faces[:, 0], faces[:, 1], faces[:, 2]])
+    face_j = gs.concatenate([faces[:, 1], faces[:, 2], faces[:, 0]])
 
     # Compute pairwise dot products between the gradient directions
     # and the gradient field
@@ -414,8 +414,8 @@ def get_orientation_op(
         )
     )
 
-    In = gs.concatenate([I, J, I, J])
-    Jn = gs.concatenate([J, I, I, J])
+    In = gs.concatenate([face_i, face_j, face_i, face_j])
+    Jn = gs.concatenate([face_j, face_i, face_i, face_j])
     Sn = gs.concatenate([Sij, Sji, -Sij, -Sji], axis=-1)
 
     inv_area = gs.sparse.dia_matrix(1 / per_vert_area, shape=(n_vertices, n_vertices))
