@@ -1,5 +1,5 @@
 # Documentation dependencies
-sphinx>=4.0
+sphinx==8.2.3
 sphinx-autodoc-typehints
 sphinx-copybutton
 sphinx-design
