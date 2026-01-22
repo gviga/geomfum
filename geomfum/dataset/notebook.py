@@ -25,9 +25,13 @@ class NotebooksDataset:
 
         pyfm_data_url = "https://raw.githubusercontent.com/RobinMagnet/pyFM/refs/heads/master/examples/data/"
 
+        faust_url = "https://raw.githubusercontent.com/JM-data/PyFuncMap/4bde4484c3e93bff925a6a82da29fa79d6862f4b/FAUST_shapes_off/"
+
         self.files = {
             "cat-00": DownloadableFile("cat-00.off", f"{pyfm_data_url}/cat-00.off"),
             "lion-00": DownloadableFile("lion-00.off", f"{pyfm_data_url}/lion-00.off"),
+            "faust-00": DownloadableFile("faust-00.off", f"{faust_url}/tr_reg_000.off"),
+            "faust-04": DownloadableFile("faust-04.off", f"{faust_url}/tr_reg_004.off"),
         }
 
         os.makedirs(data_dir, exist_ok=True)

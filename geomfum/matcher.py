@@ -3,6 +3,18 @@
 This module provides a high-level framework for computing correspondences
 between shapes using functional maps. It abstracts the complexity of the
 pipeline while allowing flexible configuration of each step.
+
+Notation Convention
+-------------------
+Following the functional maps convention used throughout the library:
+- `fmap12` = functional map from shape_a to shape_b, shape = [spectrum_size_b, spectrum_size_a]
+- `p2p21` = point-to-point map from shape_b to shape_a (derived from fmap12)
+    - For each vertex i in shape_b, p2p21[i] gives the corresponding vertex in shape_a
+    - shape = [n_vertices_b]
+
+The Matcher takes (shape_a, shape_b) and returns:
+- `fmap12`: functional map from A to B
+- `p2p21`: point-to-point correspondence from B to A
 """
 
 import abc
@@ -36,23 +48,25 @@ class MatcherResult:
 
     Parameters
     ----------
-    p2p : array-like, shape=[n_vertices_a]
-        Point-to-point correspondence from shape_a to shape_b.
-    fmap : array-like, shape=[spectrum_size_b, spectrum_size_a]
-        Functional map matrix.
+    p2p21 : array-like, shape=[n_vertices_b]
+        Point-to-point correspondence from shape_b to shape_a.
+        For each vertex i in shape_b, p2p21[i] gives the corresponding
+        vertex index in shape_a.
+    fmap12 : array-like, shape=[spectrum_size_b, spectrum_size_a]
+        Functional map matrix from shape_a to shape_b.
     descr_a : array-like, shape=[n_descr, n_vertices_a]
         Descriptors on shape_a.
     descr_b : array-like, shape=[n_descr, n_vertices_b]
         Descriptors on shape_b.
-    refined_fmap : array-like, shape=[spectrum_size_b, spectrum_size_a], optional
+    refined_fmap12 : array-like, shape=[spectrum_size_b, spectrum_size_a], optional
         Refined functional map matrix (if refinement was applied).
     """
 
-    p2p: "gs.ndarray"
-    fmap: "gs.ndarray"
+    p2p21: "gs.ndarray"
+    fmap12: "gs.ndarray"
     descr_a: "gs.ndarray" = None
     descr_b: "gs.ndarray" = None
-    refined_fmap: "gs.ndarray" = None
+    refined_fmap12: "gs.ndarray" = None
 
 
 @dataclass
@@ -110,14 +124,16 @@ class BaseMatcher(abc.ABC):
         Parameters
         ----------
         shape_a : Shape
-            Source shape.
+            First shape (target for p2p21).
         shape_b : Shape
-            Target shape.
+            Second shape (source for p2p21).
 
         Returns
         -------
         result : MatcherResult
-            Matching result containing p2p correspondence.
+            Matching result containing:
+            - p2p21: point-to-point correspondence from B to A
+            - fmap12: functional map from A to B (if applicable)
         """
 
 
@@ -248,7 +264,7 @@ class FunctionalMapMatcher(BaseMatcher):
         return ChainedRefiner(
             refiners=[
                 IcpRefiner(nit=10),
-                ZoomOut(nit=20, step=5),
+                ZoomOut(nit=10, step=5),
             ]
         )
 
@@ -341,14 +357,16 @@ class FunctionalMapMatcher(BaseMatcher):
         Parameters
         ----------
         shape_a : Shape
-            Source shape.
+            First shape (target for p2p21).
         shape_b : Shape
-            Target shape.
+            Second shape (source for p2p21).
 
         Returns
         -------
         result : MatcherResult
-            Matching result containing p2p correspondence and functional map.
+            Matching result containing:
+            - p2p21: point-to-point correspondence from B to A
+            - fmap12: functional map from A to B
         """
         # Step 1: Ensure both shapes have basis
         self._ensure_basis(shape_a)
@@ -370,7 +388,7 @@ class FunctionalMapMatcher(BaseMatcher):
         shape_a.basis.use_k = self.config.fmap_size
         shape_b.basis.use_k = self.config.fmap_size
 
-        # Step 4: Build and optimize functional map
+        # Step 4: Build and optimize functional map (fmap12: A -> B)
         factors = self._build_factors(shape_a, shape_b, descr_a, descr_b)
         objective = FactorSum(factors)
 
@@ -382,24 +400,24 @@ class FunctionalMapMatcher(BaseMatcher):
             fun_jac=objective.gradient,
         )
 
-        fmap = res.x.reshape(x0.shape)
+        fmap12 = res.x.reshape(x0.shape)
 
         # Step 5: Apply refinement
-        refined_fmap = self.refiner(fmap, shape_a.basis, shape_b.basis)
+        refined_fmap12 = self.refiner(fmap12, shape_a.basis, shape_b.basis)
 
-        # Step 6: Convert to point-to-point correspondence
-        p2p = self._p2p_converter(refined_fmap, shape_a.basis, shape_b.basis)
+        # Step 6: Convert to point-to-point correspondence (p2p21: B -> A)
+        p2p21 = self._p2p_converter(refined_fmap12, shape_a.basis, shape_b.basis)
 
         # Restore original use_k values
         shape_a.basis.use_k = original_use_k_a
         shape_b.basis.use_k = original_use_k_b
 
         return MatcherResult(
-            p2p=p2p,
-            fmap=fmap,
+            p2p21=p2p21,
+            fmap12=fmap12,
             descr_a=descr_a,
             descr_b=descr_b,
-            refined_fmap=refined_fmap if refined_fmap is not fmap else None,
+            refined_fmap12=refined_fmap12 if refined_fmap12 is not fmap12 else None,
         )
 
 
@@ -610,14 +628,15 @@ class FeatureMatcher(BaseMatcher):
         Parameters
         ----------
         shape_a : Shape
-            Source shape.
+            First shape (target for p2p21).
         shape_b : Shape
-            Target shape.
+            Second shape (source for p2p21).
 
         Returns
         -------
         result : MatcherResult
-            Matching result containing p2p correspondence.
+            Matching result containing:
+            - p2p21: point-to-point correspondence from B to A
         """
         # Step 1: Ensure both shapes have basis (needed for spectral descriptors)
         self._ensure_basis(shape_a)
@@ -644,13 +663,13 @@ class FeatureMatcher(BaseMatcher):
         feat_a = descr_a.T
         feat_b = descr_b.T
 
-        # Find for each vertex in b, the nearest vertex in a
-        p2p = self._neighbor_finder(feat_b, feat_a).flatten()
+        # Find for each vertex in B, the nearest vertex in A (p2p21: B -> A)
+        p2p21 = self._neighbor_finder(feat_b, feat_a).flatten()
 
         return MatcherResult(
-            p2p=p2p,
-            fmap=None,
+            p2p21=p2p21,
+            fmap12=None,
             descr_a=descr_a,
             descr_b=descr_b,
-            refined_fmap=None,
+            refined_fmap12=None,
         )
