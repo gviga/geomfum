@@ -18,6 +18,7 @@ from geomfum.convert import (
 )
 from geomfum.descriptor.learned import FeatureExtractor, LearnedDescriptor
 from geomfum.forward_functional_map import ForwardFunctionalMap
+from geomfum.matcher import CorrespondenceResult
 
 
 class BaseModel(abc.ABC, nn.Module):
@@ -52,50 +53,53 @@ class FMNet(BaseModel):
         self.fmap_module = fmap_module
         self.converter = converter
 
-    def forward(self, mesh_a, mesh_b, as_dict=True):
+    def forward(self, mesh_a, mesh_b, bidirectional=True, as_dict=False):
         """Compute the functional map between two shapes.
 
         Parameters
         ----------
         mesh_a : TriangleMesh or dict
-            The first shape, either as a TriangleMesh object or a dictionary containing 'basis', 'evals', and 'pinv'.
+            The first shape (target for p2p21).
         mesh_b : TriangleMesh or dict
-            The second shape, either as a TriangleMesh object or a dictionary containing 'basis', 'evals', and 'pinv'.
+            The second shape (source for p2p21).
+        bidirectional : bool, optional
+            If True, compute correspondences in both directions. Default is True.
         as_dict : bool, optional
-            If True, returns a dictionary with functional maps and, optionally, point-to-point correspondences.
-            If False, returns the functional maps and, optionally, point-to-point correspondences as separate tensors.
+            If True, returns a dictionary instead of CorrespondenceResult.
+            Deprecated, use result.to_dict() instead.
 
         Returns
         -------
-            fmap12 : array-like, shape=[..., spectrum_size_b, spectrum_size_a]
-                Functional map from shape a to shape b.
-            fmap21 : array-like, shape=[..., spectrum_size_a, spectrum_size_b]
-                Functional map from shape b to shape a.
-            p2p21 : array-like, shape=[..., num_points_b]
-                Point-to-point correspondence from shape a to shape b.
-            p2p12 : array-like, shape=[..., num_points_a]
-                Point-to-point correspondence from shape b to shape a.
+        result : CorrespondenceResult or dict
+            Matching result containing:
+            - fmap12: functional map from A to B
+            - p2p21: point-to-point correspondence from B to A
+            - fmap21, p2p12: (if bidirectional) reverse direction
+            - descr_a, descr_b: computed descriptors
         """
         desc_a = self.descriptors_module(mesh_a)
         desc_b = self.descriptors_module(mesh_b)
 
         fmap12, fmap21 = self.fmap_module(mesh_a, mesh_b, desc_a, desc_b)
+
         p2p12 = p2p21 = None
         if not self.training:
             p2p21 = self.converter(fmap12, mesh_a.basis, mesh_b.basis)
-            p2p12 = self.converter(fmap21, mesh_b.basis, mesh_a.basis)
+            if bidirectional:
+                p2p12 = self.converter(fmap21, mesh_b.basis, mesh_a.basis)
+
+        result = CorrespondenceResult(
+            fmap12=fmap12,
+            p2p21=p2p21,
+            fmap21=fmap21 if bidirectional else None,
+            p2p12=p2p12,
+            descr_a=desc_a,
+            descr_b=desc_b,
+        )
 
         if as_dict:
-            result = {"fmap12": fmap12, "fmap21": fmap21}
-            if not self.training:
-                result.update({"p2p12": p2p12, "p2p21": p2p21})
-            return result
-        else:
-            return (
-                (fmap12, fmap21, p2p12, p2p21)
-                if not self.training
-                else (fmap12, fmap21)
-            )
+            return result.to_dict()
+        return result
 
 
 class RobustFMNet(BaseModel):
@@ -128,71 +132,67 @@ class RobustFMNet(BaseModel):
         self.fmap_converter = FmFromP2pConverter(pseudo_inverse=True)
         self.neighbor_finder = self.converter.neighbor_finder
 
-    def forward(self, mesh_a, mesh_b, as_dict=True):
+    def forward(self, mesh_a, mesh_b, bidirectional=True, as_dict=False):
         """Compute the functional map between two shapes.
 
         Parameters
         ----------
         mesh_a : TriangleMesh or dict
-            The first shape, either as a TriangleMesh object or a dictionary containing 'basis', 'evals', and 'pinv'.
+            The first shape (target for p2p21).
         mesh_b : TriangleMesh or dict
-            The second shape, either as a TriangleMesh object or a dictionary containing 'basis', 'evals', and 'pinv'.
+            The second shape (source for p2p21).
+        bidirectional : bool, optional
+            If True, compute correspondences in both directions. Default is True.
         as_dict : bool, optional
-            If True, returns a dictionary with functional maps and, optionally, point-to-point correspondences.
-            If False, returns the functional maps and, optionally, point-to-point correspondences as separate tensors.
+            If True, returns a dictionary instead of CorrespondenceResult.
+            Deprecated, use result.to_dict() instead.
 
         Returns
         -------
-            fmap12 : array-like, shape=[..., spectrum_size_b, spectrum_size_a]
-                Functional map from shape a to shape b.
-            fmap21 : array-like, shape=[..., spectrum_size_a, spectrum_size_b]
-                Functional map from shape b to shape a.
-            p2p21 : array-like, shape=[..., num_points_b]
-                Point-to-point correspondence from shape a to shape b.
-            p2p12 : array-like, shape=[..., num_points_a]
-                Point-to-point correspondence from shape b to shape a.
-            fmap12_desc : array-like, shape=[..., spectrum_size_b, spectrum_size_a]
-                Functional map from shape a to shape b.
-            fmap21_desc : array-like, shape=[..., spectrum_size_a, spectrum_size_b]
-                Functional map from shape b to shape a.
+        result : CorrespondenceResult or dict
+            Matching result containing:
+            - fmap12: functional map from A to B
+            - p2p21: point-to-point correspondence from B to A
+            - fmap21, p2p12: (if bidirectional) reverse direction
+            - descr_a, descr_b: computed descriptors
+            - refined_fmap12, refined_fmap21: descriptor-based fmaps
         """
         desc_a = self.descriptors_module(mesh_a)
         desc_b = self.descriptors_module(mesh_b)
 
         fmap12, fmap21 = self.fmap_module(mesh_a, mesh_b, desc_a, desc_b)
 
-        desc_a = desc_a / gs.linalg.norm(desc_a, axis=0, keepdims=True)
-        desc_b = desc_b / gs.linalg.norm(desc_b, axis=0, keepdims=True)
+        desc_a_norm = desc_a / gs.linalg.norm(desc_a, axis=0, keepdims=True)
+        desc_b_norm = desc_b / gs.linalg.norm(desc_b, axis=0, keepdims=True)
 
-        P12 = self.neighbor_finder.softmax_matrix(desc_a.T, desc_b.T)
-        P21 = self.neighbor_finder.softmax_matrix(desc_b.T, desc_a.T)
+        P12 = self.neighbor_finder.softmax_matrix(desc_a_norm.T, desc_b_norm.T)
+        P21 = self.neighbor_finder.softmax_matrix(desc_b_norm.T, desc_a_norm.T)
 
-        p2p12 = p2p21 = None
-
+        # Descriptor-based fmaps (used as "refined" fmaps)
         fmap21_desc = mesh_a.basis.pinv @ (P12 @ mesh_b.basis.vecs)
         fmap12_desc = mesh_b.basis.pinv @ (P21 @ mesh_a.basis.vecs)
 
+        p2p12 = p2p21 = None
         if not self.training:
             p2p21 = gs.to_device(
                 self.converter(fmap12, mesh_a.basis, mesh_b.basis), "cpu"
             )
-            p2p12 = gs.to_device(
-                self.converter(fmap21, mesh_b.basis, mesh_a.basis), "cpu"
-            )
+            if bidirectional:
+                p2p12 = gs.to_device(
+                    self.converter(fmap21, mesh_b.basis, mesh_a.basis), "cpu"
+                )
+
+        result = CorrespondenceResult(
+            fmap12=fmap12,
+            p2p21=p2p21,
+            fmap21=fmap21 if bidirectional else None,
+            p2p12=p2p12,
+            descr_a=desc_a,
+            descr_b=desc_b,
+            refined_fmap12=fmap12_desc,
+            refined_fmap21=fmap21_desc if bidirectional else None,
+        )
 
         if as_dict:
-            result = {
-                "fmap12": fmap12,
-                "fmap21": fmap21,
-                "fmap12_desc": fmap12_desc,
-                "fmap21_desc": fmap21_desc,
-            }
-            if not self.training:
-                result.update({"p2p12": p2p12, "p2p21": p2p21})
-            return result
-        else:
-            return (
-                (fmap12, fmap21, p2p12, p2p21)
-                if not self.training
-                else (fmap12, fmap21, fmap12_desc, fmap21_desc)
-            )
+            return result.to_dict()
+        return result

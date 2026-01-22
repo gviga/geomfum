@@ -15,10 +15,14 @@ Following the functional maps convention used throughout the library:
 The Matcher takes (shape_a, shape_b) and returns:
 - `fmap12`: functional map from A to B
 - `p2p21`: point-to-point correspondence from B to A
+
+With bidirectional=True, also returns:
+- `fmap21`: functional map from B to A
+- `p2p12`: point-to-point correspondence from A to B
 """
 
 import abc
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 import gsops.backend as gs
 
@@ -43,30 +47,67 @@ from geomfum.refine import IcpRefiner, IdentityRefiner, ZoomOut
 
 
 @dataclass
-class MatcherResult:
-    """Result of a matching operation.
+class CorrespondenceResult:
+    """Result of a matching operation (for both Matcher and Model).
+
+    This is the unified output format for all correspondence methods,
+    including classical functional map matchers and learning-based models.
 
     Parameters
     ----------
+    fmap12 : array-like, shape=[spectrum_size_b, spectrum_size_a]
+        Functional map matrix from shape_a to shape_b.
     p2p21 : array-like, shape=[n_vertices_b]
         Point-to-point correspondence from shape_b to shape_a.
         For each vertex i in shape_b, p2p21[i] gives the corresponding
         vertex index in shape_a.
-    fmap12 : array-like, shape=[spectrum_size_b, spectrum_size_a]
-        Functional map matrix from shape_a to shape_b.
-    descr_a : array-like, shape=[n_descr, n_vertices_a]
+    fmap21 : array-like, shape=[spectrum_size_a, spectrum_size_b], optional
+        Functional map matrix from shape_b to shape_a (for bidirectional).
+    p2p12 : array-like, shape=[n_vertices_a], optional
+        Point-to-point correspondence from shape_a to shape_b (for bidirectional).
+    descr_a : array-like, shape=[n_descr, n_vertices_a], optional
         Descriptors on shape_a.
-    descr_b : array-like, shape=[n_descr, n_vertices_b]
+    descr_b : array-like, shape=[n_descr, n_vertices_b], optional
         Descriptors on shape_b.
     refined_fmap12 : array-like, shape=[spectrum_size_b, spectrum_size_a], optional
         Refined functional map matrix (if refinement was applied).
+    refined_fmap21 : array-like, shape=[spectrum_size_a, spectrum_size_b], optional
+        Refined functional map matrix from B to A (if bidirectional refinement).
     """
 
-    p2p21: "gs.ndarray"
     fmap12: "gs.ndarray"
+    p2p21: "gs.ndarray"
+    fmap21: "gs.ndarray" = None
+    p2p12: "gs.ndarray" = None
     descr_a: "gs.ndarray" = None
     descr_b: "gs.ndarray" = None
     refined_fmap12: "gs.ndarray" = None
+    refined_fmap21: "gs.ndarray" = None
+
+    def to_dict(self):
+        """Convert to dictionary (for backward compatibility).
+
+        Returns
+        -------
+        dict
+            Dictionary with all non-None fields.
+        """
+        return {k: v for k, v in asdict(self).items() if v is not None}
+
+    @property
+    def is_bidirectional(self):
+        """Check if result contains bidirectional correspondences.
+
+        Returns
+        -------
+        bool
+            True if fmap21 and p2p12 are available.
+        """
+        return self.fmap21 is not None and self.p2p12 is not None
+
+
+# Backward compatibility alias
+MatcherResult = CorrespondenceResult
 
 
 @dataclass
@@ -252,16 +293,16 @@ class FunctionalMapMatcher(BaseMatcher):
 
         Returns
         -------
-        refiner : Refiner or ChainedRefiner
+        refiner : Refiner or RefinementPipeline
         """
         # If refiners explicitly set in config, use them
         if self.config.refiners is not None:
             if len(self.config.refiners) == 0:
                 return IdentityRefiner()
-            return ChainedRefiner(self.config.refiners)
+            return RefinementPipeline(self.config.refiners)
 
         # Default: ICP + ZoomOut
-        return ChainedRefiner(
+        return RefinementPipeline(
             refiners=[
                 IcpRefiner(nit=10),
                 ZoomOut(nit=10, step=5),
@@ -351,7 +392,7 @@ class FunctionalMapMatcher(BaseMatcher):
 
         return factors
 
-    def __call__(self, shape_a, shape_b):
+    def __call__(self, shape_a, shape_b, bidirectional=False):
         """Compute correspondence between two shapes.
 
         Parameters
@@ -360,13 +401,16 @@ class FunctionalMapMatcher(BaseMatcher):
             First shape (target for p2p21).
         shape_b : Shape
             Second shape (source for p2p21).
+        bidirectional : bool
+            If True, compute correspondences in both directions.
 
         Returns
         -------
-        result : MatcherResult
+        result : CorrespondenceResult
             Matching result containing:
-            - p2p21: point-to-point correspondence from B to A
             - fmap12: functional map from A to B
+            - p2p21: point-to-point correspondence from B to A
+            - fmap21, p2p12: (if bidirectional=True) reverse direction
         """
         # Step 1: Ensure both shapes have basis
         self._ensure_basis(shape_a)
@@ -408,20 +452,47 @@ class FunctionalMapMatcher(BaseMatcher):
         # Step 6: Convert to point-to-point correspondence (p2p21: B -> A)
         p2p21 = self._p2p_converter(refined_fmap12, shape_a.basis, shape_b.basis)
 
+        # Initialize reverse direction as None
+        fmap21 = None
+        refined_fmap21 = None
+        p2p12 = None
+
+        # Step 7: Compute reverse direction if bidirectional
+        if bidirectional:
+            factors_rev = self._build_factors(shape_b, shape_a, descr_b, descr_a)
+            objective_rev = FactorSum(factors_rev)
+
+            x0_rev = gs.zeros(
+                (shape_a.basis.spectrum_size, shape_b.basis.spectrum_size)
+            )
+
+            res_rev = self.optimizer.minimize(
+                objective_rev,
+                x0_rev,
+                fun_jac=objective_rev.gradient,
+            )
+
+            fmap21 = res_rev.x.reshape(x0_rev.shape)
+            refined_fmap21 = self.refiner(fmap21, shape_b.basis, shape_a.basis)
+            p2p12 = self._p2p_converter(refined_fmap21, shape_b.basis, shape_a.basis)
+
         # Restore original use_k values
         shape_a.basis.use_k = original_use_k_a
         shape_b.basis.use_k = original_use_k_b
 
-        return MatcherResult(
-            p2p21=p2p21,
+        return CorrespondenceResult(
             fmap12=fmap12,
+            p2p21=p2p21,
+            fmap21=fmap21,
+            p2p12=p2p12,
             descr_a=descr_a,
             descr_b=descr_b,
             refined_fmap12=refined_fmap12 if refined_fmap12 is not fmap12 else None,
+            refined_fmap21=refined_fmap21 if refined_fmap21 is not fmap21 else None,
         )
 
 
-class ChainedRefiner:
+class RefinementPipeline:
     """Chain multiple refiners together.
 
     Parameters
@@ -622,7 +693,7 @@ class FeatureMatcher(BaseMatcher):
                 spectrum_size=self.config.spectrum_size, set_as_basis=True
             )
 
-    def __call__(self, shape_a, shape_b):
+    def __call__(self, shape_a, shape_b, bidirectional=False):
         """Compute correspondence between two shapes.
 
         Parameters
@@ -631,12 +702,15 @@ class FeatureMatcher(BaseMatcher):
             First shape (target for p2p21).
         shape_b : Shape
             Second shape (source for p2p21).
+        bidirectional : bool
+            If True, compute correspondences in both directions.
 
         Returns
         -------
-        result : MatcherResult
+        result : CorrespondenceResult
             Matching result containing:
             - p2p21: point-to-point correspondence from B to A
+            - p2p12: (if bidirectional=True) correspondence from A to B
         """
         # Step 1: Ensure both shapes have basis (needed for spectral descriptors)
         self._ensure_basis(shape_a)
@@ -666,10 +740,18 @@ class FeatureMatcher(BaseMatcher):
         # Find for each vertex in B, the nearest vertex in A (p2p21: B -> A)
         p2p21 = self._neighbor_finder(feat_b, feat_a).flatten()
 
-        return MatcherResult(
-            p2p21=p2p21,
+        # Compute reverse direction if bidirectional
+        p2p12 = None
+        if bidirectional:
+            p2p12 = self._neighbor_finder(feat_a, feat_b).flatten()
+
+        return CorrespondenceResult(
             fmap12=None,
+            p2p21=p2p21,
+            fmap21=None,
+            p2p12=p2p12,
             descr_a=descr_a,
             descr_b=descr_b,
             refined_fmap12=None,
+            refined_fmap21=None,
         )
