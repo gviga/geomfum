@@ -106,10 +106,6 @@ class CorrespondenceResult:
         return self.fmap21 is not None and self.p2p12 is not None
 
 
-# Backward compatibility alias
-MatcherResult = CorrespondenceResult
-
-
 @dataclass
 class MatcherConfig:
     """Configuration for the Matcher.
@@ -176,6 +172,162 @@ class BaseMatcher(abc.ABC):
             - p2p21: point-to-point correspondence from B to A
             - fmap12: functional map from A to B (if applicable)
         """
+
+
+class FeatureMatcher(BaseMatcher):
+    """Feature-based matcher using nearest neighbor in descriptor space.
+
+    This matcher directly computes correspondences by:
+    1. Computing descriptors/features on both shapes
+    2. Finding nearest neighbors in the descriptor space
+
+    This is simpler and faster than the functional map approach,
+    but may be less robust for complex deformations.
+
+    Parameters
+    ----------
+    config : MatcherConfig
+        Configuration for the matcher.
+    descriptor_pipeline : DescriptorPipeline, optional
+        Custom descriptor pipeline. If None, uses default WKS-based pipeline.
+    neighbor_finder : NeighborFinder, optional
+        Nearest neighbor finder. If None, uses default.
+
+    """
+
+    def __init__(
+        self,
+        config: MatcherConfig = None,
+        descriptor_pipeline: DescriptorPipeline = None,
+        neighbor_finder: NeighborFinder = None,
+    ):
+        self.config = config or MatcherConfig()
+        self._descriptor_pipeline = descriptor_pipeline
+        self._neighbor_finder = neighbor_finder or NeighborFinder(n_neighbors=1)
+
+    @property
+    def descriptor_pipeline(self):
+        """Get the descriptor pipeline.
+
+        Returns
+        -------
+        pipeline : DescriptorPipeline
+        """
+        if self._descriptor_pipeline is not None:
+            return self._descriptor_pipeline
+
+        return self._build_default_descriptor_pipeline()
+
+    def _build_default_descriptor_pipeline(self):
+        """Build the default descriptor pipeline based on config.
+
+        Returns
+        -------
+        pipeline : DescriptorPipeline
+        """
+        steps = []
+
+        # Add descriptors
+        if self.config.descriptors is not None:
+            steps.extend(self.config.descriptors)
+        else:
+            # Default: WKS without subsampling
+            steps.append(WaveKernelSignature.from_registry(n_domain=400))
+
+        # Add subsamplers
+        if self.config.subsamplers is not None:
+            steps.extend(self.config.subsamplers)
+        # No default subsampling for FeatureMatcher
+
+        # Add normalizers
+        if self.config.normalizers is not None:
+            steps.extend(self.config.normalizers)
+        else:
+            # Default normalization
+            steps.append(L2InnerNormalizer())
+
+        return DescriptorPipeline(steps)
+
+    def _ensure_basis(self, shape):
+        """Ensure shape has computed basis.
+
+        Parameters
+        ----------
+        shape : Shape
+            Shape to check/compute basis for.
+        """
+        if (
+            shape.basis is None
+            or shape.basis.full_spectrum_size < self.config.spectrum_size
+        ):
+            shape.laplacian.find_spectrum(
+                spectrum_size=self.config.spectrum_size,
+                set_as_basis=True,
+                recompute=True,
+            )
+
+    def __call__(self, shape_a, shape_b, bidirectional=False):
+        """Compute correspondence between two shapes.
+
+        Parameters
+        ----------
+        shape_a : Shape
+            First shape (target for p2p21).
+        shape_b : Shape
+            Second shape (source for p2p21).
+        bidirectional : bool
+            If True, compute correspondences in both directions.
+
+        Returns
+        -------
+        result : CorrespondenceResult
+            Matching result containing:
+            - p2p21: point-to-point correspondence from B to A
+            - p2p12: (if bidirectional=True) correspondence from A to B
+        """
+        # Step 1: Ensure both shapes have basis (needed for spectral descriptors)
+        self._ensure_basis(shape_a)
+        self._ensure_basis(shape_b)
+
+        # Store original use_k values
+        original_use_k_a = shape_a.basis.use_k
+        original_use_k_b = shape_b.basis.use_k
+
+        # Set full spectrum for descriptor computation
+        shape_a.basis.use_k = self.config.spectrum_size
+        shape_b.basis.use_k = self.config.spectrum_size
+
+        # Step 2: Compute descriptors
+        descr_a = self.descriptor_pipeline.apply(shape_a)
+        descr_b = self.descriptor_pipeline.apply(shape_b)
+
+        # Restore original use_k values
+        shape_a.basis.use_k = original_use_k_a
+        shape_b.basis.use_k = original_use_k_b
+
+        # Step 3: Find nearest neighbors in descriptor space
+        # descr shape is [n_descr, n_vertices], we need [n_vertices, n_descr]
+        feat_a = descr_a.T
+        feat_b = descr_b.T
+
+        # Find for each vertex in B, the nearest vertex in A (p2p21: B -> A)
+        p2p21 = self._neighbor_finder(feat_b, feat_a).flatten()
+
+        # Compute reverse direction if bidirectional
+        p2p12 = None
+        if bidirectional:
+            p2p12 = self._neighbor_finder(feat_a, feat_b).flatten()
+
+        return CorrespondenceResult(
+            fmap12=None,
+            p2p21=p2p21,
+            fmap21=None,
+            p2p12=p2p12,
+            descr_a=descr_a,
+            descr_b=descr_b,
+            refined_fmap12=None,
+            refined_fmap21=None,
+        )
 
 
 class FunctionalMapMatcher(BaseMatcher):
@@ -322,7 +474,9 @@ class FunctionalMapMatcher(BaseMatcher):
             or shape.basis.full_spectrum_size < self.config.spectrum_size
         ):
             shape.laplacian.find_spectrum(
-                spectrum_size=self.config.spectrum_size, set_as_basis=True
+                spectrum_size=self.config.spectrum_size,
+                set_as_basis=True,
+                recompute=True,
             )
 
     def _build_factors(self, shape_a, shape_b, descr_a, descr_b):
@@ -579,179 +733,3 @@ class DefaultFunctionalMapMatcher(FunctionalMapMatcher):
             ],
         )
         super().__init__(config=config, **kwargs)
-
-
-@dataclass
-class FeatureMatcherConfig:
-    """Configuration for the FeatureMatcher.
-
-    Parameters
-    ----------
-    spectrum_size : int
-        Number of eigenfunctions to compute for the basis (used for spectral descriptors).
-    descriptors : list[Descriptor] or None
-        List of descriptors to compute. If None, uses default WKS descriptors.
-    subsamplers : list[Subsampler] or None
-        List of subsamplers to apply. If None, no subsampling.
-    normalizers : list[Normalizer] or None
-        List of normalizers to apply. If None, uses L2InnerNormalizer.
-    """
-
-    spectrum_size: int = 200
-    descriptors: list = None
-    subsamplers: list = None
-    normalizers: list = None
-
-
-class FeatureMatcher(BaseMatcher):
-    """Feature-based matcher using nearest neighbor in descriptor space.
-
-    This matcher directly computes correspondences by:
-    1. Computing descriptors/features on both shapes
-    2. Finding nearest neighbors in the descriptor space
-
-    This is simpler and faster than the functional map approach,
-    but may be less robust for complex deformations.
-
-    Parameters
-    ----------
-    config : FeatureMatcherConfig
-        Configuration for the matcher.
-    descriptor_pipeline : DescriptorPipeline, optional
-        Custom descriptor pipeline. If None, uses default WKS-based pipeline.
-    neighbor_finder : NeighborFinder, optional
-        Nearest neighbor finder. If None, uses default.
-
-    """
-
-    def __init__(
-        self,
-        config: FeatureMatcherConfig = None,
-        descriptor_pipeline: DescriptorPipeline = None,
-        neighbor_finder: NeighborFinder = None,
-    ):
-        self.config = config or FeatureMatcherConfig()
-        self._descriptor_pipeline = descriptor_pipeline
-        self._neighbor_finder = neighbor_finder or NeighborFinder(n_neighbors=1)
-
-    @property
-    def descriptor_pipeline(self):
-        """Get the descriptor pipeline.
-
-        Returns
-        -------
-        pipeline : DescriptorPipeline
-        """
-        if self._descriptor_pipeline is not None:
-            return self._descriptor_pipeline
-
-        return self._build_default_descriptor_pipeline()
-
-    def _build_default_descriptor_pipeline(self):
-        """Build the default descriptor pipeline based on config.
-
-        Returns
-        -------
-        pipeline : DescriptorPipeline
-        """
-        steps = []
-
-        # Add descriptors
-        if self.config.descriptors is not None:
-            steps.extend(self.config.descriptors)
-        else:
-            # Default: WKS without subsampling
-            steps.append(WaveKernelSignature.from_registry(n_domain=400))
-
-        # Add subsamplers
-        if self.config.subsamplers is not None:
-            steps.extend(self.config.subsamplers)
-        # No default subsampling for FeatureMatcher
-
-        # Add normalizers
-        if self.config.normalizers is not None:
-            steps.extend(self.config.normalizers)
-        else:
-            # Default normalization
-            steps.append(L2InnerNormalizer())
-
-        return DescriptorPipeline(steps)
-
-    def _ensure_basis(self, shape):
-        """Ensure shape has computed basis.
-
-        Parameters
-        ----------
-        shape : Shape
-            Shape to check/compute basis for.
-        """
-        if (
-            shape.basis is None
-            or shape.basis.full_spectrum_size < self.config.spectrum_size
-        ):
-            shape.laplacian.find_spectrum(
-                spectrum_size=self.config.spectrum_size, set_as_basis=True
-            )
-
-    def __call__(self, shape_a, shape_b, bidirectional=False):
-        """Compute correspondence between two shapes.
-
-        Parameters
-        ----------
-        shape_a : Shape
-            First shape (target for p2p21).
-        shape_b : Shape
-            Second shape (source for p2p21).
-        bidirectional : bool
-            If True, compute correspondences in both directions.
-
-        Returns
-        -------
-        result : CorrespondenceResult
-            Matching result containing:
-            - p2p21: point-to-point correspondence from B to A
-            - p2p12: (if bidirectional=True) correspondence from A to B
-        """
-        # Step 1: Ensure both shapes have basis (needed for spectral descriptors)
-        self._ensure_basis(shape_a)
-        self._ensure_basis(shape_b)
-
-        # Store original use_k values
-        original_use_k_a = shape_a.basis.use_k
-        original_use_k_b = shape_b.basis.use_k
-
-        # Set full spectrum for descriptor computation
-        shape_a.basis.use_k = self.config.spectrum_size
-        shape_b.basis.use_k = self.config.spectrum_size
-
-        # Step 2: Compute descriptors
-        descr_a = self.descriptor_pipeline.apply(shape_a)
-        descr_b = self.descriptor_pipeline.apply(shape_b)
-
-        # Restore original use_k values
-        shape_a.basis.use_k = original_use_k_a
-        shape_b.basis.use_k = original_use_k_b
-
-        # Step 3: Find nearest neighbors in descriptor space
-        # descr shape is [n_descr, n_vertices], we need [n_vertices, n_descr]
-        feat_a = descr_a.T
-        feat_b = descr_b.T
-
-        # Find for each vertex in B, the nearest vertex in A (p2p21: B -> A)
-        p2p21 = self._neighbor_finder(feat_b, feat_a).flatten()
-
-        # Compute reverse direction if bidirectional
-        p2p12 = None
-        if bidirectional:
-            p2p12 = self._neighbor_finder(feat_a, feat_b).flatten()
-
-        return CorrespondenceResult(
-            fmap12=None,
-            p2p21=p2p21,
-            fmap21=None,
-            p2p12=p2p12,
-            descr_a=descr_a,
-            descr_b=descr_b,
-            refined_fmap12=None,
-            refined_fmap21=None,
-        )
