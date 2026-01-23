@@ -116,7 +116,9 @@ class DeepFunctionalMapTrainer:
                 self.optimizer.zero_grad()
                 shape_a = pair["source"]["shape"]
                 shape_b = pair["target"]["shape"]
-                outputs = self.model(shape_a, shape_b)
+                result = self.model(shape_a, shape_b)
+                # Convert CorrespondenceResult to dict for loss computation
+                outputs = result.to_dict() if hasattr(result, "to_dict") else result
                 outputs.update(
                     {
                         "shape_a": shape_a,
@@ -163,7 +165,9 @@ class DeepFunctionalMapTrainer:
                 for pair in self.val_set:
                     shape_a = pair["source"]["shape"]
                     shape_b = pair["target"]["shape"]
-                    outputs = self.model(shape_a, shape_b)
+                    result = self.model(shape_a, shape_b)
+                    # Convert CorrespondenceResult to dict for loss computation
+                    outputs = result.to_dict() if hasattr(result, "to_dict") else result
                     outputs.update(
                         {
                             "shape_a": shape_a,

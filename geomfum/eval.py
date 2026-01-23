@@ -21,12 +21,11 @@ The error is computed on the target shape (shape_a).
 import gsops.backend as gs
 import numpy as np
 
-from geomfum.metric import VertexEuclideanMetric, HeatDistanceMetric
+from geomfum.metric import VertexEuclideanMetric
 
 
 def normalized_geodesic_error(
-    shape_a,
-    shape_b,
+    dist_a,
     p2p21,
     corr_a=None,
     corr_b=None,
@@ -39,10 +38,8 @@ def normalized_geodesic_error(
 
     Parameters
     ----------
-    shape_a : TriangleMesh or PointCloud
-        Target shape (where correspondences land).
-    shape_b : TriangleMesh or PointCloud
-        Source shape (where correspondences originate).
+    dist_a : array-like, shape=[n_vertices_a, n_vertices_a]
+        Geodesic distance matrix on the target shape (A).
     p2p21 : array-like, shape=[n_vertices_b] or shape=[n_corr]
         Point-to-point map from shape_b to shape_a. For each vertex index i in
         shape_b, p2p21[i] gives the corresponding vertex index in shape_a.
@@ -65,9 +62,6 @@ def normalized_geodesic_error(
 
     where dist_a is the geodesic distance matrix on the target shape.
     """
-    shape_a.equip_with_metric(HeatDistanceMetric)
-    dist_a = shape_a.dist_matrix
-
     if corr_a is None or corr_b is None:
         # Assume identity correspondence (same mesh topology)
         p2p_gt = gs.arange(len(p2p21))
@@ -252,7 +246,9 @@ def coverage_count(shape_a, shape_b, p2p21):
     return len(unique_targets) / shape_a.n_vertices
 
 
-def evaluate_correspondence(shape_a, shape_b, p2p21, corr_a=None, corr_b=None):
+def evaluate_correspondence(
+    shape_a, shape_b, p2p21, corr_a=None, corr_b=None, dist_a=None
+):
     """Compute all evaluation metrics for a correspondence.
 
     This is a convenience function that computes all available metrics
@@ -270,12 +266,15 @@ def evaluate_correspondence(shape_a, shape_b, p2p21, corr_a=None, corr_b=None):
         Indices of ground truth correspondences on target shape (A).
     corr_b : array-like, shape=[n_correspondences], optional
         Indices of ground truth correspondences on source shape (B).
+    dist_a : array-like, shape=[n_vertices_a, n_vertices_a], optional
+        Geodesic distance matrix on shape A. If None and geodesic_error
+        is requested, it will be computed from shape_a.
 
     Returns
     -------
     metrics : dict
         Dictionary containing:
-        - 'geodesic_error': Normalized geodesic error (if corr available)
+        - 'geodesic_error': Normalized geodesic error (if dist_a provided)
         - 'euclidean_error': Normalized Euclidean error (if corr available)
         - 'dirichlet_energy': Dirichlet energy of the mapping
         - 'coverage': Area-weighted coverage
@@ -283,11 +282,14 @@ def evaluate_correspondence(shape_a, shape_b, p2p21, corr_a=None, corr_b=None):
     """
     metrics = {}
 
-    # Metrics that require ground truth correspondences
-    if corr_a is not None and corr_b is not None:
+    # Geodesic error requires distance matrix
+    if dist_a is not None:
         metrics["geodesic_error"] = float(
-            normalized_geodesic_error(shape_a, shape_b, p2p21, corr_a, corr_b)
+            normalized_geodesic_error(dist_a, p2p21, corr_a, corr_b)
         )
+
+    # Euclidean error requires ground truth correspondences
+    if corr_a is not None and corr_b is not None:
         metrics["euclidean_error"] = float(
             normalized_euclidean_error(shape_a, shape_b, p2p21, corr_a, corr_b)
         )
