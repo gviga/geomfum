@@ -3,6 +3,7 @@
 import abc
 
 import gsops.backend as gs
+import scipy.fft as fft
 
 import geomfum.linalg as la
 from geomfum._registry import (
@@ -14,7 +15,7 @@ from geomfum._registry import (
 )
 
 from ._base import SpectralDescriptor
-import scipy.fft as fft
+
 
 def hks_default_domain(shape, n_domain):
     """Compute HKS default domain. The domain is a set of sampled time points.
@@ -301,6 +302,7 @@ class LandmarkWaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
             landmarks=True,
         )
 
+
 class ScaleInvariantHeatKernelSignature(HeatKernelSignature):
     """Scale-Invariant Heat Kernel Signature descriptor.
 
@@ -324,7 +326,7 @@ class ScaleInvariantHeatKernelSignature(HeatKernelSignature):
         https://doi.org/10.1109/CVPR.2010.5539838.
     """
 
-    def init(self, scale=True, n_domain=3, domain=None, k=None):
+    def __init__(self, scale=True, n_domain=3, domain=None, k=None):
         super.init(scale=scale, n_domain=n_domain, domain=domain, k=k)
 
     def __call__(self, shape):
@@ -335,13 +337,10 @@ class ScaleInvariantHeatKernelSignature(HeatKernelSignature):
         shape : Shape.
             Shape.
         """
-
         hks = super().__call__(shape)
 
         hks_diff = gs.log(hks[1:, :] + 1e-2) - gs.log(hks[:-1, :] + 1e-2)
-        hks_diff_spectrum = fft.fft(
-            hks_diff, axis=-2
-        )  ## TODO: substitute with gs
+        hks_diff_spectrum = fft.fft(hks_diff, axis=-2)  ## TODO: substitute with gs
         return gs.abs(hks_diff_spectrum)
 
 
@@ -357,9 +356,10 @@ class LandmarkScaleInvariantHeatKernelSignature(LandmarkHeatKernelSignature):
     domain : list, optional
         List of frequency domain limits, by default None.
     k : int, optional
-        Number of eigenvalues and eigenfunctions to use, by default None."""
+        Number of eigenvalues and eigenfunctions to use, by default None.
+    """
 
-    def init(self, scale=True, n_domain=3, domain=None, k=None):
+    def __init__(self, scale=True, n_domain=3, domain=None, k=None):
         super.init(scale=scale, n_domain=n_domain, domain=domain, k=k)
 
     def __call__(self, shape):
@@ -373,7 +373,5 @@ class LandmarkScaleInvariantHeatKernelSignature(LandmarkHeatKernelSignature):
         hks = super().__call__(shape)
 
         hks_diff = gs.log(hks[1:, :] + 1e-2) - gs.log(hks[:-1, :] + 1e-2)
-        hks_diff_spectrum = fft.fft(
-            hks_diff, axis=-2
-        )  ## TODO: substitute with gs
+        hks_diff_spectrum = fft.fft(hks_diff, axis=-2)  ## TODO: substitute with gs
         return gs.abs(hks_diff_spectrum)
