@@ -528,7 +528,7 @@ class RefinementPipeline:
         return fmap_matrix
 
 
-class QuickMatcher(FunctionalMapMatcher):
+class QuickFunctionalMapMatcher(FunctionalMapMatcher):
     """Fast matcher with reduced settings for quick results.
 
     Uses smaller spectrum and fewer refinement iterations.
@@ -541,16 +541,16 @@ class QuickMatcher(FunctionalMapMatcher):
 
     def __init__(self, **kwargs):
         config = MatcherConfig(
-            spectrum_size=50,
-            fmap_size=15,
-            descriptors=[WaveKernelSignature.from_registry(n_domain=100)],
+            spectrum_size=200,
+            fmap_size=20,
+            descriptors=[WaveKernelSignature.from_registry(n_domain=200)],
             subsamplers=[ArangeSubsampler(subsample_step=5)],
-            refiners=[IcpRefiner(nit=5)],
+            refiners=[IcpRefiner(nit=5), ZoomOut(nit=1, step=1)],
         )
         super().__init__(config=config, **kwargs)
 
 
-class PreciseMatcher(FunctionalMapMatcher):
+class DefaultFunctionalMapMatcher(FunctionalMapMatcher):
     """High-quality matcher with larger settings for better results.
 
     Uses larger spectrum and more refinement iterations.
@@ -564,18 +564,18 @@ class PreciseMatcher(FunctionalMapMatcher):
     """
 
     def __init__(self, use_landmarks: bool = True, **kwargs):
-        descriptors = [WaveKernelSignature.from_registry(n_domain=500)]
+        descriptors = [WaveKernelSignature.from_registry(n_domain=200)]
         if use_landmarks:
-            descriptors.append(LandmarkWaveKernelSignature.from_registry(n_domain=500))
+            descriptors.append(LandmarkWaveKernelSignature.from_registry(n_domain=200))
 
         config = MatcherConfig(
             spectrum_size=300,
             fmap_size=50,
             descriptors=descriptors,
-            subsamplers=[ArangeSubsampler(subsample_step=5)],
+            subsamplers=[ArangeSubsampler(subsample_step=10)],
             refiners=[
-                IcpRefiner(nit=15),
-                ZoomOut(nit=10, step=3),
+                IcpRefiner(nit=10),
+                ZoomOut(nit=20, step=5),
             ],
         )
         super().__init__(config=config, **kwargs)
