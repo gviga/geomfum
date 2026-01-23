@@ -167,8 +167,8 @@ class BaseMatcher(abc.ABC):
 
         Returns
         -------
-        result : MatcherResult
-            Matching result containing:
+        result : CorrespondenceResult
+            Correspondence result containing:
             - p2p21: point-to-point correspondence from B to A
             - fmap12: functional map from A to B (if applicable)
         """
