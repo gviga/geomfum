@@ -197,7 +197,7 @@ class ModelEvaluator:
 
 
 def load_trained_model(checkpoint_path, model, device=None):
-    """Convenience function to load a trained model for evaluation.
+    """Load a trained model for evaluation.
 
     Parameters
     ----------
@@ -212,18 +212,6 @@ def load_trained_model(checkpoint_path, model, device=None):
     -------
     wrapped_model : TrainedModelWrapper
         Wrapped model ready for evaluation.
-
-    Examples
-    --------
-    >>> from geomfum.learning.wrappers import load_trained_model
-    >>> from geomfum.learning.models import FMNet
-    >>>
-    >>> model = FMNet(...)
-    >>> trained_model = load_trained_model("best_model.pth", model)
-    >>>
-    >>> # Use in experiments
-    >>> from geomfum.experiment import Experiment
-    >>> result = Experiment(trained_model, dataset).run()
     """
     return TrainedModelWrapper(
         model=model, device=device, checkpoint_path=checkpoint_path

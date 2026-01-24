@@ -10,34 +10,33 @@ Presets provide:
 - Configuration serialization/deserialization
 """
 
-from dataclasses import asdict
-from typing import Dict, Any
-import json
 import copy
+import json
+from dataclasses import asdict
+from typing import Any, Dict
 
 import torch
 
-# Matcher-related imports
-from geomfum.matcher import MatcherConfig
-from geomfum.descriptor.spectral import (
-    WaveKernelSignature,
-    HeatKernelSignature,
-    LandmarkWaveKernelSignature,
-)
 from geomfum.descriptor.pipeline import ArangeSubsampler
-from geomfum.refine import IcpRefiner, ZoomOut
+from geomfum.descriptor.spectral import (
+    LandmarkWaveKernelSignature,
+    WaveKernelSignature,
+)
 
 # Learning-related imports
 from geomfum.learning.losses import (
     BijectivityLoss,
+    DescriptorCommutativityLoss,
+    GeodesicError,
+    GroundTruthSupervisionLoss,
     LaplacianCommutativityLoss,
     LossManager,
     OrthonormalityLoss,
-    GeodesicError,
-    GroundTruthSupervisionLoss,
-    DescriptorCommutativityLoss,
 )
 
+# Matcher-related imports
+from geomfum.matcher import MatcherConfig
+from geomfum.refine import IcpRefiner, ZoomOut
 
 # ============================================================================
 # MATCHER PRESETS
@@ -319,9 +318,7 @@ class ModelPresets:
         """
         if name not in cls._PRESETS:
             available = ", ".join(cls.list_presets())
-            raise ValueError(
-                f"Unknown model preset '{name}'. Available: {available}"
-            )
+            raise ValueError(f"Unknown model preset '{name}'. Available: {available}")
 
         # Get preset configuration
         config = copy.deepcopy(cls._PRESETS[name])
@@ -332,11 +329,11 @@ class ModelPresets:
             device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # Build model based on type
-        from geomfum.learning.models import FMNet
+        from geomfum.convert import P2pFromFmConverter
         from geomfum.descriptor.learned import FeatureExtractor
         from geomfum.descriptor.spectral import WaveKernelSignature
         from geomfum.forward_functional_map import ForwardFunctionalMap
-        from geomfum.convert import P2pFromFmConverter
+        from geomfum.learning.models import FMNet
 
         # Build feature extractor
         feature_extractor = FeatureExtractor.from_registry(
@@ -540,7 +537,7 @@ class TrainingPresets:
         val_set,
         checkpoint_path: str = None,
         device: str = None,
-        **overrides
+        **overrides,
     ):
         """Create a trainer from a preset configuration.
 
@@ -675,7 +672,7 @@ def quick_train(
     model_preset: str = "fmnet_diffusion_standard",
     checkpoint_path: str = "checkpoints/model.pth",
     device: str = None,
-    **kwargs
+    **kwargs,
 ):
     """Quick training with preset configurations (one-liner setup).
 

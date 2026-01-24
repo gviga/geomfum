@@ -1,9 +1,9 @@
 """Grid search utilities for systematic parameter exploration."""
 
 import logging
-from itertools import product
-from typing import Callable, Dict, List, Any
 from dataclasses import asdict
+from itertools import product
+from typing import Any, Callable, Dict, List
 
 from geomfum.experiment.runner import Experiment, ExperimentConfig, ExperimentResult
 

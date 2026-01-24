@@ -75,23 +75,23 @@ Use learning presets:
 """
 
 # Import from submodules
+from geomfum.experiment.grid_search import ParameterGridSuite
+from geomfum.experiment.presets import (
+    # Classical matcher presets
+    MatcherPresets,
+    # Learning-based presets
+    ModelPresets,
+    TrainingPresets,
+    load_config_simple,
+    quick_train,
+    save_config,
+)
 from geomfum.experiment.runner import (
     Experiment,
     ExperimentConfig,
     ExperimentResult,
     ExperimentSuite,
 )
-from geomfum.experiment.presets import (
-    # Classical matcher presets
-    MatcherPresets,
-    save_config,
-    load_config_simple,
-    # Learning-based presets
-    ModelPresets,
-    TrainingPresets,
-    quick_train,
-)
-from geomfum.experiment.grid_search import ParameterGridSuite
 
 # Define public API
 __all__ = [

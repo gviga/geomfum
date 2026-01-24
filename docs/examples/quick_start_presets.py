@@ -1,4 +1,4 @@
-"""Quick Start Examples: Using Presets in GeomFUM
+"""A Quick Start Examples on Using Presets in GeomFUM.
 
 This file demonstrates the preset pattern used throughout GeomFUM for
 both classical matchers and learning-based methods.
@@ -13,9 +13,19 @@ The preset system provides:
 # 1. CLASSICAL MATCHER PRESETS
 # ============================================================================
 
-from geomfum.experiment import Experiment, ExperimentSuite, MatcherPresets
-from geomfum.matcher import FunctionalMapMatcher
+from torch.utils.data import random_split
+
 from geomfum.dataset.torch import MeshDataset, PairsDataset
+from geomfum.experiment import (
+    Experiment,
+    ExperimentSuite,
+    MatcherPresets,
+    ModelPresets,
+    TrainingPresets,
+    quick_train,
+)
+from geomfum.learning import load_trained_model
+from geomfum.matcher import FunctionalMapMatcher
 
 # Load dataset
 dataset_dir = "path/to/dataset"
@@ -50,13 +60,6 @@ matcher_custom = FunctionalMapMatcher(config=custom_config)
 # 2. LEARNING-BASED MODEL PRESETS
 # ============================================================================
 
-from geomfum.experiment import (
-    ModelPresets,
-    TrainingPresets,
-    quick_train,
-)
-from geomfum.learning import load_trained_model
-
 # Prepare training data
 train_shapes = MeshDataset(
     dataset_dir="path/to/train",
@@ -67,7 +70,7 @@ train_shapes = MeshDataset(
 train_pairs = PairsDataset(train_shapes, pair_mode="all")
 
 # Split into train/val
-from torch.utils.data import random_split
+
 train_size = int(0.8 * len(train_pairs))
 val_size = len(train_pairs) - train_size
 train_set, val_set = random_split(train_pairs, [train_size, val_size])
@@ -102,7 +105,7 @@ trainer_custom = quick_train(
     val_set=val_set,
     model_preset="fmnet_diffusion_large",  # Different model
     epochs=100,  # Override epochs
-    lr=5e-4,     # Override learning rate
+    lr=5e-4,  # Override learning rate
     checkpoint_path="checkpoints/custom.pth",
 )
 
@@ -122,7 +125,6 @@ trained_model = load_trained_model(
 comparison_methods = {
     # Learning-based
     "FMNet (trained)": trained_model,
-
     # Classical
     "FunctionalMap (standard)": FunctionalMapMatcher(
         config=MatcherPresets.get("standard")
@@ -195,8 +197,7 @@ for name, preset in training_configs.items():
     # Load for evaluation
     model = ModelPresets.build("fmnet_diffusion_standard")
     trained_models[f"FMNet ({name})"] = load_trained_model(
-        f"checkpoints/model_{name}.pth",
-        model
+        f"checkpoints/model_{name}.pth", model
     )
 
 # Compare all trained models
