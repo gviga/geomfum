@@ -488,3 +488,237 @@ class NeuralZoomOut(ZoomOut):
             p2p_from_fm_converter=P2pFromNamConverter(),
             fm_from_p2p_converter=NamFromP2pConverter(device=device),
         )
+
+
+class RefinementPipeline:
+    """Chain multiple refiners together.
+
+    Parameters
+    ----------
+    refiners : list[Refiner]
+        List of refiners to apply in sequence.
+        None values are filtered out.
+    """
+
+    def __init__(self, refiners):
+        self.refiners = [r for r in refiners if r is not None]
+
+    def __call__(self, fmap_matrix, basis_a, basis_b):
+        """Apply refiners in sequence.
+
+        Parameters
+        ----------
+        fmap_matrix : array-like, shape=[spectrum_size_b, spectrum_size_a]
+            Functional map matrix.
+        basis_a : Eigenbasis.
+            Basis of source shape.
+        basis_b : Eigenbasis.
+            Basis of target shape.
+
+        Returns
+        -------
+        fmap_matrix : array-like
+            Refined functional map matrix.
+        """
+        for refiner in self.refiners:
+            fmap_matrix = refiner(fmap_matrix, basis_a, basis_b)
+
+        return fmap_matrix
+
+
+class CorrespondenceRefiner:
+    """Refine point-to-point correspondences by converting to functional maps.
+
+    This class wraps a functional map refiner to work with p2p correspondences.
+    It converts the input p2p to a functional map, applies the refiner,
+    and converts the result back to a p2p correspondence.
+
+    Parameters
+    ----------
+    refiner : Refiner
+        The functional map refiner to apply.
+    fm_from_p2p_converter : FmFromP2pConverter
+        Converter from pointwise map to functional map.
+    p2p_from_fm_converter : P2pFromFmConverter
+        Converter from functional map to pointwise map.
+    """
+
+    def __init__(
+        self,
+        refiner,
+        fmap_init_size=10,
+        fm_from_p2p_converter=None,
+        p2p_from_fm_converter=None,
+    ):
+        if fm_from_p2p_converter is None:
+            fm_from_p2p_converter = FmFromP2pConverter()
+
+        if p2p_from_fm_converter is None:
+            p2p_from_fm_converter = P2pFromFmConverter()
+
+        self.refiner = refiner
+        self.fmap_init_size = fmap_init_size
+        self.fm_from_p2p_converter = fm_from_p2p_converter
+        self.p2p_from_fm_converter = p2p_from_fm_converter
+
+    def __call__(self, p2p, basis_a, basis_b):
+        """Refine a point-to-point correspondence.
+
+        Parameters
+        ----------
+        p2p : array-like, shape=[n_vertices_b]
+            Input pointwise map.
+        basis_a : Eigenbasis.
+            Basis of source shape.
+        basis_b : Eigenbasis.
+            Basis of target shape.
+
+        Returns
+        -------
+        p2p : array-like, shape=[n_vertices_b]
+            Refined pointwise map.
+        """
+        basis_a.use_k = self.fmap_init_size
+        basis_b.use_k = self.fmap_init_size
+        fmap_matrix = self.fm_from_p2p_converter(p2p, basis_a, basis_b)
+        refined_fmap = self.refiner(fmap_matrix, basis_a, basis_b)
+        return self.p2p_from_fm_converter(refined_fmap, basis_a, basis_b)
+
+
+class ZoomOutCorrespondenceRefiner(CorrespondenceRefiner):
+    """Refine p2p correspondences using ZoomOut algorithm.
+
+    Parameters
+    ----------
+    nit : int
+        Number of iterations.
+    step : int or tuple[2, int]
+        How much to increase each basis per iteration.
+    p2p_from_fm_converter : P2pFromFmConverter
+        Pointwise map from functional map.
+    fm_from_p2p_converter : FmFromP2pConverter
+        Functional map from pointwise map.
+
+    References
+    ----------
+    .. [MRRSWO2019] Simone Melzi, Jing Ren, Emanuele Rodolà, Abhishek Sharma,
+        Peter Wonka, and Maks Ovsjanikov. "ZoomOut: Spectral Upsampling
+        for Efficient Shape Correspondence." arXiv, September 12, 2019.
+        http://arxiv.org/abs/1904.07865
+    """
+
+    def __init__(
+        self,
+        fmap_init_size=10,
+        nit=10,
+        step=1,
+        p2p_from_fm_converter=None,
+        fm_from_p2p_converter=None,
+    ):
+        if p2p_from_fm_converter is None:
+            p2p_from_fm_converter = P2pFromFmConverter()
+
+        if fm_from_p2p_converter is None:
+            fm_from_p2p_converter = FmFromP2pConverter()
+
+        refiner = ZoomOut(
+            nit=nit,
+            step=step,
+            p2p_from_fm_converter=p2p_from_fm_converter,
+            fm_from_p2p_converter=fm_from_p2p_converter,
+        )
+
+        super().__init__(
+            refiner=refiner,
+            fmap_init_size=fmap_init_size,
+            fm_from_p2p_converter=fm_from_p2p_converter,
+            p2p_from_fm_converter=p2p_from_fm_converter,
+        )
+
+
+class IcpCorrespondenceRefiner(CorrespondenceRefiner):
+    """Refine p2p correspondences using ICP algorithm.
+
+    Parameters
+    ----------
+    nit : int
+        Number of iterations.
+    atol : float
+        Convergence tolerance.
+    p2p_from_fm_converter : P2pFromFmConverter
+        Pointwise map from functional map.
+    fm_from_p2p_converter : FmFromP2pConverter
+        Functional map from pointwise map.
+
+    References
+    ----------
+    .. [OCSBG2012] Maks Ovsjanikov, Mirela Ben-Chen, Justin Solomon,
+        Adrian Butscher, and Leonidas Guibas.
+        "Functional Maps: A Flexible Representation of Maps between
+        Shapes." ACM Transactions on Graphics 31, no. 4 (2012): 30:1-30:11.
+        https://doi.org/10.1145/2185520.2185526.
+    """
+
+    def __init__(
+        self,
+        nit=10,
+        atol=1e-4,
+        fmap_init_size=10,
+        p2p_from_fm_converter=None,
+        fm_from_p2p_converter=None,
+    ):
+        if p2p_from_fm_converter is None:
+            p2p_from_fm_converter = P2pFromFmConverter()
+
+        if fm_from_p2p_converter is None:
+            fm_from_p2p_converter = FmFromP2pConverter()
+
+        refiner = IcpRefiner(
+            nit=nit,
+            atol=atol,
+            p2p_from_fm_converter=p2p_from_fm_converter,
+            fm_from_p2p_converter=fm_from_p2p_converter,
+        )
+
+        super().__init__(
+            refiner=refiner,
+            fmap_init_size=fmap_init_size,
+            fm_from_p2p_converter=fm_from_p2p_converter,
+            p2p_from_fm_converter=p2p_from_fm_converter,
+        )
+
+
+class CorrespondenceRefinementPipeline:
+    """Chain multiple correspondence refiners together.
+
+    Parameters
+    ----------
+    refiners : list[CorrespondenceRefiner]
+        List of correspondence refiners to apply in sequence.
+        None values are filtered out.
+    """
+
+    def __init__(self, refiners):
+        self.refiners = [r for r in refiners if r is not None]
+
+    def __call__(self, p2p, basis_a, basis_b):
+        """Apply correspondence refiners in sequence.
+
+        Parameters
+        ----------
+        p2p : array-like, shape=[n_vertices_b]
+            Input pointwise map.
+        basis_a : Eigenbasis.
+            Basis of source shape.
+        basis_b : Eigenbasis.
+            Basis of target shape.
+
+        Returns
+        -------
+        p2p : array-like, shape=[n_vertices_b]
+            Refined pointwise map.
+        """
+        for refiner in self.refiners:
+            p2p = refiner(p2p, basis_a, basis_b)
+
+        return p2p

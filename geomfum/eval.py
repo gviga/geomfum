@@ -76,7 +76,6 @@ def normalized_geodesic_error(
 
 def normalized_euclidean_error(
     shape_a,
-    shape_b,
     p2p21,
     corr_a=None,
     corr_b=None,
@@ -291,7 +290,7 @@ def evaluate_correspondence(
     # Euclidean error requires ground truth correspondences
     if corr_a is not None and corr_b is not None:
         metrics["euclidean_error"] = float(
-            normalized_euclidean_error(shape_a, shape_b, p2p21, corr_a, corr_b)
+            normalized_euclidean_error(shape_a, p2p21, corr_a, corr_b)
         )
 
     # Metrics that don't require ground truth

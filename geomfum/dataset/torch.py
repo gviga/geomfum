@@ -32,6 +32,8 @@ class ShapeDataset(Dataset):
         Whether to compute geodesic distance matrices. For computational reasons, these are not computed on the fly, but rather loaded from a precomputed .mat file.
     correspondences : bool
         Whether to load correspondences.
+    landmarks_indices : array-like, optional
+        Indices of landmarks to use. If None, no landmarks are used.
     k : int
         Number of eigenvectors to use for the spectral features.
     device : torch.device, optional
@@ -45,6 +47,7 @@ class ShapeDataset(Dataset):
         spectral=False,
         distances=False,
         correspondences=True,
+        landmark_indices=None,
         k=200,
         device=None,
     ):
@@ -73,7 +76,9 @@ class ShapeDataset(Dataset):
         self.k = k
         self.distances = distances
         self.correspondences = correspondences
-
+        self.landmark_indices = (
+            gs.array(landmark_indices) if landmark_indices is not None else None
+        )
         # Preload shapes (or their important features) into memory
         self.shapes = {}
         self.corrs = {}
@@ -135,6 +140,10 @@ class ShapeDataset(Dataset):
 
         if self.correspondences:
             shape_data.update({"corr": gs.array(self.corrs[filename])})
+            if self.landmark_indices is not None:
+                shape.landmark_indices = gs.to_device(
+                    self.corrs[filename][self.landmark_indices], self.device
+                )
 
         if self.distances:
             mat_subfolder = os.path.join(self.dataset_dir, "dist")
@@ -167,7 +176,6 @@ class ShapeDataset(Dataset):
         shape.laplacian._mass_matrix = gs.to_device(
             shape.laplacian._mass_matrix, self.device
         )
-
         # Only move faces to device for meshes
         if self.shape_type == "mesh":
             shape.faces = gs.to_device(shape.faces, self.device)
@@ -191,6 +199,7 @@ class MeshDataset(ShapeDataset):
         spectral=False,
         distances=False,
         correspondences=True,
+        landmark_indices=None,
         k=200,
         device=None,
     ):
@@ -200,6 +209,7 @@ class MeshDataset(ShapeDataset):
             spectral=spectral,
             distances=distances,
             correspondences=correspondences,
+            landmark_indices=landmark_indices,
             k=k,
             device=device,
         )
@@ -214,6 +224,7 @@ class PointCloudDataset(ShapeDataset):
         spectral=False,
         distances=False,
         correspondences=True,
+        landmark_indices=None,
         k=200,
         device=None,
     ):
@@ -223,6 +234,7 @@ class PointCloudDataset(ShapeDataset):
             spectral=spectral,
             distances=distances,
             correspondences=correspondences,
+            landmark_indices=landmark_indices,
             k=k,
             device=device,
         )

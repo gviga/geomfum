@@ -26,7 +26,11 @@ from dataclasses import asdict, dataclass
 
 import gsops.backend as gs
 
-from geomfum.convert import NeighborFinder, P2pFromFmConverter
+from geomfum.convert import (
+    BaseNeighborFinder,
+    NeighborFinder,
+    P2pFromFmConverter,
+)
 from geomfum.descriptor.pipeline import (
     ArangeSubsampler,
     DescriptorPipeline,
@@ -37,13 +41,18 @@ from geomfum.descriptor.spectral import (
     WaveKernelSignature,
 )
 from geomfum.functional_map import (
-    FactorSum,
-    LBCommutativityEnforcing,
-    OperatorCommutativityEnforcing,
-    SpectralDescriptorPreservation,
+    FunctionalMapOptimizer,
+    LBFactorBuilder,
+    MultFactorBuilder,
+    SDPFactorBuilder,
 )
-from geomfum.numerics.optimization import ScipyMinimize
-from geomfum.refine import IcpRefiner, IdentityRefiner, ZoomOut
+from geomfum.refine import (
+    CorrespondenceRefinementPipeline,
+    IcpRefiner,
+    IdentityRefiner,
+    RefinementPipeline,
+    ZoomOut,
+)
 
 
 @dataclass
@@ -106,51 +115,6 @@ class CorrespondenceResult:
         return self.fmap21 is not None and self.p2p12 is not None
 
 
-@dataclass
-class MatcherConfig:
-    """Configuration for the Matcher.
-
-    Parameters
-    ----------
-    spectrum_size : int
-        Number of eigenfunctions to compute for the basis.
-    fmap_size : int
-        Number of eigenfunctions to use for the functional map optimization.
-    descriptors : list[Descriptor] or None
-        List of descriptors to compute. If None, uses default WKS-based descriptors.
-        Pass a list of Descriptor instances to customize.
-    subsamplers : list[Subsampler] or None
-        List of subsamplers to apply to descriptors. If None, uses default.
-    normalizers : list[Normalizer] or None
-        List of normalizers to apply to descriptors. If None, uses L2InnerNormalizer.
-    sdp_weight : float
-        Weight for spectral descriptor preservation constraint.
-    lb_weight : float
-        Weight for Laplace-Beltrami commutativity constraint.
-    mult_weight : float
-        Weight for multiplication operator commutativity constraint.
-    orient_weight : float
-        Weight for orientation operator commutativity constraint.
-    refiners : list[Refiner] or None
-        List of refiners to apply in sequence. If None, uses default
-        ICP + ZoomOut refinement. Pass an empty list to disable refinement.
-    optimizer_method : str
-        Optimization method for scipy.optimize.minimize.
-    """
-
-    spectrum_size: int = 200
-    fmap_size: int = 30
-    descriptors: list = None  # None means use default WKS
-    subsamplers: list = None  # None means use default
-    normalizers: list = None  # None means use L2InnerNormalizer
-    sdp_weight: float = 1.0
-    lb_weight: float = 1e-2
-    mult_weight: float = 1e-1
-    orient_weight: float = 0.0
-    refiners: list = None  # None means use default, [] means no refinement
-    optimizer_method: str = "L-BFGS-B"
-
-
 class BaseMatcher(abc.ABC):
     """Abstract base class for shape matchers."""
 
@@ -178,93 +142,45 @@ class FeatureMatcher(BaseMatcher):
     """Feature-based matcher using nearest neighbor in descriptor space.
 
     This matcher directly computes correspondences by:
-    1. Computing descriptors/features on both shapes
+    1. Computing descriptors/features on both shapes either indicating descriptor or pipeline.
     2. Finding nearest neighbors in the descriptor space
+    3. Optionally refining the correspondence using CorrespondenceRefinementPipeline
 
     This is simpler and faster than the functional map approach,
     but may be less robust for complex deformations.
 
     Parameters
     ----------
-    config : MatcherConfig
-        Configuration for the matcher.
     descriptor_pipeline : DescriptorPipeline, optional
-        Custom descriptor pipeline. If None, uses default WKS-based pipeline.
+        Descriptor pipeline to compute descriptors. If None, uses default WKS-based pipeline.
     neighbor_finder : NeighborFinder, optional
         Nearest neighbor finder. If None, uses default.
-
+    refiner : CorrespondenceRefinementPipeline, optional
+        Correspondence refiner to apply after matching. If None, no refinement is applied.
     """
 
     def __init__(
         self,
-        config: MatcherConfig = None,
         descriptor_pipeline: DescriptorPipeline = None,
-        neighbor_finder: NeighborFinder = None,
+        neighbor_finder: BaseNeighborFinder = None,
+        refiner: CorrespondenceRefinementPipeline = None,
     ):
-        self.config = config or MatcherConfig()
-        self._descriptor_pipeline = descriptor_pipeline
-        self._neighbor_finder = neighbor_finder or NeighborFinder(n_neighbors=1)
-
-    @property
-    def descriptor_pipeline(self):
-        """Get the descriptor pipeline.
-
-        Returns
-        -------
-        pipeline : DescriptorPipeline
-        """
-        if self._descriptor_pipeline is not None:
-            return self._descriptor_pipeline
-
-        return self._build_default_descriptor_pipeline()
+        self.descriptor_pipeline = (
+            descriptor_pipeline or self._build_default_descriptor_pipeline()
+        )
+        self.neighbor_finder = neighbor_finder or NeighborFinder(n_neighbors=1)
+        self.refiner = refiner
 
     def _build_default_descriptor_pipeline(self):
-        """Build the default descriptor pipeline based on config.
+        """Build the default descriptor pipeline.
 
         Returns
         -------
         pipeline : DescriptorPipeline
         """
-        steps = []
-
-        # Add descriptors
-        if self.config.descriptors is not None:
-            steps.extend(self.config.descriptors)
-        else:
-            # Default: WKS without subsampling
-            steps.append(WaveKernelSignature.from_registry(n_domain=400))
-
-        # Add subsamplers
-        if self.config.subsamplers is not None:
-            steps.extend(self.config.subsamplers)
-        # No default subsampling for FeatureMatcher
-
-        # Add normalizers
-        if self.config.normalizers is not None:
-            steps.extend(self.config.normalizers)
-        else:
-            # Default normalization
-            steps.append(L2InnerNormalizer())
-
-        return DescriptorPipeline(steps)
-
-    def _ensure_basis(self, shape):
-        """Ensure shape has computed basis.
-
-        Parameters
-        ----------
-        shape : Shape
-            Shape to check/compute basis for.
-        """
-        if (
-            shape.basis is None
-            or shape.basis.full_spectrum_size < self.config.spectrum_size
-        ):
-            shape.laplacian.find_spectrum(
-                spectrum_size=self.config.spectrum_size,
-                set_as_basis=True,
-                recompute=True,
-            )
+        return DescriptorPipeline(
+            [WaveKernelSignature(n_domain=200, k=200), L2InnerNormalizer()]
+        )
 
     def __call__(self, shape_a, shape_b, bidirectional=False):
         """Compute correspondence between two shapes.
@@ -285,38 +201,27 @@ class FeatureMatcher(BaseMatcher):
             - p2p21: point-to-point correspondence from B to A
             - p2p12: (if bidirectional=True) correspondence from A to B
         """
-        # Step 1: Ensure both shapes have basis (needed for spectral descriptors)
-        self._ensure_basis(shape_a)
-        self._ensure_basis(shape_b)
-
-        # Store original use_k values
-        original_use_k_a = shape_a.basis.use_k
-        original_use_k_b = shape_b.basis.use_k
-
-        # Set full spectrum for descriptor computation
-        shape_a.basis.use_k = self.config.spectrum_size
-        shape_b.basis.use_k = self.config.spectrum_size
-
-        # Step 2: Compute descriptors
+        # Compute descriptors
         descr_a = self.descriptor_pipeline.apply(shape_a)
         descr_b = self.descriptor_pipeline.apply(shape_b)
 
-        # Restore original use_k values
-        shape_a.basis.use_k = original_use_k_a
-        shape_b.basis.use_k = original_use_k_b
-
-        # Step 3: Find nearest neighbors in descriptor space
+        # Find nearest neighbors in descriptor space
         # descr shape is [n_descr, n_vertices], we need [n_vertices, n_descr]
         feat_a = descr_a.T
         feat_b = descr_b.T
-
         # Find for each vertex in B, the nearest vertex in A (p2p21: B -> A)
-        p2p21 = self._neighbor_finder(feat_b, feat_a).flatten()
+        p2p21 = self.neighbor_finder(feat_b, feat_a).flatten()
 
         # Compute reverse direction if bidirectional
         p2p12 = None
         if bidirectional:
-            p2p12 = self._neighbor_finder(feat_a, feat_b).flatten()
+            p2p12 = self.neighbor_finder(feat_a, feat_b).flatten()
+
+        # Apply correspondence refinement if available
+        if self.refiner is not None:
+            p2p21 = self.refiner(p2p21, shape_a.basis, shape_b.basis)
+            if bidirectional:
+                p2p12 = self.refiner(p2p12, shape_b.basis, shape_a.basis)
 
         return CorrespondenceResult(
             fmap12=None,
@@ -342,209 +247,61 @@ class FunctionalMapMatcher(BaseMatcher):
 
     Parameters
     ----------
-    config : MatcherConfig
-        Configuration for the matcher.
+    fmap_size : int
+        Number of eigenfunctions to use for the functional map optimization.
     descriptor_pipeline : DescriptorPipeline, optional
-        Custom descriptor pipeline. If None, uses default WKS-based pipeline.
+        Descriptor pipeline to compute descriptors. If None, builds from descriptor.
+    fmap_optimizer : FunctionalMapOptimizer, optional
+        Optimizer for functional map. If None, uses default.
     refiner : Refiner, optional
-        Custom refiner. If None, uses ICP + ZoomOut based on config.
+        Refiner to apply after optimization. If None, uses IdentityRefiner.
     p2p_converter : P2pFromFmConverter, optional
-        Custom pointwise map converter. If None, uses default.
-    optimizer : ScipyMinimize, optional
-        Custom optimizer. If None, uses default.
-
+        Converter from functional map to point-to-point. If None, uses default.
     """
 
     def __init__(
         self,
-        config: MatcherConfig = None,
+        fmap_size: int = 30,
         descriptor_pipeline: DescriptorPipeline = None,
+        fmap_optimizer: FunctionalMapOptimizer = None,
         refiner=None,
         p2p_converter: P2pFromFmConverter = None,
-        optimizer: ScipyMinimize = None,
     ):
-        self.config = config or MatcherConfig()
-        self._descriptor_pipeline = descriptor_pipeline
-        self._refiner = refiner
-        self._p2p_converter = p2p_converter or P2pFromFmConverter()
-        self._optimizer = optimizer
-
-    @property
-    def descriptor_pipeline(self):
-        """Get the descriptor pipeline.
-
-        Returns
-        -------
-        pipeline : DescriptorPipeline
-        """
-        if self._descriptor_pipeline is not None:
-            return self._descriptor_pipeline
-
-        return self._build_default_descriptor_pipeline()
-
-    @property
-    def refiner(self):
-        """Get the refiner.
-
-        Returns
-        -------
-        refiner : Refiner
-        """
-        if self._refiner is not None:
-            return self._refiner
-
-        return self._build_default_refiner()
-
-    @property
-    def optimizer(self):
-        """Get the optimizer.
-
-        Returns
-        -------
-        optimizer : ScipyMinimize
-        """
-        if self._optimizer is not None:
-            return self._optimizer
-
-        return ScipyMinimize(method=self.config.optimizer_method)
+        self.fmap_size = fmap_size
+        self.descriptor_pipeline = (
+            descriptor_pipeline or self._build_default_descriptor_pipeline()
+        )
+        self.fmap_optimizer = fmap_optimizer or FunctionalMapOptimizer()
+        self.refiner = refiner or self._build_default_refiner()
+        self.p2p_converter = p2p_converter or P2pFromFmConverter()
 
     def _build_default_descriptor_pipeline(self):
-        """Build the default descriptor pipeline based on config.
+        """Build the default descriptor pipeline.
 
         Returns
         -------
         pipeline : DescriptorPipeline
         """
-        steps = []
-
-        # Add descriptors
-        if self.config.descriptors is not None:
-            steps.extend(self.config.descriptors)
-        else:
-            # Default: WKS only (no landmarks required)
-            steps.append(WaveKernelSignature.from_registry(n_domain=400))
-
-        # Add subsamplers
-        if self.config.subsamplers is not None:
-            steps.extend(self.config.subsamplers)
-        else:
-            # Default subsampling
-            steps.append(ArangeSubsampler(subsample_step=10))
-
-        # Add normalizers
-        if self.config.normalizers is not None:
-            steps.extend(self.config.normalizers)
-        else:
-            # Default normalization
-            steps.append(L2InnerNormalizer())
-
-        return DescriptorPipeline(steps)
-
-    def _build_default_refiner(self):
-        """Build the default refiner based on config.
-
-        Returns
-        -------
-        refiner : Refiner or RefinementPipeline
-        """
-        # If refiners explicitly set in config, use them
-        if self.config.refiners is not None:
-            if len(self.config.refiners) == 0:
-                return IdentityRefiner()
-            return RefinementPipeline(self.config.refiners)
-
-        # Default: ICP + ZoomOut
-        return RefinementPipeline(
-            refiners=[
-                IcpRefiner(nit=10),
-                ZoomOut(nit=10, step=5),
+        return DescriptorPipeline(
+            [
+                WaveKernelSignature(n_domain=200, k=200),
+                ArangeSubsampler(subsample_step=10),
+                L2InnerNormalizer(),
             ]
         )
 
-    def _ensure_basis(self, shape):
-        """Ensure shape has computed basis.
-
-        Parameters
-        ----------
-        shape : Shape
-            Shape to check/compute basis for.
-        """
-        if (
-            shape.basis is None
-            or shape.basis.full_spectrum_size < self.config.spectrum_size
-        ):
-            shape.laplacian.find_spectrum(
-                spectrum_size=self.config.spectrum_size,
-                set_as_basis=True,
-                recompute=True,
-            )
-
-    def _build_factors(self, shape_a, shape_b, descr_a, descr_b):
-        """Build optimization factors.
-
-        Parameters
-        ----------
-        shape_a : Shape
-            Source shape.
-        shape_b : Shape
-            Target shape.
-        descr_a : array-like
-            Descriptors on source shape.
-        descr_b : array-like
-            Descriptors on target shape.
+    def _build_default_refiner(self):
+        """Build the default refiner.
 
         Returns
         -------
-        factors : list[WeightedFactor]
-            List of optimization factors.
+        refiner : RefinementPipeline
         """
-        factors = []
-
-        # Spectral descriptor preservation
-        if self.config.sdp_weight > 0:
-            factors.append(
-                SpectralDescriptorPreservation(
-                    shape_a.basis.project(descr_a),
-                    shape_b.basis.project(descr_b),
-                    weight=self.config.sdp_weight,
-                )
-            )
-
-        # Laplace-Beltrami commutativity
-        if self.config.lb_weight > 0:
-            factors.append(
-                LBCommutativityEnforcing.from_bases(
-                    shape_a.basis,
-                    shape_b.basis,
-                    weight=self.config.lb_weight,
-                )
-            )
-
-        # Multiplication operator commutativity
-        if self.config.mult_weight > 0:
-            factors.append(
-                OperatorCommutativityEnforcing.from_multiplication(
-                    shape_a.basis,
-                    descr_a,
-                    shape_b.basis,
-                    descr_b,
-                    weight=self.config.mult_weight,
-                )
-            )
-
-        # Orientation operator commutativity
-        if self.config.orient_weight > 0:
-            factors.append(
-                OperatorCommutativityEnforcing.from_orientation(
-                    shape_a,
-                    descr_a,
-                    shape_b,
-                    descr_b,
-                    weight=self.config.orient_weight,
-                )
-            )
-
-        return factors
+        return RefinementPipeline(
+            [
+                IdentityRefiner(),
+            ]
+        )
 
     def __call__(self, shape_a, shape_b, bidirectional=False):
         """Compute correspondence between two shapes.
@@ -566,73 +323,33 @@ class FunctionalMapMatcher(BaseMatcher):
             - p2p21: point-to-point correspondence from B to A
             - fmap21, p2p12: (if bidirectional=True) reverse direction
         """
-        # Step 1: Ensure both shapes have basis
-        self._ensure_basis(shape_a)
-        self._ensure_basis(shape_b)
-
-        # Store original use_k values
-        original_use_k_a = shape_a.basis.use_k
-        original_use_k_b = shape_b.basis.use_k
-
-        # Set full spectrum for descriptor computation
-        shape_a.basis.use_k = self.config.spectrum_size
-        shape_b.basis.use_k = self.config.spectrum_size
-
-        # Step 2: Compute descriptors
+        # Step 1: Compute descriptors
         descr_a = self.descriptor_pipeline.apply(shape_a)
         descr_b = self.descriptor_pipeline.apply(shape_b)
 
-        # Step 3: Set spectrum size for functional map optimization
-        shape_a.basis.use_k = self.config.fmap_size
-        shape_b.basis.use_k = self.config.fmap_size
+        # Step 2: Set spectrum size for functional map optimization
+        shape_a.basis.use_k = self.fmap_size
+        shape_b.basis.use_k = self.fmap_size
 
-        # Step 4: Build and optimize functional map (fmap12: A -> B)
-        factors = self._build_factors(shape_a, shape_b, descr_a, descr_b)
-        objective = FactorSum(factors)
+        # Step 3: Optimize functional map (fmap12: A -> B)
+        fmap12 = self.fmap_optimizer(shape_a.basis, shape_b.basis, descr_a, descr_b)
 
-        x0 = gs.zeros((shape_b.basis.spectrum_size, shape_a.basis.spectrum_size))
-
-        res = self.optimizer.minimize(
-            objective,
-            x0,
-            fun_jac=objective.gradient,
-        )
-
-        fmap12 = res.x.reshape(x0.shape)
-
-        # Step 5: Apply refinement
+        # Step 4: Apply refinement
         refined_fmap12 = self.refiner(fmap12, shape_a.basis, shape_b.basis)
 
-        # Step 6: Convert to point-to-point correspondence (p2p21: B -> A)
-        p2p21 = self._p2p_converter(refined_fmap12, shape_a.basis, shape_b.basis)
+        # Step 5: Convert to point-to-point correspondence (p2p21: B -> A)
+        p2p21 = self.p2p_converter(refined_fmap12, shape_a.basis, shape_b.basis)
 
         # Initialize reverse direction as None
         fmap21 = None
         refined_fmap21 = None
         p2p12 = None
 
-        # Step 7: Compute reverse direction if bidirectional
+        # Step 6: Compute reverse direction if bidirectional
         if bidirectional:
-            factors_rev = self._build_factors(shape_b, shape_a, descr_b, descr_a)
-            objective_rev = FactorSum(factors_rev)
-
-            x0_rev = gs.zeros(
-                (shape_a.basis.spectrum_size, shape_b.basis.spectrum_size)
-            )
-
-            res_rev = self.optimizer.minimize(
-                objective_rev,
-                x0_rev,
-                fun_jac=objective_rev.gradient,
-            )
-
-            fmap21 = res_rev.x.reshape(x0_rev.shape)
+            fmap21 = self.fmap_optimizer(shape_b.basis, shape_a.basis, descr_b, descr_a)
             refined_fmap21 = self.refiner(fmap21, shape_b.basis, shape_a.basis)
-            p2p12 = self._p2p_converter(refined_fmap21, shape_b.basis, shape_a.basis)
-
-        # Restore original use_k values
-        shape_a.basis.use_k = original_use_k_a
-        shape_b.basis.use_k = original_use_k_b
+            p2p12 = self.p2p_converter(refined_fmap21, shape_b.basis, shape_a.basis)
 
         return CorrespondenceResult(
             fmap12=fmap12,
@@ -641,67 +358,41 @@ class FunctionalMapMatcher(BaseMatcher):
             p2p12=p2p12,
             descr_a=descr_a,
             descr_b=descr_b,
-            refined_fmap12=refined_fmap12 if refined_fmap12 is not fmap12 else None,
-            refined_fmap21=refined_fmap21 if refined_fmap21 is not fmap21 else None,
+            refined_fmap12=refined_fmap12,
+            refined_fmap21=refined_fmap21,
         )
-
-
-class RefinementPipeline:
-    """Chain multiple refiners together.
-
-    Parameters
-    ----------
-    refiners : list[Refiner]
-        List of refiners to apply in sequence.
-        None values are filtered out.
-    """
-
-    def __init__(self, refiners):
-        self.refiners = [r for r in refiners if r is not None]
-
-    def __call__(self, fmap_matrix, basis_a, basis_b):
-        """Apply refiners in sequence.
-
-        Parameters
-        ----------
-        fmap_matrix : array-like, shape=[spectrum_size_b, spectrum_size_a]
-            Functional map matrix.
-        basis_a : Eigenbasis.
-            Basis of source shape.
-        basis_b : Eigenbasis.
-            Basis of target shape.
-
-        Returns
-        -------
-        fmap_matrix : array-like
-            Refined functional map matrix.
-        """
-        for refiner in self.refiners:
-            fmap_matrix = refiner(fmap_matrix, basis_a, basis_b)
-
-        return fmap_matrix
 
 
 class QuickFunctionalMapMatcher(FunctionalMapMatcher):
     """Fast matcher with reduced settings for quick results.
 
     Uses smaller spectrum and fewer refinement iterations.
-
-    Parameters
-    ----------
-    **kwargs
-        Additional arguments passed to FunctionalMapMatcher.
     """
 
-    def __init__(self, **kwargs):
-        config = MatcherConfig(
-            spectrum_size=200,
+    def __init__(self):
+        super().__init__(
             fmap_size=20,
-            descriptors=[WaveKernelSignature.from_registry(n_domain=200)],
-            subsamplers=[ArangeSubsampler(subsample_step=5)],
-            refiners=[IcpRefiner(nit=5), ZoomOut(nit=1, step=1)],
+            descriptor_pipeline=DescriptorPipeline(
+                [
+                    WaveKernelSignature.from_registry(n_domain=200),
+                    ArangeSubsampler(subsample_step=5),
+                    L2InnerNormalizer(),
+                ]
+            ),
+            fmap_optimizer=FunctionalMapOptimizer(
+                factor_builders=[
+                    SDPFactorBuilder(weight=1.0),
+                    LBFactorBuilder(weight=1e-2),
+                    MultFactorBuilder(weight=1e-1),
+                ]
+            ),
+            refiner=RefinementPipeline(
+                [
+                    IcpRefiner(nit=5),
+                    ZoomOut(nit=1, step=0),
+                ]
+            ),
         )
-        super().__init__(config=config, **kwargs)
 
 
 class DefaultFunctionalMapMatcher(FunctionalMapMatcher):
@@ -712,24 +403,34 @@ class DefaultFunctionalMapMatcher(FunctionalMapMatcher):
     Parameters
     ----------
     use_landmarks : bool
-        Whether to use landmarks.
-    **kwargs
-        Additional arguments passed to FunctionalMapMatcher.
+        Whether to use landmarks in the descriptor pipeline.
     """
 
-    def __init__(self, use_landmarks: bool = True, **kwargs):
-        descriptors = [WaveKernelSignature.from_registry(n_domain=200)]
+    def __init__(self, use_landmarks: bool = True):
+        descriptors = [WaveKernelSignature(n_domain=200, k=200)]
         if use_landmarks:
-            descriptors.append(LandmarkWaveKernelSignature.from_registry(n_domain=200))
+            descriptors.append(LandmarkWaveKernelSignature(n_domain=200, k=200))
 
-        config = MatcherConfig(
-            spectrum_size=300,
-            fmap_size=50,
-            descriptors=descriptors,
-            subsamplers=[ArangeSubsampler(subsample_step=10)],
-            refiners=[
-                IcpRefiner(nit=10),
-                ZoomOut(nit=20, step=5),
-            ],
+        super().__init__(
+            fmap_size=30,
+            descriptor_pipeline=DescriptorPipeline(
+                [
+                    *descriptors,
+                    ArangeSubsampler(subsample_step=10),
+                    L2InnerNormalizer(),
+                ]
+            ),
+            fmap_optimizer=FunctionalMapOptimizer(
+                factor_builders=[
+                    SDPFactorBuilder(weight=1.0),
+                    LBFactorBuilder(weight=1e-2),
+                    MultFactorBuilder(weight=1e-1),
+                ]
+            ),
+            refiner=RefinementPipeline(
+                [
+                    IcpRefiner(nit=10),
+                    ZoomOut(nit=20, step=5),
+                ]
+            ),
         )
-        super().__init__(config=config, **kwargs)
