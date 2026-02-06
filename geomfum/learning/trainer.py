@@ -125,14 +125,14 @@ class DeepFunctionalMapTrainer:
                         "shape_b": shape_b,
                     }
                 )
-                if get_dataset_attr(self.train_set.shape_data, "correspondences"):
+                if getattr(get_dataset_attr(self.train_set, "shape_data"), "correspondences", False):
                     outputs.update(
                         {
                             "corr_a": pair["source"]["corr"],
                             "corr_b": pair["target"]["corr"],
                         }
                     )
-                if get_dataset_attr(self.train_set.shape_data, "distances"):
+                if getattr(get_dataset_attr(self.train_set, "shape_data"), "distances", False):
                     outputs.update(
                         {
                             "dist_a": pair["source"]["dist_matrix"],
@@ -174,14 +174,14 @@ class DeepFunctionalMapTrainer:
                             "shape_b": shape_b,
                         }
                     )
-                    if get_dataset_attr(self.val_set.shape_data, "correspondences"):
+                    if getattr(get_dataset_attr(self.val_set, "shape_data"), "correspondences", False):
                         outputs.update(
                             {
                                 "corr_a": pair["source"]["corr"],
                                 "corr_b": pair["target"]["corr"],
                             }
                         )
-                    if get_dataset_attr(self.val_set.shape_data, "distances"):
+                    if getattr(get_dataset_attr(self.val_set, "shape_data"), "distances", False):
                         outputs.update(
                             {
                                 "dist_a": pair["source"]["dist_matrix"],

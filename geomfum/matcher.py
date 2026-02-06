@@ -22,7 +22,7 @@ With bidirectional=True, also returns:
 """
 
 import abc
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
 import gsops.backend as gs
 
@@ -100,8 +100,18 @@ class CorrespondenceResult:
         -------
         dict
             Dictionary with all non-None fields.
+
+        Notes
+        -----
+        This method avoids using `asdict()` from dataclasses because it
+        performs deep copying, which fails for PyTorch tensors that are
+        part of the computation graph (non-leaf tensors) during training.
         """
-        return {k: v for k, v in asdict(self).items() if v is not None}
+        return {
+            k: getattr(self, k)
+            for k in self.__dataclass_fields__
+            if getattr(self, k) is not None
+        }
 
     @property
     def is_bidirectional(self):

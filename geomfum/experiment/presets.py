@@ -16,7 +16,7 @@ from typing import Any, Dict
 import torch
 
 # Converter imports
-from geomfum.convert import NeighborFinder, P2pFromFmConverter
+from geomfum.convert import NeighborFinder, P2pFromFmConverter, SoftmaxNeighborFinder
 
 # Descriptor imports
 from geomfum.descriptor.learned import FeatureExtractor
@@ -50,7 +50,7 @@ from geomfum.learning.losses import (
     LossManager,
     OrthonormalityLoss,
 )
-from geomfum.learning.models import FMNet
+from geomfum.learning.models import FMNet, RobustFMNet
 from geomfum.learning.trainer import DeepFunctionalMapTrainer
 
 # Matcher imports
@@ -671,14 +671,21 @@ class ModelPresets:
     - fmnet_diffusion_small: FMNet with small DiffusionNet (fast training)
     - fmnet_diffusion_standard: FMNet with standard DiffusionNet (recommended)
     - fmnet_diffusion_large: FMNet with large DiffusionNet (best accuracy)
+    - robust_fmnet_small: RobustFMNet with small DiffusionNet
+    - robust_fmnet_standard: RobustFMNet with standard DiffusionNet
+    - robust_fmnet_large: RobustFMNet with large DiffusionNet
 
     Configuration Structure
     -----------------------
-    Each preset is a dict with hierarchical structure::
+    Each preset is a dict with hierarchical structure. The "type" field
+    determines which model class is built.
+
+    For FMNet (type="fmnet")::
 
         {
+            "type": "fmnet",
             "feature_extractor": {
-                "type": str,              # "diffusionnet" or "pointnet"
+                "extractor_type": str,    # "diffusionnet" or "pointnet"
                 "k_eig": int,             # Number of eigenvalues
                 "in_channels": int,       # Input feature dimension
                 "descriptor_n_domain": int,  # Descriptor domain size
@@ -691,12 +698,36 @@ class ModelPresets:
             "p2p_converter": None,        # P2pFromFmConverter config or None
         }
 
+    For RobustFMNet (type="robust_fmnet")::
+
+        {
+            "type": "robust_fmnet",
+            "feature_extractor": {
+                "extractor_type": str,    # "diffusionnet" or "pointnet"
+                "k_eig": int,             # Number of eigenvalues
+                "in_channels": int,       # Input feature dimension
+                "descriptor_n_domain": int,  # Descriptor domain size
+            },
+            "fmap_module": {
+                "lmbda": float,           # Regularization weight
+                "resolvent_gamma": float, # Resolvent parameter
+                "bijective": bool,        # Compute bidirectional maps
+            },
+            "p2p_converter": {            # SoftmaxNeighborFinder config
+                "n_neighbors": int,
+                "tau": float,             # Temperature for softmax
+            },
+        }
+
     Examples
     --------
     Build a preset model:
     >>> from geomfum.experiment import ModelPresets
     >>>
     >>> model = ModelPresets.build("fmnet_diffusion_standard", device="cuda")
+
+    Build a RobustFMNet model:
+    >>> model = ModelPresets.build("robust_fmnet_standard", device="cuda")
 
     Build with hierarchical overrides:
     >>> model = ModelPresets.build("fmnet_diffusion_standard",
@@ -716,9 +747,13 @@ class ModelPresets:
 
     # Preset definitions with hierarchical structure
     _PRESETS = {
+        # =====================================================================
+        # FMNet presets
+        # =====================================================================
         "fmnet_diffusion_small": {
+            "type": "fmnet",
             "feature_extractor": {
-                "type": "diffusionnet",
+                "extractor_type": "diffusionnet",
                 "k_eig": 128,
                 "in_channels": 64,
                 "descriptor_n_domain": 64,
@@ -731,8 +766,9 @@ class ModelPresets:
             "p2p_converter": None,
         },
         "fmnet_diffusion_standard": {
+            "type": "fmnet",
             "feature_extractor": {
-                "type": "diffusionnet",
+                "extractor_type": "diffusionnet",
                 "k_eig": 200,
                 "in_channels": 128,
                 "descriptor_n_domain": 128,
@@ -745,8 +781,9 @@ class ModelPresets:
             "p2p_converter": None,
         },
         "fmnet_diffusion_large": {
+            "type": "fmnet",
             "feature_extractor": {
-                "type": "diffusionnet",
+                "extractor_type": "diffusionnet",
                 "k_eig": 300,
                 "in_channels": 256,
                 "descriptor_n_domain": 200,
@@ -757,6 +794,63 @@ class ModelPresets:
                 "bijective": True,
             },
             "p2p_converter": None,
+        },
+        # =====================================================================
+        # RobustFMNet presets
+        # =====================================================================
+        "robust_fmnet_small": {
+            "type": "robust_fmnet",
+            "feature_extractor": {
+                "extractor_type": "diffusionnet",
+                "k_eig": 128,
+                "in_channels": 64,
+                "descriptor_n_domain": 64,
+            },
+            "fmap_module": {
+                "lmbda": 1e3,
+                "resolvent_gamma": 1.0,
+                "bijective": True,
+            },
+            "p2p_converter": {
+                "n_neighbors": 1,
+                "tau": 0.07,
+            },
+        },
+        "robust_fmnet_standard": {
+            "type": "robust_fmnet",
+            "feature_extractor": {
+                "extractor_type": "diffusionnet",
+                "k_eig": 200,
+                "in_channels": 128,
+                "descriptor_n_domain": 128,
+            },
+            "fmap_module": {
+                "lmbda": 1e3,
+                "resolvent_gamma": 1.0,
+                "bijective": True,
+            },
+            "p2p_converter": {
+                "n_neighbors": 1,
+                "tau": 0.07,
+            },
+        },
+        "robust_fmnet_large": {
+            "type": "robust_fmnet",
+            "feature_extractor": {
+                "extractor_type": "diffusionnet",
+                "k_eig": 300,
+                "in_channels": 256,
+                "descriptor_n_domain": 200,
+            },
+            "fmap_module": {
+                "lmbda": 1e3,
+                "resolvent_gamma": 1.0,
+                "bijective": True,
+            },
+            "p2p_converter": {
+                "n_neighbors": 1,
+                "tau": 0.07,
+            },
         },
     }
 
@@ -794,6 +888,7 @@ class ModelPresets:
         >>> model = ModelPresets.build("fmnet_diffusion_small",
         ...     feature_extractor__k_eig=150
         ... )
+        >>> model = ModelPresets.build("robust_fmnet_standard", device="cuda")
         """
         if name not in cls._PRESETS:
             available = ", ".join(cls.list_presets())
@@ -806,22 +901,49 @@ class ModelPresets:
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        # Build components using helper methods
+        # Dispatch based on model type
+        model_type = config.get("type", "fmnet")
+
+        if model_type == "fmnet":
+            model = cls._build_fmnet(config, device)
+        elif model_type == "robust_fmnet":
+            model = cls._build_robust_fmnet(config, device)
+        else:
+            raise ValueError(
+                f"Unknown model type '{model_type}'. Available: 'fmnet', 'robust_fmnet'"
+            )
+
+        return model.to(device)
+
+    @classmethod
+    def _build_fmnet(cls, config: dict, device: str) -> FMNet:
+        """Build an FMNet model from config."""
         feature_extractor = cls._build_feature_extractor(
             config["feature_extractor"], device
         )
         fmap_module = cls._build_fmap_module(config["fmap_module"])
         converter = cls._build_p2p_converter(config.get("p2p_converter"))
 
-        # Build complete model
-
-        model = FMNet(
+        return FMNet(
             feature_extractor=feature_extractor,
             fmap_module=fmap_module,
             converter=converter,
         )
 
-        return model.to(device)
+    @classmethod
+    def _build_robust_fmnet(cls, config: dict, device: str) -> RobustFMNet:
+        """Build a RobustFMNet model from config."""
+        feature_extractor = cls._build_feature_extractor(
+            config["feature_extractor"], device
+        )
+        fmap_module = cls._build_fmap_module(config["fmap_module"])
+        converter = cls._build_robust_p2p_converter(config.get("p2p_converter"))
+
+        return RobustFMNet(
+            feature_extractor=feature_extractor,
+            fmap_module=fmap_module,
+            converter=converter,
+        )
 
     @classmethod
     def list_presets(cls):
@@ -859,7 +981,8 @@ class ModelPresets:
         Parameters
         ----------
         config : dict
-            Configuration with keys: type, k_eig, in_channels, descriptor_n_domain
+            Configuration with keys: extractor_type, k_eig, in_channels,
+            descriptor_n_domain
         device : str
             Device to place the extractor on.
 
@@ -868,7 +991,7 @@ class ModelPresets:
         extractor : FeatureExtractor
         """
         return FeatureExtractor.from_registry(
-            which=config.get("type", "diffusionnet"),
+            which=config.get("extractor_type", "diffusionnet"),
             device=device,
             k=config.get("k_eig", 128),
             in_channels=config.get("in_channels", 64),
@@ -910,8 +1033,6 @@ class ModelPresets:
         -------
         converter : P2pFromFmConverter
         """
-        from geomfum.convert import P2pFromFmConverter
-
         if config is None:
             return P2pFromFmConverter()
 
@@ -923,6 +1044,32 @@ class ModelPresets:
             adjoint=config.get("adjoint", False),
             bijective=config.get("bijective", False),
         )
+
+    @classmethod
+    def _build_robust_p2p_converter(cls, config):
+        """Build P2pFromFmConverter with SoftmaxNeighborFinder for RobustFMNet.
+
+        Parameters
+        ----------
+        config : dict or None
+            Configuration with keys: n_neighbors, tau
+
+        Returns
+        -------
+        converter : P2pFromFmConverter
+        """
+        if config is None:
+            config = {}
+
+        if isinstance(config, P2pFromFmConverter):
+            return config
+
+        neighbor_finder = SoftmaxNeighborFinder(
+            n_neighbors=config.get("n_neighbors", 1),
+            tau=config.get("tau", 0.07),
+        )
+
+        return P2pFromFmConverter(neighbor_finder=neighbor_finder)
 
 
 # ============================================================================
