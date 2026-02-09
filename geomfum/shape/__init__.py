@@ -4,3 +4,4 @@ from ._base import Shape
 from .graph import Graph
 from .mesh import TriangleMesh
 from .point_cloud import PointCloud
+from .tetrahedral import TetrahedralMesh

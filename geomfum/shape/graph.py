@@ -50,9 +50,7 @@ class Graph(Shape):
             self._adjacency_matrix = None
             self._n_vertices = int(gs.max(self._edge_index)) + 1
         else:
-            raise ValueError(
-                "Provide either `adjacency_matrix` or `edge_index`."
-            )
+            raise ValueError("Provide either `adjacency_matrix` or `edge_index`.")
 
         self.vertices = gs.asarray(vertices) if vertices is not None else None
 
