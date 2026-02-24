@@ -1,0 +1,8 @@
+{
+  "_description": "Feature-based matcher using WKS descriptors and nearest-neighbour search. No functional map.",
+  "type": "FeatureMatcher",
+  "descriptor_pipeline": [
+    {"type": "WaveKernelSignature", "n_domain": 200, "k": 200},
+    {"type": "L2InnerNormalizer"}
+  ]
+}

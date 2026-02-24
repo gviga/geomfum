@@ -1,0 +1,5 @@
+{
+  "_name": "No Refinement",
+  "_description": "Pass-through refiner. Returns the initial functional map unchanged. Use as the unrefined baseline.",
+  "type": "IdentityRefiner"
+}

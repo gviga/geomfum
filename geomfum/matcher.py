@@ -22,6 +22,7 @@ With bidirectional=True, also returns:
 """
 
 import abc
+import json
 from dataclasses import dataclass
 
 import gsops.backend as gs
@@ -146,6 +147,62 @@ class BaseMatcher(abc.ABC):
             - p2p21: point-to-point correspondence from B to A
             - fmap12: functional map from A to B (if applicable)
         """
+
+    @classmethod
+    def from_config(cls, config):
+        """Build a matcher from a configuration dictionary.
+
+        The ``"type"`` key in the config selects the matcher class
+        (``"FunctionalMapMatcher"`` or ``"FeatureMatcher"``).
+
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary. See ``geomfum._build``
+            for the full schema.
+
+        Returns
+        -------
+        matcher : BaseMatcher
+
+        Examples
+        --------
+        >>> config = {
+        ...     "type": "FunctionalMapMatcher",
+        ...     "fmap_size": 30,
+        ...     "descriptor_pipeline": [
+        ...         {"type": "WaveKernelSignature", "n_domain": 200, "k": 200},
+        ...         {"type": "L2InnerNormalizer"},
+        ...     ],
+        ... }
+        >>> matcher = BaseMatcher.from_config(config)
+        """
+        from geomfum._build import build_matcher
+
+        return build_matcher(config)
+
+    @classmethod
+    def from_json(cls, path):
+        """Build a matcher from a JSON configuration file.
+
+        Parameters
+        ----------
+        path : str or Path
+            Path to a JSON file produced by ``to_config()`` or written
+            manually.
+
+        Returns
+        -------
+        matcher : BaseMatcher
+
+        Examples
+        --------
+        >>> matcher = BaseMatcher.from_json("my_method.json")
+        >>> result = matcher(shape_a, shape_b)
+        """
+        with open(path) as f:
+            config = json.load(f)
+        return cls.from_config(config)
 
 
 class FeatureMatcher(BaseMatcher):

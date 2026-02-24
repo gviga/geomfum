@@ -415,16 +415,15 @@ class ExperimentSuite:
 
     Examples
     --------
-    >>> from geomfum.matcher import FunctionalMapMatcher, QuickMatcher, FeatureMatcher
+    >>> from geomfum.matcher import FunctionalMapMatcher, FeatureMatcher
     >>>
     >>> methods = {
-    ...     "FMNet": FunctionalMapMatcher(),
-    ...     "Quick": QuickMatcher(),
+    ...     "FMap": FunctionalMapMatcher(),
     ...     "Feature": FeatureMatcher(),
     ... }
     >>>
     >>> suite = ExperimentSuite(methods, pairs)
-    >>> results = suite.run()
+    >>> suite.run()
     >>> suite.print_comparison()
     """
 
@@ -505,3 +504,54 @@ class ExperimentSuite:
             path = os.path.join(directory, f"{name}.json")
             result.save(path)
             logging.info(f"Saved {name} results to {path}")
+
+
+def compare(methods, dataset, metrics=None, bidirectional=False, progress_bar=True):
+    """Compare multiple matching methods on a dataset.
+
+    This is the main entry point for benchmarking. It runs all methods on
+    every pair in the dataset and returns an ``ExperimentSuite`` with results.
+
+    Parameters
+    ----------
+    methods : dict[str, BaseMatcher or nn.Module]
+        Dictionary mapping method names to matcher or model instances.
+    dataset : PairsDataset
+        Dataset of shape pairs to evaluate on.
+    metrics : list[str], optional
+        Metrics to compute (e.g. ``["geodesic_error"]``).
+        If ``None``, all available metrics are computed.
+    bidirectional : bool
+        Whether to compute correspondences in both directions.
+    progress_bar : bool
+        Whether to display a tqdm progress bar.
+
+    Returns
+    -------
+    suite : ExperimentSuite
+        Populated suite with ``results``, ``print_comparison()`` and
+        ``save_all()`` methods.
+
+    Examples
+    --------
+    >>> from benchfum import compare, MatcherPresets
+    >>> from geomfum.matcher import FunctionalMapMatcher
+    >>>
+    >>> results = compare(
+    ...     {
+    ...         "standard": MatcherPresets.build("standard"),
+    ...         "mine":     MyMatcher(),
+    ...     },
+    ...     dataset=pairs,
+    ... )
+    >>> results.print_comparison()
+    >>> results.save_all("results/my_experiment/")
+    """
+    config = ExperimentConfig(
+        bidirectional=bidirectional,
+        metrics=metrics,
+        progress_bar=progress_bar,
+    )
+    suite = ExperimentSuite(methods, dataset, config)
+    suite.run()
+    return suite

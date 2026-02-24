@@ -1,0 +1,7 @@
+{
+  "_name": "ZoomOut",
+  "_description": "ZoomOut refinement: gradually increases the functional map size to improve resolution.",
+  "type": "ZoomOut",
+  "nit": 20,
+  "step": 5
+}

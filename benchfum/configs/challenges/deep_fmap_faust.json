@@ -1,0 +1,14 @@
+{
+  "_name": "Deep Functional Maps FAUST",
+  "_description": "Compare deep functional map methods against FMNet and RobustFMNet baselines on the FAUST dataset. All methods require pretrained checkpoints. Use benchfum.learning_presets to train baselines if checkpoints are not available.",
+  "dataset": {
+    "k": 200
+  },
+  "baselines": {
+    "FMNet": "fmnet_diffusion_standard",
+    "RobustFMNet": "robust_fmnet_standard"
+  },
+  "metrics": ["geodesic_error"],
+  "bidirectional": false,
+  "n_pairs": null
+}

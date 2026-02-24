@@ -1,0 +1,12 @@
+{
+  "_name": "Refinement FAUST",
+  "_description": "Measure how much each refinement strategy improves a fixed initial functional map on the FAUST dataset. All methods share the same base correspondence so differences are solely due to the refinement step.",
+  "dataset": {
+    "k": 200
+  },
+  "base_method": "fmap",
+  "refiners": ["identity", "icp", "zoomout", "icp_zoomout"],
+  "metrics": ["geodesic_error"],
+  "bidirectional": false,
+  "n_pairs": null
+}

@@ -1,0 +1,9 @@
+{
+  "_name": "WKS-NN",
+  "_description": "WKS feature matching with nearest-neighbour search. No functional map, no landmarks. Simplest baseline.",
+  "type": "FeatureMatcher",
+  "descriptor_pipeline": [
+    {"type": "WaveKernelSignature", "n_domain": 200, "k": 200},
+    {"type": "L2InnerNormalizer"}
+  ]
+}

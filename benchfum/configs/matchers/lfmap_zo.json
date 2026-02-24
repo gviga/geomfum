@@ -1,0 +1,23 @@
+{
+  "_name": "LFMap+ZO",
+  "_description": "Landmark-constrained FM + ICP + ZoomOut. Strongest classical landmark-based baseline. Requires shape.landmark_indices to be set.",
+  "type": "FunctionalMapMatcher",
+  "fmap_size": 30,
+  "descriptor_pipeline": [
+    {"type": "WaveKernelSignature",         "n_domain": 200, "k": 200},
+    {"type": "LandmarkWaveKernelSignature", "n_domain": 200, "k": 200},
+    {"type": "ArangeSubsampler", "subsample_step": 10},
+    {"type": "L2InnerNormalizer"}
+  ],
+  "fmap_optimizer": {
+    "factors": [
+      {"type": "SDPFactorBuilder", "weight": 1.0},
+      {"type": "LBFactorBuilder",  "weight": 0.01},
+      {"type": "MultFactorBuilder","weight": 0.1}
+    ]
+  },
+  "refiner": [
+    {"type": "IcpRefiner", "nit": 10},
+    {"type": "ZoomOut",    "nit": 20, "step": 5}
+  ]
+}

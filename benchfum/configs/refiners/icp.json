@@ -1,0 +1,6 @@
+{
+  "_name": "ICP",
+  "_description": "Iterative Closest Point refinement on the functional map. Fast and effective for small deformations.",
+  "type": "IcpRefiner",
+  "nit": 10
+}

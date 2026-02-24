@@ -1,0 +1,20 @@
+{
+  "_name": "Landmark-Based FAUST",
+  "_description": "Compare landmark-based shape matching methods on the FAUST dataset (tr_reg_000 – tr_reg_099). Includes non-landmark baselines for reference. Requires shapes to have a registered topology so that canonical landmark indices are shared across all shapes.",
+  "dataset": {
+    "k": 200,
+    "landmark_indices": [
+      2959,
+      2948,
+      3116,
+      5130,
+      1252,
+      4583,
+      728
+    ]
+  },
+  "baselines": ["wks_nn", "fmap", "fmap_zo", "lfmap", "lfmap_zo"],
+  "metrics": ["geodesic_error"],
+  "bidirectional": false,
+  "n_pairs": null
+}

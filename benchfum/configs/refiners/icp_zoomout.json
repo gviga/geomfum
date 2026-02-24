@@ -1,0 +1,4 @@
+[
+  {"type": "IcpRefiner", "nit": 10},
+  {"type": "ZoomOut",    "nit": 20, "step": 5}
+]

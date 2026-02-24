@@ -1,0 +1,22 @@
+{
+  "_description": "High-quality functional map matcher. Larger spectrum, more refinement iterations. Slower but more accurate.",
+  "type": "FunctionalMapMatcher",
+  "fmap_size": 50,
+  "descriptor_pipeline": [
+    {"type": "WaveKernelSignature", "n_domain": 200, "k": 200},
+    {"type": "LandmarkWaveKernelSignature", "n_domain": 200, "k": 200},
+    {"type": "ArangeSubsampler", "subsample_step": 10},
+    {"type": "L2InnerNormalizer"}
+  ],
+  "fmap_optimizer": {
+    "factors": [
+      {"type": "SDPFactorBuilder", "weight": 1.0},
+      {"type": "LBFactorBuilder", "weight": 0.01},
+      {"type": "MultFactorBuilder", "weight": 0.1}
+    ]
+  },
+  "refiner": [
+    {"type": "IcpRefiner", "nit": 10},
+    {"type": "ZoomOut", "nit": 30, "step": 5}
+  ]
+}
