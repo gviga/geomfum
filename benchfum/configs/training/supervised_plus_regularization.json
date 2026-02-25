@@ -1,0 +1,22 @@
+{
+  "_name": "Supervised + Regularization",
+  "_description": "50 epochs with ground-truth supervision plus orthonormality and bijectivity regularization.",
+  "optimizer": {"type": "Adam", "lr": 0.001, "weight_decay": 1e-5},
+  "epochs": 50,
+  "monitor_metric": "GeodesicError",
+  "mode": "min",
+  "train_loss_manager": {
+    "type": "LossManager",
+    "losses": [
+      {"type": "GroundTruthSupervisionLoss", "weight": 1.0},
+      {"type": "OrthonormalityLoss", "weight": 0.1},
+      {"type": "BijectivityLoss", "weight": 0.1}
+    ]
+  },
+  "val_loss_manager": {
+    "type": "LossManager",
+    "losses": [
+      {"type": "GeodesicError"}
+    ]
+  }
+}

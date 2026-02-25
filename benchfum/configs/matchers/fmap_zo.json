@@ -3,20 +3,27 @@
   "_description": "Functional map with WKS + ICP + ZoomOut refinement. No landmarks. Strong non-landmark baseline.",
   "type": "FunctionalMapMatcher",
   "fmap_size": 30,
-  "descriptor_pipeline": [
-    {"type": "WaveKernelSignature", "n_domain": 200, "k": 200},
-    {"type": "ArangeSubsampler", "subsample_step": 10},
-    {"type": "L2InnerNormalizer"}
-  ],
-  "fmap_optimizer": {
-    "factors": [
-      {"type": "SDPFactorBuilder", "weight": 1.0},
-      {"type": "LBFactorBuilder",  "weight": 0.01},
-      {"type": "MultFactorBuilder","weight": 0.1}
+  "descriptor_pipeline": {
+    "type": "DescriptorPipeline",
+    "steps": [
+      {"type": "WaveKernelSignature", "n_domain": 200, "k": 200},
+      {"type": "ArangeSubsampler", "subsample_step": 10},
+      {"type": "L2InnerNormalizer"}
     ]
   },
-  "refiner": [
-    {"type": "IcpRefiner", "nit": 10},
-    {"type": "ZoomOut",    "nit": 20, "step": 5}
-  ]
+  "fmap_optimizer": {
+    "type": "FunctionalMapOptimizer",
+    "factor_builders": [
+      {"type": "SDPFactorBuilder", "weight": 1.0},
+      {"type": "LBFactorBuilder",  "weight": 0.01},
+      {"type": "MultFactorBuilder", "weight": 0.1}
+    ]
+  },
+  "refiner": {
+    "type": "RefinementPipeline",
+    "refiners": [
+      {"type": "IcpRefiner", "nit": 10},
+      {"type": "ZoomOut",    "nit": 20, "step": 5}
+    ]
+  }
 }

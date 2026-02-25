@@ -1,4 +1,9 @@
-[
-  {"type": "IcpRefiner", "nit": 10},
-  {"type": "ZoomOut",    "nit": 20, "step": 5}
-]
+{
+  "_name": "ICP+ZoomOut",
+  "_description": "ICP followed by ZoomOut refinement. Standard strong baseline.",
+  "type": "RefinementPipeline",
+  "refiners": [
+    {"type": "IcpRefiner", "nit": 10},
+    {"type": "ZoomOut",    "nit": 20, "step": 5}
+  ]
+}

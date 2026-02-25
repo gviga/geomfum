@@ -2,46 +2,48 @@
 
 This package lives alongside the ``geomfum`` source library and contains
 everything that is useful for benchmarking and comparing shape matching methods:
-experiment runners, named presets, learning presets, and ready-to-run benchmark
+experiment runners, a generic JSON→Python factory, and ready-to-run benchmark
 scripts.
 
-Quick start
------------
->>> from benchfum import compare
->>> from geomfum.matcher import BaseMatcher, FunctionalMapMatcher
+Every object (matcher, model, trainer, refiner) is built from a JSON config file
+using the build functions below.  No preset classes — just files and functions.
+
+Quick start — matchers
+-----------------------
+>>> from benchfum import compare, build_matcher, build_matcher_from_json
+>>> from geomfum.matchers import FunctionalMapMatcher
 >>>
->>> # Option A: load from a JSON file
->>> matcher = BaseMatcher.from_json("my_method.json")
+>>> # Option A: load from a JSON config file
+>>> matcher = build_matcher_from_json("configs/matchers/standard.json")
 >>>
->>> # Option B: build programmatically
+>>> # Option B: build programmatically — geomfum class, no factory needed
 >>> matcher = FunctionalMapMatcher(fmap_size=30)
 >>>
->>> # Compare methods in one call
->>> results = compare(
-...     {"mine": matcher, "standard": MatcherPresets.build("standard")},
-...     dataset=pairs,
-... )
+>>> results = compare({"mine": matcher}, dataset=pairs)
 >>> results.print_comparison()
->>> results.save_all("results/")
 
-Matcher presets
----------------
->>> from benchfum import MatcherPresets
->>> print(MatcherPresets.list_presets())
->>> matcher = MatcherPresets.build("standard")
->>> matcher = MatcherPresets.build("standard", fmap_size=50)
-
-Learning presets (deep functional maps)
-----------------------------------------
->>> from benchfum import ModelPresets, TrainingPresets, quick_train
+Quick start — models (requires torch)
+--------------------------------------
+>>> from benchfum import build_model_from_json, build_trainer_from_json
 >>>
->>> model = ModelPresets.build("fmnet_diffusion_standard", device="cuda")
->>> trainer = TrainingPresets.create_trainer(
-...     "unsupervised_standard", model, train_set, val_set
+>>> model   = build_model_from_json("configs/models/fmnet_standard.json", device="cuda")
+>>> trainer = build_trainer_from_json(
+...     "configs/training/unsupervised_standard.json",
+...     model, train_set, val_set,
 ... )
 >>> trainer.train()
 """
 
+from benchfum._build import (
+    build_matcher,
+    build_matcher_from_json,
+    build_model,
+    build_model_from_json,
+    build_refiner,
+    build_refiner_from_json,
+    build_trainer,
+    build_trainer_from_json,
+)
 from benchfum.experiment import (
     Experiment,
     ExperimentConfig,
@@ -49,16 +51,7 @@ from benchfum.experiment import (
     ExperimentSuite,
     compare,
 )
-from benchfum.presets import MatcherPresets, build_matcher, build_matcher_from_json
-from benchfum.refinement import RefinementMatcher, RefinementPresets
-
-# Learning presets (optional — only available when torch is installed)
-try:
-    from benchfum.learning_presets import ModelPresets, TrainingPresets, quick_train
-
-    _HAS_LEARNING = True
-except ImportError:
-    _HAS_LEARNING = False
+from benchfum.refinement import RefinementMatcher
 
 __all__ = [
     # One-call benchmarking
@@ -68,15 +61,18 @@ __all__ = [
     "ExperimentConfig",
     "ExperimentResult",
     "ExperimentSuite",
-    # Matcher config / presets
-    "MatcherPresets",
+    # JSON factory — matchers
     "build_matcher",
     "build_matcher_from_json",
-    # Refinement
+    # JSON factory — refiners
+    "build_refiner",
+    "build_refiner_from_json",
+    # JSON factory — models
+    "build_model",
+    "build_model_from_json",
+    # JSON factory — trainers
+    "build_trainer",
+    "build_trainer_from_json",
+    # Refinement utilities
     "RefinementMatcher",
-    "RefinementPresets",
-    # Learning presets (when torch is available)
-    "ModelPresets",
-    "TrainingPresets",
-    "quick_train",
 ]

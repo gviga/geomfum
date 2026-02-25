@@ -1,11 +1,28 @@
 {
-  "_name": "Refinement FAUST",
-  "_description": "Measure how much each refinement strategy improves a fixed initial functional map on the FAUST dataset. All methods share the same base correspondence so differences are solely due to the refinement step.",
+  "_name": "Refinement FAUST Benchmark",
+  "_description": "Benchmark suite for refinement methods on FAUST. All methods share the same base matcher; differences come only from the refiner.",
   "dataset": {
     "k": 200
   },
-  "base_method": "fmap",
-  "refiners": ["identity", "icp", "zoomout", "icp_zoomout"],
+  "base_matcher_config": "../matchers/fmap.json",
+  "methods": [
+    {
+      "name": "No Refinement",
+      "refiner_config": "../refiners/identity.json"
+    },
+    {
+      "name": "ICP",
+      "refiner_config": "../refiners/icp.json"
+    },
+    {
+      "name": "ZoomOut",
+      "refiner_config": "../refiners/zoomout.json"
+    },
+    {
+      "name": "ICP+ZoomOut",
+      "refiner_config": "../refiners/icp_zoomout.json"
+    }
+  ],
   "metrics": ["geodesic_error"],
   "bidirectional": false,
   "n_pairs": null

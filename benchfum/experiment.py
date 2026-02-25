@@ -534,13 +534,12 @@ def compare(methods, dataset, metrics=None, bidirectional=False, progress_bar=Tr
 
     Examples
     --------
-    >>> from benchfum import compare, MatcherPresets
-    >>> from geomfum.matcher import FunctionalMapMatcher
+    >>> from benchfum import compare, build_matcher_from_json
     >>>
     >>> results = compare(
     ...     {
-    ...         "standard": MatcherPresets.build("standard"),
-    ...         "mine":     MyMatcher(),
+    ...         "FunctionalMap": build_matcher_from_json("configs/matchers/fmap.json"),
+    ...         "MyMethod":      MyMatcher(),
     ...     },
     ...     dataset=pairs,
     ... )

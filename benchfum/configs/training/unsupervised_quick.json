@@ -1,0 +1,21 @@
+{
+  "_name": "Unsupervised Quick",
+  "_description": "5 epochs, basic orthonormality + bijectivity losses. For rapid iteration.",
+  "optimizer": {"type": "Adam", "lr": 0.001, "weight_decay": 1e-5},
+  "epochs": 5,
+  "monitor_metric": "GeodesicError",
+  "mode": "min",
+  "train_loss_manager": {
+    "type": "LossManager",
+    "losses": [
+      {"type": "OrthonormalityLoss", "weight": 1.0},
+      {"type": "BijectivityLoss", "weight": 1.0}
+    ]
+  },
+  "val_loss_manager": {
+    "type": "LossManager",
+    "losses": [
+      {"type": "GeodesicError"}
+    ]
+  }
+}

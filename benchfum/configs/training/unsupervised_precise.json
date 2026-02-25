@@ -1,0 +1,23 @@
+{
+  "_name": "Unsupervised Precise",
+  "_description": "100 epochs with full unsupervised loss suite including descriptor commutativity. Best unsupervised quality.",
+  "optimizer": {"type": "Adam", "lr": 0.001, "weight_decay": 1e-5},
+  "epochs": 100,
+  "monitor_metric": "GeodesicError",
+  "mode": "min",
+  "train_loss_manager": {
+    "type": "LossManager",
+    "losses": [
+      {"type": "OrthonormalityLoss", "weight": 1.0},
+      {"type": "BijectivityLoss", "weight": 1.0},
+      {"type": "LaplacianCommutativityLoss", "weight": 0.001},
+      {"type": "DescriptorCommutativityLoss", "weight": 0.01}
+    ]
+  },
+  "val_loss_manager": {
+    "type": "LossManager",
+    "losses": [
+      {"type": "GeodesicError"}
+    ]
+  }
+}

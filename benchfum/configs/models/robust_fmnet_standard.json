@@ -1,0 +1,26 @@
+{
+  "_name": "RobustFMNet Standard",
+  "_description": "RobustFMNet with standard DiffusionNet and SoftmaxNeighborFinder converter.",
+  "type": "RobustFMNet",
+  "feature_extractor": {
+    "type": "FeatureExtractor",
+    "which": "diffusionnet",
+    "k": 200,
+    "in_channels": 128,
+    "descriptor": {"type": "WaveKernelSignature", "n_domain": 128}
+  },
+  "fmap_module": {
+    "type": "ForwardFunctionalMap",
+    "lmbda": 1000.0,
+    "resolvent_gamma": 1.0,
+    "bijective": true
+  },
+  "converter": {
+    "type": "P2pFromFmConverter",
+    "neighbor_finder": {
+      "type": "SoftmaxNeighborFinder",
+      "n_neighbors": 1,
+      "tau": 0.07
+    }
+  }
+}

@@ -1,51 +1,22 @@
-"""Landmark-Based Shape Matching Benchmark
-==========================================
-Reference benchmark for methods that use landmark correspondences.
+r"""Landmark-based method benchmark.
 
-Driven by ``benchfum/configs/challenges/landmark_faust.json``, which declares:
-- The baselines to compare (loaded from ``benchfum/configs/matchers/``)
-- Dataset parameters (spectrum size, landmark indices)
-- Metrics and evaluation settings
+This runner compares multiple matcher methods on FAUST landmark pairs.
+Methods are declared in a benchmark config JSON and instantiated through
+``benchfum.build_matcher_from_json``.
 
 Usage
 -----
-Run the full FAUST landmark benchmark (all baselines):
-
-    python -m benchfum.challenges.landmark_based.run --dataset /path/to/faust
-
-Limit to 20 random pairs for quick evaluation:
+Run benchmark declared in config:
 
     python -m benchfum.challenges.landmark_based.run \\
-        --dataset /path/to/faust --n_pairs 20
+        --dataset datasets/faust/train_set
 
-Add your own method to the comparison:
-
-    # Edit the MyMethod class below, then:
-    python -m benchfum.challenges.landmark_based.run \\
-        --dataset /path/to/faust --my_method
-
-Save per-method results to disk:
+Use a custom benchmark config and save results:
 
     python -m benchfum.challenges.landmark_based.run \\
-        --dataset /path/to/faust --save results/landmark_faust/
-
-How to Add Your Method
-----------------------
-Option A — subclass BaseMatcher (full programmatic control):
-
-    class MyMethod(BaseMatcher):
-        def __call__(self, shape_a, shape_b, bidirectional=False):
-            # shape_a.landmark_indices  →  landmark vertex indices on shape A
-            # shape_b.landmark_indices  →  landmark vertex indices on shape B
-            # shape_a.basis.vecs        →  Laplacian eigenvectors [n_verts, k]
-            # shape_a.basis.vals        →  Laplacian eigenvalues  [k]
-            p2p21 = ...  # your algorithm here
-            return CorrespondenceResult(fmap12=None, p2p21=p2p21)
-
-Option B — JSON config (easy to share and reproduce):
-
-    # Write my_method.json and run:
-    METHODS["MyMethod"] = BaseMatcher.from_json("my_method.json")
+        --dataset datasets/faust/train_set \\
+        --config benchfum/configs/challenges/landmark_faust_benchmark.json \\
+        --save results/landmark_faust
 """
 
 import argparse
@@ -53,15 +24,13 @@ import json
 import os
 from pathlib import Path
 
-from benchfum import compare
-from benchfum.presets import MatcherPresets
+from benchfum import build_matcher_from_json, compare
 from geomfum.dataset.torch import PairsDataset, ShapeDataset
-from geomfum.matcher import BaseMatcher
 
 # ============================================================================
-# CHALLENGE CONFIG
+# BENCHMARK CONFIG
 # ============================================================================
-_CHALLENGE_CONFIG_PATH = (
+_DEFAULT_BENCHMARK_CONFIG_PATH = (
     Path(__file__).parent.parent.parent
     / "configs"
     / "challenges"
@@ -69,43 +38,27 @@ _CHALLENGE_CONFIG_PATH = (
 )
 
 
-def load_challenge_config(path=None):
-    """Load the challenge configuration.
+def load_benchmark_config(path=None):
+    """Load the benchmark configuration.
 
     Parameters
     ----------
     path : str or Path, optional
-        Override path to a challenge config JSON. Defaults to
-        ``benchfum/configs/challenges/landmark_faust.json``.
+        Override path to a benchmark config JSON. Defaults to
+        ``benchfum/configs/challenges/landmark_faust_benchmark.json``.
 
     Returns
     -------
     config : dict
     """
-    config_path = Path(path) if path is not None else _CHALLENGE_CONFIG_PATH
+    config_path = Path(path) if path is not None else _DEFAULT_BENCHMARK_CONFIG_PATH
     with open(config_path) as f:
         return json.load(f)
 
 
-# ============================================================================
-# YOUR METHOD  — edit this section
-# ============================================================================
-
-
-class MyMethod(BaseMatcher):
-    """Placeholder for your landmark-based matcher.
-
-    Replace the body of ``__call__`` with your algorithm, then run with
-    ``--my_method`` to include it in the comparison.
-
-    Both shapes have ``landmark_indices`` set by the dataset loader.
-    """
-
-    def __call__(self, shape_a, shape_b, bidirectional=False):
-        # Access landmarks:   shape_a.landmark_indices, shape_b.landmark_indices
-        # Access eigenbasis:  shape_a.basis.vecs  [n_vertices, k]
-        # Access eigenvalues: shape_a.basis.vals  [k]
-        raise NotImplementedError("Implement your method here, then remove this line.")
+def load_challenge_config(path=None):
+    """Backward-compatible alias for ``load_benchmark_config``."""
+    return load_benchmark_config(path)
 
 
 # ============================================================================
@@ -114,14 +67,14 @@ class MyMethod(BaseMatcher):
 
 
 def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None):
-    """Build a PairsDataset from a challenge config and a dataset path.
+    """Build a PairsDataset from a benchmark config and a dataset path.
 
     Parameters
     ----------
     dataset_dir : str
         Path to the dataset root (must contain a ``shapes/`` subdirectory).
     config : dict
-        Challenge config dict (from ``load_challenge_config()``).
+        Benchmark config dict (from ``load_benchmark_config()``).
     n_pairs : int or None
         Override the number of pairs to evaluate.
 
@@ -156,24 +109,63 @@ def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None):
 
 
 # ============================================================================
-# BASELINES
+# METHODS
 # ============================================================================
 
 
-def load_baselines(config: dict) -> dict:
-    """Load all baseline matchers declared in the challenge config.
+def _resolve_path(config_path: Path, relative_or_abs: str) -> Path:
+    """Resolve relative paths against the config file directory."""
+    candidate = Path(relative_or_abs)
+    if candidate.is_absolute():
+        return candidate
+    return (config_path.parent / candidate).resolve()
+
+
+def load_methods(config: dict, config_path: Path) -> dict:
+    """Load all methods declared in the benchmark config.
 
     Parameters
     ----------
     config : dict
-        Challenge config dict.
+        Benchmark config dict.
+    config_path : Path
+        Path to benchmark config.
 
     Returns
     -------
-    baselines : dict[str, BaseMatcher]
+    methods : dict[str, object]
     """
-    baseline_names = config.get("baselines", [])
-    return {name: MatcherPresets.build(name) for name in baseline_names}
+    methods_cfg = config.get("methods")
+    if not methods_cfg:
+        baselines = config.get("baselines", [])
+        if baselines:
+            methods_cfg = [
+                {
+                    "name": baseline_name,
+                    "matcher_config": f"../matchers/{baseline_name}.json",
+                }
+                for baseline_name in baselines
+            ]
+        else:
+            raise ValueError(
+                "Benchmark config must define 'methods' (preferred) "
+                "or legacy 'baselines'."
+            )
+
+    methods = {}
+    for method_cfg in methods_cfg:
+        if "name" not in method_cfg:
+            raise ValueError(f"Method entry missing 'name': {method_cfg!r}")
+        if "matcher_config" not in method_cfg:
+            raise ValueError(
+                f"Method entry for {method_cfg['name']!r} is missing 'matcher_config'."
+            )
+
+        method_name = method_cfg["name"]
+        matcher_path = _resolve_path(config_path, method_cfg["matcher_config"])
+        methods[method_name] = build_matcher_from_json(str(matcher_path))
+
+    return methods
 
 
 # ============================================================================
@@ -186,7 +178,6 @@ def run_benchmark(
     config_path: str = None,
     n_pairs: int = None,
     save_dir: str = None,
-    include_my_method: bool = False,
 ):
     """Run the landmark-based benchmark.
 
@@ -195,37 +186,38 @@ def run_benchmark(
     dataset_dir : str
         Path to the dataset root.
     config_path : str or None
-        Path to a challenge config JSON. Defaults to
-        ``benchfum/configs/challenges/landmark_faust.json``.
+        Path to a benchmark config JSON. Defaults to
+        ``benchfum/configs/challenges/landmark_faust_benchmark.json``.
     n_pairs : int or None
         Limit evaluation to this many random pairs (None = all from config).
     save_dir : str or None
         If given, save per-method JSON results here.
-    include_my_method : bool
-        Include the MyMethod placeholder in the comparison.
 
     Returns
     -------
     suite : ExperimentSuite
     """
-    config = load_challenge_config(config_path)
+    resolved_config_path = (
+        Path(config_path).resolve()
+        if config_path is not None
+        else _DEFAULT_BENCHMARK_CONFIG_PATH
+    )
+    config = load_benchmark_config(resolved_config_path)
 
-    print(f"Challenge : {config.get('_name', 'Landmark-Based')}")
+    print(f"Benchmark : {config.get('_name', 'Landmark-Based')}")
     print(f"Dataset   : {dataset_dir}")
     ds_cfg = config.get("dataset", {})
     k = ds_cfg.get("k", 200)
     lm = ds_cfg.get("landmark_indices", [])
     print(f"Spectrum  : k={k}  |  Landmarks: {len(lm)}")
-    print(f"Baselines : {config.get('baselines', [])}")
     if n_pairs:
         print(f"Pairs     : {n_pairs} (random)")
     print()
 
     pairs = build_dataset(dataset_dir, config, n_pairs)
-    methods = load_baselines(config)
+    methods = load_methods(config, resolved_config_path)
 
-    if include_my_method:
-        methods["MyMethod"] = MyMethod()
+    print(f"Methods   : {list(methods.keys())}")
 
     metrics = config.get("metrics", ["geodesic_error"])
     bidirectional = config.get("bidirectional", False)
@@ -253,9 +245,7 @@ def run_benchmark(
 # ============================================================================
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Landmark-based shape matching benchmark"
-    )
+    parser = argparse.ArgumentParser(description="Landmark-based method benchmark")
     parser.add_argument(
         "--dataset",
         default="datasets/faust/train_set",
@@ -264,7 +254,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         default=None,
-        help="Override path to challenge config JSON (default: landmark_faust.json).",
+        help="Override path to benchmark config JSON (default: landmark_faust_benchmark.json).",
     )
     parser.add_argument(
         "--n_pairs",
@@ -277,11 +267,6 @@ if __name__ == "__main__":
         default=None,
         help="Directory to save per-method JSON results.",
     )
-    parser.add_argument(
-        "--my_method",
-        action="store_true",
-        help="Include MyMethod in the comparison (must be implemented first).",
-    )
     args = parser.parse_args()
 
     run_benchmark(
@@ -289,5 +274,4 @@ if __name__ == "__main__":
         config_path=args.config,
         n_pairs=args.n_pairs,
         save_dir=args.save,
-        include_my_method=args.my_method,
     )

@@ -2,20 +2,27 @@
   "_description": "Balanced functional map matcher. ICP + ZoomOut refinement. Good default for most shapes.",
   "type": "FunctionalMapMatcher",
   "fmap_size": 30,
-  "descriptor_pipeline": [
-    {"type": "WaveKernelSignature", "n_domain": 200, "k": 200},
-    {"type": "ArangeSubsampler", "subsample_step": 10},
-    {"type": "L2InnerNormalizer"}
-  ],
+  "descriptor_pipeline": {
+    "type": "DescriptorPipeline",
+    "steps": [
+      {"type": "WaveKernelSignature", "n_domain": 200, "k": 200},
+      {"type": "ArangeSubsampler", "subsample_step": 10},
+      {"type": "L2InnerNormalizer"}
+    ]
+  },
   "fmap_optimizer": {
-    "factors": [
+    "type": "FunctionalMapOptimizer",
+    "factor_builders": [
       {"type": "SDPFactorBuilder", "weight": 1.0},
       {"type": "LBFactorBuilder", "weight": 0.01},
       {"type": "MultFactorBuilder", "weight": 0.1}
     ]
   },
-  "refiner": [
-    {"type": "IcpRefiner", "nit": 10},
-    {"type": "ZoomOut", "nit": 20, "step": 5}
-  ]
+  "refiner": {
+    "type": "RefinementPipeline",
+    "refiners": [
+      {"type": "IcpRefiner", "nit": 10},
+      {"type": "ZoomOut", "nit": 20, "step": 5}
+    ]
+  }
 }

@@ -1,0 +1,22 @@
+{
+  "_name": "Unsupervised Standard",
+  "_description": "50 epochs with orthonormality, bijectivity, and Laplacian commutativity losses. Recommended default.",
+  "optimizer": {"type": "Adam", "lr": 0.001, "weight_decay": 1e-5},
+  "epochs": 50,
+  "monitor_metric": "GeodesicError",
+  "mode": "min",
+  "train_loss_manager": {
+    "type": "LossManager",
+    "losses": [
+      {"type": "OrthonormalityLoss", "weight": 1.0},
+      {"type": "BijectivityLoss", "weight": 1.0},
+      {"type": "LaplacianCommutativityLoss", "weight": 0.001}
+    ]
+  },
+  "val_loss_manager": {
+    "type": "LossManager",
+    "losses": [
+      {"type": "GeodesicError"}
+    ]
+  }
+}

@@ -1,73 +1,15 @@
-"""Refinement Benchmark on FAUST
-==================================
-Measures how much each refinement strategy improves a fixed initial
-functional map.  Because all methods start from the same base correspondence,
-any difference in the final score is **solely due to the refinement step**.
+r"""Refinement method benchmark.
 
-Driven by ``benchfum/configs/challenges/refinement_faust.json``, which declares:
-- The base method that produces the initial functional map
-- The set of refiners to compare (from ``benchfum/configs/refiners/``)
-- Dataset parameters and metrics
+Measures how much each refinement strategy improves a shared initial
+functional map. Methods are declared in a benchmark config JSON and
+built through the benchfum JSON factory.
 
 Usage
 -----
-Run all standard refiners:
+Run benchmark declared in config:
 
     python -m benchfum.challenges.refinement.run \\
-        --dataset /path/to/faust/train_set
-
-Quick check with 20 pairs:
-
-    python -m benchfum.challenges.refinement.run \\
-        --dataset /path/to/faust/train_set --n_pairs 20
-
-Include your own refiner:
-
-    python -m benchfum.challenges.refinement.run \\
-        --dataset /path/to/faust/train_set --my_refiner
-
-Save results:
-
-    python -m benchfum.challenges.refinement.run \\
-        --dataset /path/to/faust/train_set --save results/refinement_faust/
-
-How to Add Your Refiner
-------------------------
-Option A — implement the refiner interface directly and edit this file:
-
-    class MyRefiner:
-        def __call__(self, fmap12, basis_a, basis_b):
-            # fmap12   : array [k_b, k_a]  — initial functional map
-            # basis_a  : spectral basis of shape A
-            # basis_b  : spectral basis of shape B
-            # return   : refined fmap12 [k_b, k_a]
-            ...
-
-    Then set --my_refiner to include it in the comparison.
-
-Option B — define it as a JSON config and add it to configs/refiners/:
-
-    // benchfum/configs/refiners/my_refiner.json
-    {"_name": "MyRefiner", "type": "IcpRefiner", "nit": 30}
-
-    It's then accessible via RefinementPresets.build("my_refiner").
-
-Option C — use it directly in Python:
-
-    from benchfum import compare, MatcherPresets
-    from benchfum.refinement import RefinementMatcher, RefinementPresets
-
-    base = MatcherPresets.build("fmap")
-    results = compare(
-        {
-            "No refinement": RefinementMatcher(base, RefinementPresets.build("identity")),
-            "ICP+ZO":        RefinementMatcher(base, RefinementPresets.build("icp_zoomout")),
-            "MyRefiner":     RefinementMatcher(base, MyRefiner()),
-        },
-        dataset=pairs,
-        metrics=["geodesic_error"],
-    )
-    results.print_comparison()
+        --dataset datasets/faust/train_set
 """
 
 import argparse
@@ -75,75 +17,62 @@ import json
 import os
 from pathlib import Path
 
-from benchfum import compare
-from benchfum.presets import MatcherPresets
-from benchfum.refinement import RefinementMatcher, RefinementPresets
+from benchfum import (
+    build_matcher_from_json,
+    build_refiner_from_json,
+    compare,
+)
+from benchfum.refinement import RefinementMatcher
 from geomfum.dataset.torch import PairsDataset, ShapeDataset
 
 # ============================================================================
-# CHALLENGE CONFIG
+# BENCHMARK CONFIG
 # ============================================================================
-_CHALLENGE_CONFIG_PATH = (
-    Path(__file__).parent.parent.parent / "configs" / "challenges" / "refinement_faust.json"
+_DEFAULT_BENCHMARK_CONFIG_PATH = (
+    Path(__file__).parent.parent.parent
+    / "configs"
+    / "challenges"
+    / "refinement_faust_benchmark.json"
 )
 
 
-def load_challenge_config(path=None):
-    """Load the challenge configuration.
+def load_benchmark_config(path=None):
+    """Load the benchmark configuration.
 
     Parameters
     ----------
     path : str or Path, optional
-        Override path to a challenge config JSON. Defaults to
-        ``benchfum/configs/challenges/refinement_faust.json``.
+        Override path to a benchmark config JSON. Defaults to
+        ``benchfum/configs/challenges/refinement_faust_benchmark.json``.
 
     Returns
     -------
     config : dict
     """
-    config_path = Path(path) if path is not None else _CHALLENGE_CONFIG_PATH
+    config_path = Path(path) if path is not None else _DEFAULT_BENCHMARK_CONFIG_PATH
     with open(config_path) as f:
         return json.load(f)
 
 
-# ============================================================================
-# YOUR REFINER  — edit this section
-# ============================================================================
-
-class MyRefiner:
-    """Placeholder for your refinement method.
-
-    Implement ``__call__`` with your algorithm and run with ``--my_refiner``
-    to include it in the comparison.
-
-    Your refiner receives a functional map and the spectral bases of both
-    shapes.  It must return a refined functional map of the same shape.
-    """
-
-    def __call__(self, fmap12, basis_a, basis_b):
-        # fmap12       : array [k_b, k_a]  — initial functional map from A→B
-        # basis_a.vecs : array [n_a, k_a]  — Laplacian eigenvectors of shape A
-        # basis_a.vals : array [k_a]       — Laplacian eigenvalues of shape A
-        # basis_b.vecs : array [n_b, k_b]  — Laplacian eigenvectors of shape B
-        # basis_b.vals : array [k_b]       — Laplacian eigenvalues of shape B
-        #
-        # return a refined fmap12 of shape [k_b, k_a]
-        raise NotImplementedError("Implement your refiner here, then remove this line.")
+def load_challenge_config(path=None):
+    """Backward-compatible alias for ``load_benchmark_config``."""
+    return load_benchmark_config(path)
 
 
 # ============================================================================
 # DATASET
 # ============================================================================
 
+
 def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None):
-    """Build a PairsDataset from a challenge config and a dataset path.
+    """Build a PairsDataset from a benchmark config and a dataset path.
 
     Parameters
     ----------
     dataset_dir : str
         Path to the dataset root (must contain a ``shapes/`` subdirectory).
     config : dict
-        Challenge config dict.
+        Benchmark config dict.
     n_pairs : int or None
         Override the number of pairs.
 
@@ -179,34 +108,75 @@ def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None):
 # METHOD ASSEMBLY
 # ============================================================================
 
-def build_methods(config: dict, base_matcher, include_my_refiner: bool) -> dict:
+
+def _resolve_path(config_path: Path, relative_or_abs: str) -> Path:
+    """Resolve relative paths against config file directory."""
+    candidate = Path(relative_or_abs)
+    if candidate.is_absolute():
+        return candidate
+    return (config_path.parent / candidate).resolve()
+
+
+def _load_methods_cfg(config: dict):
+    """Return methods config, with legacy fallback.
+
+    Preferred schema:
+      methods: [{name, refiner_config}, ...]
+      base_matcher_config: ../matchers/fmap.json
+    Legacy fallback:
+      base_method: fmap
+      refiners: [identity, icp, ...]
+    """
+    methods_cfg = config.get("methods")
+    if methods_cfg:
+        return methods_cfg
+
+    refiners = config.get("refiners", [])
+    if not refiners:
+        raise ValueError(
+            "Benchmark config must define 'methods' (preferred) or legacy 'refiners'."
+        )
+
+    return [
+        {
+            "name": refiner_name,
+            "refiner_config": f"../refiners/{refiner_name}.json",
+        }
+        for refiner_name in refiners
+    ]
+
+
+def build_methods(config: dict, config_path: Path, base_matcher) -> dict:
     """Build one RefinementMatcher per refiner declared in the config.
 
     Parameters
     ----------
     config : dict
-        Challenge config.
+        Benchmark config.
+    config_path : Path
+        Path to benchmark config.
     base_matcher : BaseMatcher
         Shared base matcher used by all methods.
-    include_my_refiner : bool
-        If True, also include the MyRefiner placeholder.
 
     Returns
     -------
     methods : dict[str, RefinementMatcher]
     """
-    refiner_names = config.get("refiners", [])
+    methods_cfg = _load_methods_cfg(config)
     methods = {}
 
-    for name in refiner_names:
-        refiner = RefinementPresets.build(name)
-        # Use the _name from describe() as the display name if available
-        desc = RefinementPresets.describe(name)
-        display = desc.get("_name", name) if isinstance(desc, dict) else name
-        methods[display] = RefinementMatcher(base_matcher, refiner)
+    for method_cfg in methods_cfg:
+        if "name" not in method_cfg:
+            raise ValueError(f"Method entry missing 'name': {method_cfg!r}")
+        if "refiner_config" not in method_cfg:
+            raise ValueError(
+                f"Method entry for {method_cfg['name']!r} is missing 'refiner_config'."
+            )
 
-    if include_my_refiner:
-        methods["MyRefiner"] = RefinementMatcher(base_matcher, MyRefiner())
+        method_name = method_cfg["name"]
+        refiner_path = _resolve_path(config_path, method_cfg["refiner_config"])
+        refiner = build_refiner_from_json(str(refiner_path))
+        methods[method_name] = RefinementMatcher(base_matcher, refiner)
 
     return methods
 
@@ -215,12 +185,12 @@ def build_methods(config: dict, base_matcher, include_my_refiner: bool) -> dict:
 # MAIN RUNNER
 # ============================================================================
 
+
 def run_benchmark(
     dataset_dir: str,
     config_path: str = None,
     n_pairs: int = None,
     save_dir: str = None,
-    include_my_refiner: bool = False,
 ):
     """Run the refinement benchmark.
 
@@ -229,33 +199,47 @@ def run_benchmark(
     dataset_dir : str
         Path to the dataset root.
     config_path : str or None
-        Override path to challenge config JSON.
+        Override path to benchmark config JSON.
     n_pairs : int or None
         Limit evaluation to this many random pairs (None = all from config).
     save_dir : str or None
         If given, save per-method JSON results here.
-    include_my_refiner : bool
-        Include the MyRefiner placeholder in the comparison.
 
     Returns
     -------
     suite : ExperimentSuite
     """
-    config = load_challenge_config(config_path)
-    base_name = config.get("base_method", "fmap")
+    resolved_config_path = (
+        Path(config_path).resolve()
+        if config_path is not None
+        else _DEFAULT_BENCHMARK_CONFIG_PATH
+    )
+    config = load_benchmark_config(resolved_config_path)
 
-    print(f"Challenge   : {config.get('_name', 'Refinement')}")
+    base_matcher_cfg = config.get("base_matcher_config")
+    if base_matcher_cfg is None:
+        legacy_base_method = config.get("base_method")
+        if legacy_base_method is None:
+            raise ValueError(
+                "Benchmark config must define 'base_matcher_config' "
+                "(preferred) or legacy 'base_method'."
+            )
+        base_matcher_cfg = f"../matchers/{legacy_base_method}.json"
+
+    base_matcher_path = _resolve_path(resolved_config_path, base_matcher_cfg)
+
+    print(f"Benchmark   : {config.get('_name', 'Refinement')}")
     print(f"Dataset     : {dataset_dir}")
-    print(f"Base method : {base_name}")
-    print(f"Refiners    : {config.get('refiners', [])}")
+    print(f"Base matcher: {base_matcher_path}")
     ds_cfg = config.get("dataset", {})
     print(f"Spectrum    : k={ds_cfg.get('k', 200)}")
     if n_pairs:
         print(f"Pairs       : {n_pairs} (random)")
     print()
 
-    base_matcher = MatcherPresets.build(base_name)
-    methods = build_methods(config, base_matcher, include_my_refiner)
+    base_matcher = build_matcher_from_json(str(base_matcher_path))
+    methods = build_methods(config, resolved_config_path, base_matcher)
+    print(f"Methods     : {list(methods.keys())}")
 
     pairs = build_dataset(dataset_dir, config, n_pairs)
 
@@ -285,9 +269,7 @@ def run_benchmark(
 # ============================================================================
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Refinement benchmark on FAUST"
-    )
+    parser = argparse.ArgumentParser(description="Refinement method benchmark")
     parser.add_argument(
         "--dataset",
         default="datasets/faust/train_set",
@@ -296,12 +278,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         default=None,
-        help="Override path to challenge config JSON.",
-    )
-    parser.add_argument(
-        "--base_method",
-        default=None,
-        help="Override the base method (any name from MatcherPresets).",
+        help="Override path to benchmark config JSON.",
     )
     parser.add_argument(
         "--n_pairs",
@@ -314,29 +291,11 @@ if __name__ == "__main__":
         default=None,
         help="Directory to save per-method JSON results.",
     )
-    parser.add_argument(
-        "--my_refiner",
-        action="store_true",
-        help="Include MyRefiner in the comparison (must be implemented first).",
-    )
     args = parser.parse_args()
-
-    # Allow CLI override of the base method
-    if args.base_method is not None:
-        cfg = load_challenge_config(args.config)
-        cfg["base_method"] = args.base_method
-        import tempfile, json as _json
-        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
-        _json.dump(cfg, tmp)
-        tmp.close()
-        config_path = tmp.name
-    else:
-        config_path = args.config
 
     run_benchmark(
         dataset_dir=args.dataset,
-        config_path=config_path,
+        config_path=args.config,
         n_pairs=args.n_pairs,
         save_dir=args.save,
-        include_my_refiner=args.my_refiner,
     )

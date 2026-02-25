@@ -1,0 +1,18 @@
+{
+  "_name": "FMNet Large",
+  "_description": "FMNet with large DiffusionNet feature extractor. Best accuracy, slower training.",
+  "type": "FMNet",
+  "feature_extractor": {
+    "type": "FeatureExtractor",
+    "which": "diffusionnet",
+    "k": 300,
+    "in_channels": 256,
+    "descriptor": {"type": "WaveKernelSignature", "n_domain": 200}
+  },
+  "fmap_module": {
+    "type": "ForwardFunctionalMap",
+    "lmbda": 1000.0,
+    "resolvent_gamma": 1.0,
+    "bijective": true
+  }
+}

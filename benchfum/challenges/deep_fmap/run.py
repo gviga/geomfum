@@ -1,69 +1,21 @@
-"""Deep Functional Maps Benchmark on FAUST
-==========================================
-Reference benchmark for deep learning-based functional map methods.
+"""Deep functional-map benchmark.
 
-Driven by ``benchfum/configs/challenges/deep_fmap_faust.json``, which declares:
-- The baseline architectures (FMNet, RobustFMNet) and their model presets
-- Dataset parameters
-- Metrics and evaluation settings
-
-All methods require pretrained checkpoints. If you don't have baseline
-checkpoints yet, train them first:
-
-    python -m benchfum.challenges.deep_fmap.train_baselines \\
-        --train_dataset /path/to/faust/train_set \\
-        --val_dataset   /path/to/faust/test_set  \\
-        --out_dir       checkpoints/deep_fmap/
+This runner compares deep learning methods declared in a benchmark config.
+Each method can be evaluated from a checkpoint and optionally trained first
+from model/training JSON configs.
 
 Usage
 -----
-Compare your model against pretrained FMNet and RobustFMNet:
+Evaluate methods from checkpoints declared in config:
 
     python -m benchfum.challenges.deep_fmap.run \\
-        --dataset           /path/to/faust \\
-        --fmnet_ckpt        checkpoints/deep_fmap/FMNet.pth \\
-        --robust_fmnet_ckpt checkpoints/deep_fmap/RobustFMNet.pth \\
-        --my_model_ckpt     checkpoints/my_model.pth
+        --dataset datasets/faust/test_set
 
-Quick evaluation with only your model (skip baselines you don't have):
+Train methods (that include ``trainer_config``) and then evaluate:
 
     python -m benchfum.challenges.deep_fmap.run \\
-        --dataset       /path/to/faust \\
-        --my_model_ckpt checkpoints/my_model.pth
-
-Save results to disk:
-
-    python -m benchfum.challenges.deep_fmap.run ... --save results/deep_fmap/
-
-How to Add Your Model
----------------------
-Option A — define a custom nn.Module and wrap it:
-
-    import torch.nn as nn
-    from geomfum.learning.wrappers import TrainedModelWrapper
-
-    class MyDeepFMNet(nn.Module):
-        def forward(self, shape_a, shape_b, bidirectional=False):
-            # shape_a.basis.vecs  [n_vertices, k]  — Laplacian eigenvectors
-            # shape_a.basis.vals  [k]               — Laplacian eigenvalues
-            # return a CorrespondenceResult
-            ...
-
-    model = TrainedModelWrapper(MyDeepFMNet(), checkpoint_path="my_model.pth")
-
-Option B — use an existing architecture with a custom configuration:
-
-    from benchfum.learning_presets import ModelPresets
-    from geomfum.learning.wrappers import TrainedModelWrapper
-
-    model = ModelPresets.build("fmnet_diffusion_large", device="cuda")
-    wrapped = TrainedModelWrapper(model, checkpoint_path="my_model.pth")
-
-Option C — edit the MyDeepModel class below and run with --my_model_ckpt:
-
-    # Edit MyDeepModel.__init__ and forward(), then:
-    python -m benchfum.challenges.deep_fmap.run \\
-        --dataset /path/to/faust --my_model_ckpt checkpoints/my_model.pth
+        --dataset datasets/faust/test_set \\
+        --train --train_dataset datasets/faust/train_set --val_dataset datasets/faust/test_set
 """
 
 import argparse
@@ -73,84 +25,58 @@ from pathlib import Path
 
 import torch
 
-from benchfum import compare
-from benchfum.learning_presets import ModelPresets
+from benchfum import build_model_from_json, build_trainer_from_json, compare
 from geomfum.dataset.torch import PairsDataset, ShapeDataset
 from geomfum.learning.wrappers import TrainedModelWrapper
-from geomfum.matcher import CorrespondenceResult
 
 # ============================================================================
-# CHALLENGE CONFIG
+# BENCHMARK CONFIG
 # ============================================================================
-_CHALLENGE_CONFIG_PATH = (
-    Path(__file__).parent.parent.parent / "configs" / "challenges" / "deep_fmap_faust.json"
+_DEFAULT_BENCHMARK_CONFIG_PATH = (
+    Path(__file__).parent.parent.parent
+    / "configs"
+    / "challenges"
+    / "deep_fmap_faust_benchmark.json"
 )
 
 
-def load_challenge_config(path=None):
-    """Load the challenge configuration.
+def load_benchmark_config(path=None):
+    """Load the benchmark configuration.
 
     Parameters
     ----------
     path : str or Path, optional
-        Override path to a challenge config JSON. Defaults to
-        ``benchfum/configs/challenges/deep_fmap_faust.json``.
+        Override path to a benchmark config JSON. Defaults to
+        ``benchfum/configs/challenges/deep_fmap_faust_benchmark.json``.
 
     Returns
     -------
     config : dict
     """
-    config_path = Path(path) if path is not None else _CHALLENGE_CONFIG_PATH
+    config_path = Path(path) if path is not None else _DEFAULT_BENCHMARK_CONFIG_PATH
     with open(config_path) as f:
         return json.load(f)
 
 
-# ============================================================================
-# YOUR MODEL  — edit this section
-# ============================================================================
-
-class MyDeepModel(torch.nn.Module):
-    """Placeholder for your deep functional map model.
-
-    Replace ``__init__`` and ``forward`` with your architecture,
-    load a checkpoint with ``--my_model_ckpt``, and it will appear in the
-    comparison table alongside FMNet and RobustFMNet.
-
-    The model must accept ``(shape_a, shape_b, bidirectional=False)`` and
-    return a ``CorrespondenceResult``.
-    """
-
-    def __init__(self):
-        super().__init__()
-        # Define your layers here, e.g.:
-        #   self.feature_net = DiffusionNet(...)
-        #   self.fmap_layer  = FMapLayer(...)
-        raise NotImplementedError(
-            "Define your model architecture in MyDeepModel.__init__(), "
-            "then remove this line."
-        )
-
-    def forward(self, shape_a, shape_b, bidirectional=False):
-        # shape_a.basis.vecs  [n_vertices, k]  — Laplacian eigenvectors
-        # shape_a.basis.vals  [k]               — Laplacian eigenvalues
-        raise NotImplementedError(
-            "Implement your forward pass, then remove this line."
-        )
+def load_challenge_config(path=None):
+    """Backward-compatible alias for ``load_benchmark_config``."""
+    return load_benchmark_config(path)
 
 
 # ============================================================================
 # DATASET
 # ============================================================================
 
+
 def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None):
-    """Build a PairsDataset from a challenge config and a dataset path.
+    """Build a PairsDataset from a benchmark config and a dataset path.
 
     Parameters
     ----------
     dataset_dir : str
         Path to the dataset root (must contain a ``shapes/`` subdirectory).
     config : dict
-        Challenge config dict.
+        Benchmark config dict.
     n_pairs : int or None
         Override the number of pairs to evaluate.
 
@@ -183,85 +109,95 @@ def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None):
 
 
 # ============================================================================
-# BASELINE LOADING
+# METHOD LOADING
 # ============================================================================
 
-def load_baselines(config: dict, checkpoints: dict, device: str) -> dict:
-    """Load all baseline deep models declared in the challenge config.
 
-    Each baseline is built from a model preset and optionally loaded from a
-    checkpoint. Models without checkpoints are skipped with a warning.
-
-    Parameters
-    ----------
-    config : dict
-        Challenge config dict.
-    checkpoints : dict[str, str]
-        Mapping from baseline name to checkpoint path (or None).
-    device : str
-        Device to load models on.
-
-    Returns
-    -------
-    baselines : dict[str, TrainedModelWrapper]
-    """
-    baseline_specs = config.get("baselines", {})
-    result = {}
-
-    for name, model_preset in baseline_specs.items():
-        ckpt = checkpoints.get(name)
-        if ckpt is None:
-            print(f"  [skip] {name}: no checkpoint provided (--{_ckpt_flag(name)})")
-            continue
-
-        if not Path(ckpt).exists():
-            print(f"  [skip] {name}: checkpoint not found at '{ckpt}'")
-            continue
-
-        print(f"  [load] {name}: preset={model_preset!r}  ckpt={ckpt}")
-        model = ModelPresets.build(model_preset, device=device)
-        result[name] = TrainedModelWrapper(model, device=device, checkpoint_path=ckpt)
-
-    return result
+def _resolve_path(config_path: Path, relative_or_abs: str | None):
+    """Resolve relative paths against the benchmark config directory."""
+    if relative_or_abs is None:
+        return None
+    candidate = Path(relative_or_abs)
+    if candidate.is_absolute():
+        return candidate
+    return (config_path.parent / candidate).resolve()
 
 
-def _ckpt_flag(name: str) -> str:
-    """Convert a baseline name to the corresponding CLI flag."""
-    return name.lower().replace(" ", "_").replace("-", "_") + "_ckpt"
+def _load_methods_config(config: dict):
+    methods_cfg = config.get("methods")
+    if not methods_cfg:
+        raise ValueError(
+            "Benchmark config must define a 'methods' list. "
+            "Each method needs at least {'name', 'model_config'}."
+        )
+    return methods_cfg
+
+
+def _maybe_train_method(
+    method_name,
+    method_cfg,
+    model,
+    config_path,
+    train_pairs,
+    val_pairs,
+):
+    """Train a method if training is enabled and trainer_config is available."""
+    trainer_config = method_cfg.get("trainer_config")
+    if trainer_config is None:
+        print(f"  [skip-train] {method_name}: no trainer_config in benchmark config")
+        return
+
+    trainer_config_path = _resolve_path(config_path, trainer_config)
+    trainer = build_trainer_from_json(
+        str(trainer_config_path),
+        model=model,
+        train_set=train_pairs,
+        val_set=val_pairs,
+    )
+
+    checkpoint_path = _resolve_path(config_path, method_cfg.get("checkpoint"))
+    if checkpoint_path is not None:
+        trainer.checkpoint_path = str(checkpoint_path)
+
+    print(f"  [train] {method_name}: trainer={trainer_config_path}")
+    trainer.train()
 
 
 # ============================================================================
 # MAIN RUNNER
 # ============================================================================
 
+
 def run_benchmark(
     dataset_dir: str,
-    checkpoints: dict = None,
-    my_model_ckpt: str = None,
     config_path: str = None,
     n_pairs: int = None,
     save_dir: str = None,
     device: str = None,
+    train: bool = False,
+    train_dataset_dir: str = None,
+    val_dataset_dir: str = None,
 ):
-    """Run the deep functional maps benchmark.
+    """Run the deep functional-map benchmark.
 
     Parameters
     ----------
     dataset_dir : str
         Path to the dataset root.
-    checkpoints : dict[str, str], optional
-        Mapping from baseline name to checkpoint path.
-        e.g. ``{"FMNet": "ckpts/fmnet.pth", "RobustFMNet": "ckpts/rob.pth"}``
-    my_model_ckpt : str, optional
-        Path to checkpoint for MyDeepModel. If None, MyDeepModel is excluded.
     config_path : str or None
-        Override path to challenge config JSON.
+        Override path to benchmark config JSON.
     n_pairs : int or None
         Limit evaluation to this many random pairs (None = all from config).
     save_dir : str or None
         If given, save per-method JSON results here.
     device : str, optional
         PyTorch device (default: "cuda" if available, else "cpu").
+    train : bool
+        If True, train methods that include ``trainer_config`` before evaluation.
+    train_dataset_dir : str, optional
+        Dataset root for training pairs.
+    val_dataset_dir : str, optional
+        Dataset root for validation pairs.
 
     Returns
     -------
@@ -270,30 +206,79 @@ def run_benchmark(
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    config = load_challenge_config(config_path)
-    if checkpoints is None:
-        checkpoints = {}
+    resolved_config_path = (
+        Path(config_path).resolve()
+        if config_path is not None
+        else _DEFAULT_BENCHMARK_CONFIG_PATH
+    )
+    config = load_benchmark_config(resolved_config_path)
+    methods_cfg = _load_methods_config(config)
 
-    print(f"Challenge : {config.get('_name', 'Deep Functional Maps')}")
+    print(f"Benchmark : {config.get('_name', 'Deep Functional Maps')}")
     print(f"Dataset   : {dataset_dir}")
     print(f"Device    : {device}")
     ds_cfg = config.get("dataset", {})
     print(f"Spectrum  : k={ds_cfg.get('k', 200)}")
+    print(f"Train     : {'yes' if train else 'no'}")
     print()
 
-    print("Loading baselines...")
-    methods = load_baselines(config, checkpoints, device)
+    train_pairs = None
+    val_pairs = None
+    if train:
+        if train_dataset_dir is None or val_dataset_dir is None:
+            raise ValueError(
+                "When --train is enabled, both --train_dataset and --val_dataset are required."
+            )
+        train_pairs = build_dataset(train_dataset_dir, config)
+        val_pairs = build_dataset(val_dataset_dir, config)
 
-    if my_model_ckpt is not None:
-        print(f"  [load] MyModel: ckpt={my_model_ckpt}")
-        my_model = MyDeepModel()
-        methods["MyModel"] = TrainedModelWrapper(
-            my_model, device=device, checkpoint_path=my_model_ckpt
+    methods = {}
+    print("Building methods...")
+    for method_cfg in methods_cfg:
+        method_name = method_cfg.get("name")
+        model_config = method_cfg.get("model_config")
+        if method_name is None or model_config is None:
+            raise ValueError(
+                f"Invalid method entry: {method_cfg!r}. "
+                "Each entry must have 'name' and 'model_config'."
+            )
+
+        model_config_path = _resolve_path(resolved_config_path, model_config)
+        model = build_model_from_json(str(model_config_path), device=device)
+
+        if train:
+            _maybe_train_method(
+                method_name=method_name,
+                method_cfg=method_cfg,
+                model=model,
+                config_path=resolved_config_path,
+                train_pairs=train_pairs,
+                val_pairs=val_pairs,
+            )
+
+        checkpoint_path = _resolve_path(
+            resolved_config_path, method_cfg.get("checkpoint")
         )
+        if checkpoint_path is not None:
+            if checkpoint_path.exists():
+                print(f"  [load] {method_name}: checkpoint={checkpoint_path}")
+                methods[method_name] = TrainedModelWrapper(
+                    model=model,
+                    device=device,
+                    checkpoint_path=str(checkpoint_path),
+                )
+            else:
+                print(
+                    f"  [skip] {method_name}: checkpoint not found at '{checkpoint_path}'"
+                )
+            continue
+
+        methods[method_name] = model
+
     print()
 
     if not methods:
-        print("No methods to compare — provide at least one checkpoint.")
+        print("No methods to compare — check method config and checkpoints.")
         return None
 
     print(f"Methods   : {list(methods)}")
@@ -327,9 +312,7 @@ def run_benchmark(
 # ============================================================================
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Deep functional maps benchmark on FAUST"
-    )
+    parser = argparse.ArgumentParser(description="Deep functional-map benchmark")
     parser.add_argument(
         "--dataset",
         default="datasets/faust/train_set",
@@ -338,22 +321,22 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         default=None,
-        help="Override path to challenge config JSON.",
+        help="Override path to benchmark config JSON.",
     )
     parser.add_argument(
-        "--fmnet_ckpt",
-        default=None,
-        help="Path to pretrained FMNet checkpoint (.pth).",
+        "--train",
+        action="store_true",
+        help="Train methods (with trainer_config) before evaluation.",
     )
     parser.add_argument(
-        "--robust_fmnet_ckpt",
+        "--train_dataset",
         default=None,
-        help="Path to pretrained RobustFMNet checkpoint (.pth).",
+        help="Training dataset root (required when --train is used).",
     )
     parser.add_argument(
-        "--my_model_ckpt",
+        "--val_dataset",
         default=None,
-        help="Path to your model checkpoint (.pth). Requires MyDeepModel to be implemented.",
+        help="Validation dataset root (required when --train is used).",
     )
     parser.add_argument(
         "--n_pairs",
@@ -373,19 +356,13 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    checkpoints = {
-        "FMNet":        args.fmnet_ckpt,
-        "RobustFMNet":  args.robust_fmnet_ckpt,
-    }
-    # Remove entries with no checkpoint so load_baselines can skip them
-    checkpoints = {k: v for k, v in checkpoints.items() if v is not None}
-
     run_benchmark(
         dataset_dir=args.dataset,
-        checkpoints=checkpoints,
-        my_model_ckpt=args.my_model_ckpt,
         config_path=args.config,
         n_pairs=args.n_pairs,
         save_dir=args.save,
         device=args.device,
+        train=args.train,
+        train_dataset_dir=args.train_dataset,
+        val_dataset_dir=args.val_dataset,
     )
