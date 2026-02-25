@@ -5,6 +5,7 @@
     "type": "DescriptorPipeline",
     "steps": [
       {"type": "WaveKernelSignature", "n_domain": 200, "k": 200},
+      {"type": "LandmarkWaveKernelSignature", "n_domain": 200, "k": 200},
       {"type": "L2InnerNormalizer"}
     ]
   }

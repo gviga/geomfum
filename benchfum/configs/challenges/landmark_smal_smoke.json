@@ -1,10 +1,10 @@
 {
-  "_name": "Landmark FAUST Smoke Benchmark",
-  "_description": "Fast smoke benchmark on dummy FAUST for quick routine checks.",
+  "_name": "Landmark SMAL Smoke Benchmark",
+  "_description": "Fast smoke benchmark on dummy SMAL for quick routine checks.",
   "dataset": {
-    "root": "../../../../datasets/dummy_faust/test_set",
+    "root": "../../../../datasets/dummy_datasets/dummy_smal_r/test_set",
     "k": 64,
-    "landmark_indices": [2959, 2948, 3116, 5130, 1252, 4583, 728],
+    "landmark_indices": [3162, 1931, 3731, 1399 ,1111, 1001],
     "corr_offset": 1
   },
   "methods": [

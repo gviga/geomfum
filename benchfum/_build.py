@@ -252,56 +252,48 @@ def _build_component(config, registry):
 
 
 def _build_optimizer(config, model):
-    """Build a torch optimizer, binding ``model.parameters()``."""
+    """Build any ``torch.optim`` optimizer from a config dict.
+
+    The ``"type"`` key names the class (e.g. ``"Adam"``, ``"SGD"``).
+    All other keys are forwarded verbatim as constructor kwargs.
+    Any optimizer available in ``torch.optim`` is supported without
+    code changes — just set ``"type"`` to the class name in the JSON.
+    """
     import torch.optim
 
     opt_type = config.get("type", "Adam")
-    lr = config.get("lr", 1e-3)
-    wd = config.get("weight_decay", 1e-5)
-    params = model.parameters()
-    if opt_type == "Adam":
-        return torch.optim.Adam(params, lr=lr, weight_decay=wd)
-    if opt_type == "AdamW":
-        return torch.optim.AdamW(params, lr=lr, weight_decay=wd)
-    if opt_type == "SGD":
-        return torch.optim.SGD(
-            params, lr=lr, weight_decay=wd, momentum=config.get("momentum", 0.9)
+    cls = getattr(torch.optim, opt_type, None)
+    if cls is None:
+        raise ValueError(
+            f"Unknown optimizer type {opt_type!r}. "
+            f"Must be a class name from torch.optim (e.g. 'Adam', 'AdamW', 'SGD')."
         )
-    raise ValueError(
-        f"Unknown optimizer type {opt_type!r}. Supported: 'Adam', 'AdamW', 'SGD'."
-    )
+    kwargs = {k: v for k, v in config.items() if k != "type"}
+    return cls(model.parameters(), **kwargs)
 
 
 def _build_scheduler(config, optimizer):
-    """Build a torch lr_scheduler, binding to ``optimizer``."""
+    """Build any ``torch.optim.lr_scheduler`` from a config dict.
+
+    The ``"type"`` key names the class (e.g. ``"StepLR"``).
+    All other keys are forwarded verbatim as constructor kwargs.
+    Any scheduler available in ``torch.optim.lr_scheduler`` is supported
+    without code changes — just set ``"type"`` in the JSON.
+    Returns ``None`` when ``config`` is ``None`` (no scheduler).
+    """
     import torch.optim.lr_scheduler
 
     if config is None:
         return None
     stype = config.get("type", "StepLR")
-    if stype == "StepLR":
-        return torch.optim.lr_scheduler.StepLR(
-            optimizer,
-            step_size=config.get("step_size", 10),
-            gamma=config.get("gamma", 0.1),
+    cls = getattr(torch.optim.lr_scheduler, stype, None)
+    if cls is None:
+        raise ValueError(
+            f"Unknown scheduler type {stype!r}. "
+            f"Must be a class name from torch.optim.lr_scheduler."
         )
-    if stype == "CosineAnnealingLR":
-        return torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer,
-            T_max=config.get("T_max", 50),
-            eta_min=config.get("eta_min", 0),
-        )
-    if stype == "ReduceLROnPlateau":
-        return torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode=config.get("mode", "min"),
-            factor=config.get("factor", 0.1),
-            patience=config.get("patience", 10),
-        )
-    raise ValueError(
-        f"Unknown scheduler type {stype!r}. "
-        "Supported: 'StepLR', 'CosineAnnealingLR', 'ReduceLROnPlateau'."
-    )
+    kwargs = {k: v for k, v in config.items() if k != "type"}
+    return cls(optimizer, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -377,6 +369,44 @@ def build_refiner_from_json(path):
     with open(path) as f:
         config = json.load(f)
     return build_refiner(config)
+
+
+# ---------------------------------------------------------------------------
+# Public API — converters
+# ---------------------------------------------------------------------------
+
+
+def build_converter(config):
+    """Build a p2p converter from a configuration dictionary.
+
+    Parameters
+    ----------
+    config : dict
+        Must include a ``"type"`` key (e.g. ``"P2pFromFmConverter"``,
+        ``"SoftmaxNeighborFinder"``).
+
+    Returns
+    -------
+    converter : converter instance
+    """
+    registry = _build_component_registry()
+    return _build_component(config, registry)
+
+
+def build_converter_from_json(path):
+    """Build a p2p converter from a JSON file.
+
+    Parameters
+    ----------
+    path : str or Path
+
+    Returns
+    -------
+    converter : converter instance
+    """
+    with open(path) as f:
+        config = json.load(f)
+    return build_converter(config)
 
 
 # ---------------------------------------------------------------------------

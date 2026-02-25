@@ -1,12 +1,13 @@
 {
-  "_name": "Deep Functional Maps FAUST Smoke Benchmark",
-  "_description": "Fast smoke benchmark on dummy FAUST for learning pipeline checks.",
+  "_name": "Deep Functional Maps SMAL Smoke Benchmark",
+  "_description": "Fast smoke benchmark on dummy SMAL for learning pipeline checks.",
   "train": true,
   "dataset": {
-    "root": "../../../../datasets/dummy_faust/test_set",
-    "train_root": "../../../../datasets/dummy_faust/train_set",
-    "val_root": "../../../../datasets/dummy_faust/test_set",
-    "k": 128
+    "root": "../../../../datasets/dummy_datasets/dummy_smal_r/test_set",
+    "train_root": "../../../../datasets/dummy_datasets/dummy_smal_r/train_set",
+    "val_root": "../../../../datasets/dummy_datasets/dummy_smal_r/test_set",
+    "k": 128,
+    "corr_offset": 1
   },
   "methods": [
     {

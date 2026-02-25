@@ -83,6 +83,79 @@ def resolve_dataset_dir(
     return default
 
 
+# Keys in config["dataset"] consumed by the runner infrastructure (path resolution).
+# Everything else is forwarded verbatim to ShapeDataset.
+_DATASET_RUNNER_KEYS = {"root", "train_root", "val_root"}
+
+# Sensible defaults for ShapeDataset when not specified in config or CLI.
+# Any of these can be overridden by adding the key to config["dataset"].
+_SHAPE_DATASET_DEFAULTS = {
+    "shape_type": "mesh",
+    "spectral": True,
+    "k": 200,
+    "distances": True,
+    "correspondences": True,
+}
+
+
+def build_dataset(dataset_dir, config, n_pairs=None, seed=None, **extra_kwargs):
+    """Build a PairsDataset from a benchmark config and a dataset path.
+
+    ``ShapeDataset`` kwargs are resolved with this priority (highest wins):
+
+        CLI / call-site kwargs  >  config["dataset"]  >  _SHAPE_DATASET_DEFAULTS
+
+    This means adding or changing any ``ShapeDataset`` parameter only requires
+    editing the JSON config — no Python changes needed.
+
+    Parameters
+    ----------
+    dataset_dir : str
+        Path to the dataset root (must contain a ``shapes/`` subdirectory).
+    config : dict
+        Benchmark config dict.
+    n_pairs : int or None
+        Override the number of pairs. Falls back to ``config["n_pairs"]``.
+    seed : int or None
+        Random seed for reproducible pair selection.
+    **extra_kwargs
+        Override or supplement ``ShapeDataset`` kwargs at call time
+        (e.g. ``device`` from the CLI).
+
+    Returns
+    -------
+    pairs : PairsDataset
+    """
+    from geomfum.dataset.torch import PairsDataset, ShapeDataset
+
+    ds_cfg = config.get("dataset", {})
+    shape_kwargs = {
+        **_SHAPE_DATASET_DEFAULTS,
+        **{k: v for k, v in ds_cfg.items() if k not in _DATASET_RUNNER_KEYS},
+        **extra_kwargs,
+    }
+
+    if n_pairs is None:
+        n_pairs = config.get("n_pairs", None)
+
+    seed_random(seed)
+
+    shape_data = ShapeDataset(dataset_dir=dataset_dir, **shape_kwargs)
+
+    if n_pairs is not None:
+        pair_mode = "random"
+        pairs_ratio = n_pairs / len(shape_data)
+    else:
+        pair_mode = "all"
+        pairs_ratio = 100
+    return PairsDataset(
+        shape_data,
+        pair_mode=pair_mode,
+        pairs_ratio=pairs_ratio,
+        device=shape_kwargs.get("device"),
+    )
+
+
 def seed_random(seed) -> None:
     """Seed numpy (and torch if available) for reproducible pair selection.
 

@@ -252,7 +252,9 @@ class Experiment:
             result = self._get_correspondence(shape_a, shape_b)
             per_pair_times.append(time.perf_counter() - pair_start)
 
-            metrics = self._evaluate_pair(result, shape_a, shape_b, corr_a, corr_b, dist_a)
+            metrics = self._evaluate_pair(
+                result, shape_a, shape_b, corr_a, corr_b, dist_a
+            )
             per_pair_metrics.append(metrics)
             pair_indices.append(self.dataset.pairs[idx])
 
@@ -323,9 +325,7 @@ class Experiment:
         )
         for k, v in aggregated.items():
             if not k.endswith("_std"):
-                logger.info(
-                    "  %s: %.4f ± %.4f", k, v, aggregated.get(f"{k}_std", 0.0)
-                )
+                logger.info("  %s: %.4f ± %.4f", k, v, aggregated.get(f"{k}_std", 0.0))
 
         return result
 

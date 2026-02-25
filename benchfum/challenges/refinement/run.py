@@ -22,18 +22,19 @@ if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from benchfum import (
+    build_converter_from_json,
     build_matcher_from_json,
     build_refiner_from_json,
     compare,
 )
 from benchfum.challenges._common import (
+    build_dataset,
     load_config,
     resolve_dataset_dir,
     resolve_path,
     seed_random,
 )
 from benchfum.refinement import RefinementMatcher
-from geomfum.dataset.torch import PairsDataset, ShapeDataset
 
 # ============================================================================
 # BENCHMARK CONFIG
@@ -44,55 +45,6 @@ _DEFAULT_BENCHMARK_CONFIG_PATH = (
     / "challenges"
     / "refinement_faust.json"
 )
-
-
-# ============================================================================
-# DATASET
-# ============================================================================
-
-
-def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None, seed=None):
-    """Build a PairsDataset from a benchmark config and a dataset path.
-
-    Parameters
-    ----------
-    dataset_dir : str
-        Path to the dataset root (must contain a ``shapes/`` subdirectory).
-    config : dict
-        Benchmark config dict.
-    n_pairs : int or None
-        Override the number of pairs.
-    seed : int or None
-        Random seed for reproducible pair selection.
-
-    Returns
-    -------
-    pairs : PairsDataset
-    """
-    ds_cfg = config.get("dataset", {})
-    k = ds_cfg.get("k", 200)
-
-    if n_pairs is None:
-        n_pairs = config.get("n_pairs", None)
-
-    seed_random(seed)
-
-    shape_data = ShapeDataset(
-        dataset_dir=dataset_dir,
-        shape_type="mesh",
-        spectral=True,
-        k=k,
-        distances=True,
-        correspondences=True,
-    )
-
-    if n_pairs is not None:
-        pair_mode = "random"
-        pairs_ratio = n_pairs / len(shape_data)
-    else:
-        pair_mode = "all"
-        pairs_ratio = 100
-    return PairsDataset(shape_data, pair_mode=pair_mode, pairs_ratio=pairs_ratio)
 
 
 # ============================================================================
@@ -135,7 +87,13 @@ def build_methods(config: dict, config_path: Path, base_matcher) -> dict:
         method_name = method_cfg["name"]
         refiner_path = resolve_path(config_path, method_cfg["refiner_config"])
         refiner = build_refiner_from_json(str(refiner_path))
-        methods[method_name] = RefinementMatcher(base_matcher, refiner)
+
+        p2p_converter = None
+        if "p2p_converter_config" in method_cfg:
+            converter_path = resolve_path(config_path, method_cfg["p2p_converter_config"])
+            p2p_converter = build_converter_from_json(str(converter_path))
+
+        methods[method_name] = RefinementMatcher(base_matcher, refiner, p2p_converter)
 
     return methods
 
@@ -171,7 +129,9 @@ def run_benchmark(
     -------
     suite : ExperimentSuite
     """
-    config, resolved_config_path = load_config(config_path, _DEFAULT_BENCHMARK_CONFIG_PATH)
+    config, resolved_config_path = load_config(
+        config_path, _DEFAULT_BENCHMARK_CONFIG_PATH
+    )
     dataset_dir = resolve_dataset_dir(
         dataset_dir, config, resolved_config_path, default="datasets/faust/train_set"
     )

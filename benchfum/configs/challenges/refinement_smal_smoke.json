@@ -1,9 +1,10 @@
 {
-  "_name": "Refinement FAUST Smoke Benchmark",
-  "_description": "Fast smoke benchmark on dummy FAUST for refinement pipeline checks.",
+  "_name": "Refinement SMAL Smoke Benchmark",
+  "_description": "Fast smoke benchmark on dummy SMAL for refinement pipeline checks.",
   "dataset": {
-    "root": "../../../../datasets/dummy_faust/test_set",
-    "k": 64
+    "root": "../../../../datasets/dummy_datasets/dummy_smal_r/test_set",
+    "k": 64,
+    "corr_offset": 1
   },
   "base_matcher_config": "../matchers/quick.json",
   "methods": [

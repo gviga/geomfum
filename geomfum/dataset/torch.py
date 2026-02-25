@@ -50,6 +50,7 @@ class ShapeDataset(Dataset):
         landmark_indices=None,
         k=200,
         device=None,
+        corr_offset=0,
     ):
         if shape_type not in ["mesh", "pointcloud"]:
             raise ValueError("shape_type must be either 'mesh' or 'pointcloud'")
@@ -115,7 +116,7 @@ class ShapeDataset(Dataset):
                         np.loadtxt(
                             os.path.join(self.dataset_dir, "corr", corr_filename)
                         ).astype(np.int32)
-                        - 1
+                        - corr_offset
                     )
                 else:
                     self.corrs[filename] = np.arange(shape.vertices.shape[0])
@@ -202,6 +203,7 @@ class MeshDataset(ShapeDataset):
         landmark_indices=None,
         k=200,
         device=None,
+        corr_offset=0,
     ):
         super().__init__(
             dataset_dir=dataset_dir,
@@ -212,6 +214,7 @@ class MeshDataset(ShapeDataset):
             landmark_indices=landmark_indices,
             k=k,
             device=device,
+            corr_offset=corr_offset,
         )
 
 
@@ -227,6 +230,7 @@ class PointCloudDataset(ShapeDataset):
         landmark_indices=None,
         k=200,
         device=None,
+        corr_offset=0,
     ):
         super().__init__(
             dataset_dir=dataset_dir,
@@ -237,6 +241,7 @@ class PointCloudDataset(ShapeDataset):
             landmark_indices=landmark_indices,
             k=k,
             device=device,
+            corr_offset=corr_offset,
         )
 
 

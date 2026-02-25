@@ -33,12 +33,12 @@ if __package__ is None or __package__ == "":
 
 from benchfum import build_model_from_json, build_trainer_from_json, compare
 from benchfum.challenges._common import (
+    build_dataset,
     load_config,
     resolve_dataset_dir,
     resolve_path,
     seed_random,
 )
-from geomfum.dataset.torch import PairsDataset, ShapeDataset
 from geomfum.learning.wrappers import TrainedModelWrapper
 
 # ============================================================================
@@ -51,63 +51,6 @@ _DEFAULT_BENCHMARK_CONFIG_PATH = (
     / "deep_fmap_faust.json"
 )
 
-
-# ============================================================================
-# DATASET
-# ============================================================================
-
-
-def build_dataset(
-    dataset_dir: str,
-    config: dict,
-    n_pairs: int = None,
-    seed=None,
-    device: str | None = None,
-):
-    """Build a PairsDataset from a benchmark config and a dataset path.
-
-    Parameters
-    ----------
-    dataset_dir : str
-        Path to the dataset root (must contain a ``shapes/`` subdirectory).
-    config : dict
-        Benchmark config dict.
-    n_pairs : int or None
-        Override the number of pairs to evaluate.
-    seed : int or None
-        Random seed for reproducible pair selection.
-    device : str or None
-        PyTorch device for loading tensors.
-
-    Returns
-    -------
-    pairs : PairsDataset
-    """
-    ds_cfg = config.get("dataset", {})
-    k = ds_cfg.get("k", 200)
-
-    if n_pairs is None:
-        n_pairs = config.get("n_pairs", None)
-
-    seed_random(seed)
-
-    shape_data = ShapeDataset(
-        dataset_dir=dataset_dir,
-        shape_type="mesh",
-        spectral=True,
-        k=k,
-        distances=True,
-        correspondences=True,
-        device=device,
-    )
-
-    if n_pairs is not None:
-        pair_mode = "random"
-        pairs_ratio = n_pairs / len(shape_data)
-    else:
-        pair_mode = "all"
-        pairs_ratio = 100
-    return PairsDataset(shape_data, pair_mode=pair_mode, pairs_ratio=pairs_ratio)
 
 
 # ============================================================================

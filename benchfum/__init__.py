@@ -38,6 +38,8 @@ Quick start — models (requires torch)
 """
 
 from benchfum._build import (
+    build_converter,
+    build_converter_from_json,
     build_matcher,
     build_matcher_from_json,
     build_model,
@@ -68,6 +70,9 @@ __all__ = [
     # JSON factory — refiners
     "build_refiner",
     "build_refiner_from_json",
+    # JSON factory — converters
+    "build_converter",
+    "build_converter_from_json",
     # JSON factory — models
     "build_model",
     "build_model_from_json",
