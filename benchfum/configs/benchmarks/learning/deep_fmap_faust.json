@@ -11,13 +11,13 @@
   "methods": [
     {
       "name": "FMNet",
-      "model_config": "../models/fmnet_standard.json",
-      "trainer_config": "../training/unsupervised_standard.json"
+      "model_config": "../../models/fmnet_standard.json",
+      "trainer_config": "../../training/unsupervised_standard.json"
     },
     {
       "name": "RobustFMNet",
-      "model_config": "../models/robust_fmnet_standard.json",
-      "trainer_config": "../training/unsupervised_standard.json"
+      "model_config": "../../models/robust_fmnet_standard.json",
+      "trainer_config": "../../training/unsupervised_standard.json"
     }
   ],
   "metrics": ["geodesic_error"],

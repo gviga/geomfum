@@ -1,8 +1,8 @@
 {
   "_name": "Unsupervised Precise",
-  "_description": "100 epochs with full unsupervised loss suite including descriptor commutativity. Best unsupervised quality.",
+  "_description": "10 epochs with full unsupervised loss suite including descriptor commutativity. Best unsupervised quality.",
   "optimizer": {"type": "Adam", "lr": 0.001, "weight_decay": 1e-5},
-  "epochs": 100,
+  "epochs": 10,
   "monitor_metric": "GeodesicError",
   "mode": "min",
   "train_loss_manager": {

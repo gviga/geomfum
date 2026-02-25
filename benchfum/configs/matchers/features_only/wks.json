@@ -1,0 +1,12 @@
+{
+  "_description": "Feature-based matcher using WKS descriptors and nearest-neighbour search.",
+  "type": "FeatureMatcher",
+  "descriptor_pipeline": {
+    "type": "DescriptorPipeline",
+    "steps": [
+      {"type": "WaveKernelSignature", "n_domain": 200, "k": 200},
+      {"type": "L2InnerNormalizer"},
+      {"type": "ArangeSubsampler", "subsample_step": 10}
+    ]
+  }
+}

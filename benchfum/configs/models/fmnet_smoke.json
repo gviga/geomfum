@@ -5,7 +5,7 @@
   "feature_extractor": {
     "type": "FeatureExtractor",
     "which": "diffusionnet",
-    "k": 128,
+    "k": 30,
     "in_channels": 64,
     "descriptor": {"type": "WaveKernelSignature", "n_domain": 64}
   },

@@ -1,0 +1,29 @@
+{
+  "_name": "Deep Functional Maps SMAL Smoke Benchmark",
+  "_description": "Fast smoke benchmark on dummy SMAL for learning pipeline checks.",
+  "train": true,
+  "dataset": {
+    "root": "../../../../../datasets/dummy_datasets/dummy_smal_r/test_set",
+    "train_root": "../../../../../datasets/dummy_datasets/dummy_smal_r/train_set",
+    "val_root": "../../../../../datasets/dummy_datasets/dummy_smal_r/test_set",
+    "k": 128,
+    "corr_offset": 1
+  },
+  "methods": [
+    {
+      "name": "FMNet-small",
+      "model_config": "../../models/fmnet_smoke.json",
+      "trainer_config": "../../training/unsupervised_smoke_1epoch.json",
+      "checkpoint": "../../checkpoints/robust_fmnet_smal_smoke.pth"
+    },
+    {
+      "name": "RobustFMNet-small",
+      "model_config": "../../models/robust_fmnet_smoke.json",
+      "trainer_config": "../../training/unsupervised_smoke_1epoch.json",
+      "checkpoint": "../../checkpoints/robust_fmnet_smal_smoke.pth"
+    }
+  ],
+  "metrics": ["geodesic_error"],
+  "bidirectional": false,
+  "n_pairs": 1
+}

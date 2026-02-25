@@ -1,0 +1,34 @@
+{
+  "_name": "Landmark-Based FAUST Benchmark",
+  "_description": "Benchmark suite for matcher methods on FAUST using landmark-aware data. Add new methods by adding matcher configs and appending them to the methods list.",
+  "dataset": {
+    "root": "../../../../../datasets/faust/test_set",
+    "k": 200,
+    "landmark_indices": [
+      412, 5891, 6593, 3323, 2119
+    ]
+  },
+  "methods": [
+    {
+      "name": "WKS+NN",
+      "matcher_config": "../../matchers/features_only/wks.json"
+    },
+    {
+      "name": "WKS+LDMK+NN",
+      "matcher_config": "../../matchers/features_only/wks_ldmk.json"
+    },
+
+    {
+      "name": "FunctionalMap",
+      "matcher_config": "../../matchers/functional_maps/fmap.json"
+    },
+    {
+      "name": "ZoomOut",
+      "matcher_config": "../../matchers/functional_maps/fmap_zo.json"
+    }
+  ],
+  "metrics": ["geodesic_error"],
+  "bidirectional": false,
+  "n_pairs": 100,
+  "save_outputs": true
+}

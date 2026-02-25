@@ -2,7 +2,7 @@
   "_name": "Landmark SMAL Smoke Benchmark",
   "_description": "Fast smoke benchmark on dummy SMAL for quick routine checks.",
   "dataset": {
-    "root": "../../../../datasets/dummy_datasets/dummy_smal_r/test_set",
+    "root": "../../../../../datasets/dummy_datasets/dummy_smal_r/test_set",
     "k": 64,
     "landmark_indices": [3162, 1931, 3731, 1399 ,1111, 1001],
     "corr_offset": 1
@@ -10,11 +10,15 @@
   "methods": [
     {
       "name": "WKS+NN",
-      "matcher_config": "../matchers/wks_nn.json"
+      "matcher_config": "../../matchers/features_only/wks.json"
+    },
+    {
+      "name": "DistFromLandmarks+NN",
+      "matcher_config": "../../matchers/functional_maps/fmap.json"
     },
     {
       "name": "FunctionalMap",
-      "matcher_config": "../matchers/fmap.json"
+      "matcher_config": "../../matchers/functional_maps/fmap_zo.json"
     }
   ],
   "metrics": ["geodesic_error"],

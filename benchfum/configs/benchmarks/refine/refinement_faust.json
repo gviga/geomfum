@@ -9,19 +9,19 @@
   "methods": [
     {
       "name": "No Refinement",
-      "refiner_config": "../refiners/identity.json"
+      "refiner_config": "../../refiners/identity.json"
     },
     {
       "name": "ICP",
-      "refiner_config": "../refiners/icp.json"
+      "refiner_config": "../../refiners/icp.json"
     },
     {
       "name": "ZoomOut",
-      "refiner_config": "../refiners/zoomout.json"
+      "refiner_config": "../../refiners/zoomout.json"
     },
     {
       "name": "ICP+ZoomOut",
-      "refiner_config": "../refiners/icp_zoomout.json"
+      "refiner_config": "../../refiners/icp_zoomout.json"
     }
   ],
   "metrics": ["geodesic_error"],

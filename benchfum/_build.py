@@ -109,6 +109,7 @@ def _build_component_registry():
         P2pFromFmConverter,
         SoftmaxNeighborFinder,
     )
+    from geomfum.descriptor import DistanceFromLandmarksDescriptor
     from geomfum.descriptor.pipeline import (
         ArangeSubsampler,
         DescriptorPipeline,
@@ -133,6 +134,7 @@ def _build_component_registry():
         CorrespondenceRefinementPipeline,
         IcpRefiner,
         IdentityRefiner,
+        NeuralZoomOut,
         OrthogonalRefiner,
         RefinementPipeline,
         ZoomOut,
@@ -147,6 +149,7 @@ def _build_component_registry():
         "HeatKernelSignature": HeatKernelSignature,
         "LandmarkWaveKernelSignature": LandmarkWaveKernelSignature,
         "LandmarkHeatKernelSignature": LandmarkHeatKernelSignature,
+        "DistanceFromLandmarksDescriptor": DistanceFromLandmarksDescriptor,
         # --- Pipeline steps ---
         "ArangeSubsampler": ArangeSubsampler,
         "L2InnerNormalizer": L2InnerNormalizer,
@@ -162,6 +165,7 @@ def _build_component_registry():
         "OrthogonalRefiner": OrthogonalRefiner,
         "IcpRefiner": IcpRefiner,
         "ZoomOut": ZoomOut,
+        "NeuralZoomOut": NeuralZoomOut,  # NeuralZoomOut is just ZoomOut with different params
         "AdjointBijectiveZoomOut": AdjointBijectiveZoomOut,
         "RefinementPipeline": RefinementPipeline,
         "CorrespondenceRefinementPipeline": CorrespondenceRefinementPipeline,

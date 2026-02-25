@@ -1,0 +1,7 @@
+{
+  "_name": "Neural ZoomOut",
+  "_description": "Neural  ZoomOut refinement: gradually increases the functional map size to improve resolution.",
+  "type": "NeuralZoomOut",
+  "nit": 20,
+  "step": 5
+}

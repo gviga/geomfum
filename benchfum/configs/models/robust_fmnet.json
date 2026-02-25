@@ -7,13 +7,14 @@
     "which": "diffusionnet",
     "k": 200,
     "in_channels": 128,
-    "descriptor": {"type": "WaveKernelSignature", "n_domain": 128}
+    "descriptor": {"type": "WaveKernelSignature", "n_domain": 128, "k": 200}
   },
   "fmap_module": {
     "type": "ForwardFunctionalMap",
     "lmbda": 1000.0,
     "resolvent_gamma": 1.0,
-    "bijective": true
+    "bijective": true,
+    "fmap_size": 200
   },
   "converter": {
     "type": "P2pFromFmConverter",

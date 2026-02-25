@@ -1,8 +1,8 @@
 {
   "_name": "Supervised",
-  "_description": "50 epochs with ground-truth functional map supervision. Requires correspondences in dataset.",
+  "_description": "10 epochs with ground-truth functional map supervision. Requires correspondences in dataset.",
   "optimizer": {"type": "Adam", "lr": 0.001, "weight_decay": 1e-5},
-  "epochs": 50,
+  "epochs": 10,
   "monitor_metric": "GeodesicError",
   "mode": "min",
   "train_loss_manager": {

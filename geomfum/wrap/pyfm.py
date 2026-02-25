@@ -6,7 +6,7 @@ import pyFM.mesh
 import pyFM.mesh.geometry
 import pyFM.signatures
 
-from geomfum.descriptor._base import SpectralDescriptor
+from geomfum.descriptor import SpectralDescriptor
 from geomfum.descriptor.spectral import WksDefaultDomain, hks_default_domain
 from geomfum.laplacian import BaseLaplacianFinder
 from geomfum.operator import FunctionalOperator, VectorFieldOperator

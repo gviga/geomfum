@@ -1,12 +1,13 @@
 {
   "_name": "FMap",
-  "_description": "Classic functional map with WKS descriptors, no refinement, no landmarks.",
+  "_description": "Classic functional map with WKS descriptors, Landmark WKS descriptors, no refinement.",
   "type": "FunctionalMapMatcher",
   "fmap_size": 30,
   "descriptor_pipeline": {
     "type": "DescriptorPipeline",
     "steps": [
       {"type": "WaveKernelSignature", "n_domain": 200, "k": 200},
+      {"type": "LandmarkWaveKernelSignature", "n_domain": 40, "k": 200},
       {"type": "ArangeSubsampler", "subsample_step": 10},
       {"type": "L2InnerNormalizer"}
     ]

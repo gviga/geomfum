@@ -1,13 +1,13 @@
 {
-  "_name": "RobustFMNet Large",
-  "_description": "RobustFMNet with large DiffusionNet and SoftmaxNeighborFinder converter. Best accuracy.",
+  "_name": "RobustFMNet Small",
+  "_description": "RobustFMNet with small DiffusionNet and SoftmaxNeighborFinder converter.",
   "type": "RobustFMNet",
   "feature_extractor": {
     "type": "FeatureExtractor",
     "which": "diffusionnet",
-    "k": 300,
-    "in_channels": 256,
-    "descriptor": {"type": "WaveKernelSignature", "n_domain": 200}
+    "k": 30,
+    "in_channels": 64,
+    "descriptor": {"type": "WaveKernelSignature", "n_domain": 64}
   },
   "fmap_module": {
     "type": "ForwardFunctionalMap",

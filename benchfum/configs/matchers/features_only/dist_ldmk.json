@@ -1,0 +1,10 @@
+{
+  "_description": "Feature-based matcher using distance from landmarks descriptors and nearest-neighbour search.",
+  "type": "FeatureMatcher",
+  "descriptor_pipeline": {
+    "type": "DescriptorPipeline",
+    "steps": [
+      {"type": "DistanceFromLandmarksDescriptor", "diameter_normalized": true}
+    ]
+  }
+}
