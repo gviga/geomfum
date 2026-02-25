@@ -3,9 +3,9 @@
   "_description": "Fast smoke benchmark on dummy FAUST for learning pipeline checks.",
   "train": true,
   "dataset": {
-    "root": "../../data/dummy_faust/test_set",
-    "train_root": "../../data/dummy_faust/train_set",
-    "val_root": "../../data/dummy_faust/test_set",
+    "root": "../../../../datasets/dummy_faust/test_set",
+    "train_root": "../../../../datasets/dummy_faust/train_set",
+    "val_root": "../../../../datasets/dummy_faust/test_set",
     "k": 128
   },
   "methods": [

@@ -10,7 +10,7 @@ step itself.
 
 Typical workflow
 ----------------
->>> from benchfum import build_matcher, build_refiner_from_json
+>>> from benchfum import build_matcher_from_json, build_refiner_from_json
 >>> from benchfum.refinement import RefinementMatcher
 >>>
 >>> base = build_matcher_from_json("configs/matchers/fmap.json")
@@ -68,8 +68,8 @@ class RefinementMatcher(BaseMatcher):
         self.refiner = refiner
         self.p2p_converter = p2p_converter or P2pFromFmConverter()
 
-    def __call__(self, shape_a, shape_b, bidirectional=False):
-        """Compute correspondence: run base, then apply refiner.
+    def __call__(self, shape_a, shape_b):
+        """Compute correspondence: run base matcher, then apply refiner.
 
         Parameters
         ----------
@@ -77,8 +77,6 @@ class RefinementMatcher(BaseMatcher):
             First shape (target for p2p21).
         shape_b : Shape
             Second shape (source for p2p21).
-        bidirectional : bool
-            If True, compute and refine correspondences in both directions.
 
         Returns
         -------
@@ -88,7 +86,7 @@ class RefinementMatcher(BaseMatcher):
             - ``p2p21``:  correspondence after refinement
             - ``refined_fmap12``: functional map after refinement
         """
-        base_result = self.base_matcher(shape_a, shape_b, bidirectional=bidirectional)
+        base_result = self.base_matcher(shape_a, shape_b)
 
         if base_result.fmap12 is not None:
             refined_fmap12 = self.refiner(
@@ -99,23 +97,12 @@ class RefinementMatcher(BaseMatcher):
             refined_fmap12 = None
             p2p21 = base_result.p2p21
 
-        refined_fmap21 = None
-        p2p12 = None
-        if bidirectional and base_result.fmap21 is not None:
-            refined_fmap21 = self.refiner(
-                base_result.fmap21, shape_b.basis, shape_a.basis
-            )
-            p2p12 = self.p2p_converter(refined_fmap21, shape_b.basis, shape_a.basis)
-
         return CorrespondenceResult(
             fmap12=base_result.fmap12,
             p2p21=p2p21,
-            fmap21=base_result.fmap21,
-            p2p12=p2p12,
             descr_a=base_result.descr_a,
             descr_b=base_result.descr_b,
             refined_fmap12=refined_fmap12,
-            refined_fmap21=refined_fmap21,
         )
 
 

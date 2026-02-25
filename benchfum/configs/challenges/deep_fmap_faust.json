@@ -3,9 +3,9 @@
   "_description": "Benchmark suite for deep functional-map methods on FAUST. Methods are defined by model and trainer JSON configs; users can add methods by appending entries in the methods list.",
   "train": true,
   "dataset": {
-    "root": "../../data/dummy_faust/train_set",
-    "train_root": "../../data/dummy_faust/train_set",
-    "val_root": "../../data/dummy_faust/test_set",
+    "root": "../../../../datasets/dummy_faust/train_set",
+    "train_root": "../../../../datasets/dummy_faust/train_set",
+    "val_root": "../../../../datasets/dummy_faust/test_set",
     "k": 200
   },
   "methods": [

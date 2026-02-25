@@ -8,18 +8,17 @@ Usage
 -----
 Evaluate methods from checkpoints declared in config:
 
-    python -m benchfum.challenges.deep_fmap.run \\
+    python -m benchfum.challenges.deep_fmap.run \
         --dataset datasets/faust/test_set
 
 Train methods (that include ``trainer_config``) and then evaluate:
 
-    python -m benchfum.challenges.deep_fmap.run \\
-        --dataset datasets/faust/test_set \\
+    python -m benchfum.challenges.deep_fmap.run \
+        --dataset datasets/faust/test_set \
         --train --train_dataset datasets/faust/train_set --val_dataset datasets/faust/test_set
 """
 
 import argparse
-import json
 import os
 from pathlib import Path
 
@@ -33,6 +32,12 @@ if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from benchfum import build_model_from_json, build_trainer_from_json, compare
+from benchfum.challenges._common import (
+    load_config,
+    resolve_dataset_dir,
+    resolve_path,
+    seed_random,
+)
 from geomfum.dataset.torch import PairsDataset, ShapeDataset
 from geomfum.learning.wrappers import TrainedModelWrapper
 
@@ -47,29 +52,6 @@ _DEFAULT_BENCHMARK_CONFIG_PATH = (
 )
 
 
-def load_benchmark_config(path=None):
-    """Load the benchmark configuration.
-
-    Parameters
-    ----------
-    path : str or Path, optional
-        Override path to a benchmark config JSON. Defaults to
-        ``benchfum/configs/challenges/deep_fmap_faust.json``.
-
-    Returns
-    -------
-    config : dict
-    """
-    config_path = Path(path) if path is not None else _DEFAULT_BENCHMARK_CONFIG_PATH
-    with open(config_path) as f:
-        return json.load(f)
-
-
-def load_challenge_config(path=None):
-    """Backward-compatible alias for ``load_benchmark_config``."""
-    return load_benchmark_config(path)
-
-
 # ============================================================================
 # DATASET
 # ============================================================================
@@ -79,6 +61,7 @@ def build_dataset(
     dataset_dir: str,
     config: dict,
     n_pairs: int = None,
+    seed=None,
     device: str | None = None,
 ):
     """Build a PairsDataset from a benchmark config and a dataset path.
@@ -91,6 +74,10 @@ def build_dataset(
         Benchmark config dict.
     n_pairs : int or None
         Override the number of pairs to evaluate.
+    seed : int or None
+        Random seed for reproducible pair selection.
+    device : str or None
+        PyTorch device for loading tensors.
 
     Returns
     -------
@@ -101,6 +88,8 @@ def build_dataset(
 
     if n_pairs is None:
         n_pairs = config.get("n_pairs", None)
+
+    seed_random(seed)
 
     shape_data = ShapeDataset(
         dataset_dir=dataset_dir,
@@ -126,45 +115,6 @@ def build_dataset(
 # ============================================================================
 
 
-def _resolve_path(config_path: Path, relative_or_abs: str | None):
-    """Resolve relative paths against the benchmark config directory."""
-    if relative_or_abs is None:
-        return None
-    candidate = Path(relative_or_abs)
-    if candidate.is_absolute():
-        return candidate
-    return (config_path.parent / candidate).resolve()
-
-
-def _resolve_dataset_dir(
-    dataset_dir: str | None,
-    config: dict,
-    config_path: Path,
-    config_key: str = "root",
-    default: str | None = "datasets/faust/train_set",
-) -> str | None:
-    """Resolve dataset dir from CLI, then config dataset key, then default."""
-    if dataset_dir is not None:
-        return dataset_dir
-
-    ds_cfg = config.get("dataset", {})
-    configured_dataset_dir = ds_cfg.get(config_key)
-    if configured_dataset_dir is not None:
-        return str(_resolve_path(config_path, configured_dataset_dir))
-
-    return default
-
-
-def _load_methods_config(config: dict):
-    methods_cfg = config.get("methods")
-    if not methods_cfg:
-        raise ValueError(
-            "Benchmark config must define a 'methods' list. "
-            "Each method needs at least {'name', 'model_config'}."
-        )
-    return methods_cfg
-
-
 def _maybe_train_method(
     method_name,
     method_cfg,
@@ -179,7 +129,7 @@ def _maybe_train_method(
         print(f"  [skip-train] {method_name}: no trainer_config in benchmark config")
         return
 
-    trainer_config_path = _resolve_path(config_path, trainer_config)
+    trainer_config_path = resolve_path(config_path, trainer_config)
     trainer = build_trainer_from_json(
         str(trainer_config_path),
         model=model,
@@ -187,7 +137,7 @@ def _maybe_train_method(
         val_set=val_pairs,
     )
 
-    checkpoint_path = _resolve_path(config_path, method_cfg.get("checkpoint"))
+    checkpoint_path = resolve_path(config_path, method_cfg.get("checkpoint"))
     if checkpoint_path is not None:
         checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         trainer.checkpoint_path = str(checkpoint_path)
@@ -202,20 +152,21 @@ def _maybe_train_method(
 
 
 def run_benchmark(
-    dataset_dir: str | None = None,
-    config_path: str = None,
+    dataset_dir=None,
+    config_path=None,
     n_pairs: int = None,
     save_dir: str = None,
     device: str = None,
     train: bool | None = None,
     train_dataset_dir: str = None,
     val_dataset_dir: str = None,
+    seed=None,
 ):
     """Run the deep functional-map benchmark.
 
     Parameters
     ----------
-    dataset_dir : str
+    dataset_dir : str or None
         Path to the dataset root.
     config_path : str or None
         Override path to benchmark config JSON.
@@ -223,14 +174,17 @@ def run_benchmark(
         Limit evaluation to this many random pairs (None = all from config).
     save_dir : str or None
         If given, save per-method JSON results here.
-    device : str, optional
+    device : str or None
         PyTorch device (default: "cuda" if available, else "cpu").
-    train : bool
+    train : bool or None
         If True, train methods that include ``trainer_config`` before evaluation.
-    train_dataset_dir : str, optional
+        If None, reads from config (defaults to False).
+    train_dataset_dir : str or None
         Dataset root for training pairs.
-    val_dataset_dir : str, optional
+    val_dataset_dir : str or None
         Dataset root for validation pairs.
+    seed : int or None
+        Random seed for reproducible pair selection.
 
     Returns
     -------
@@ -239,14 +193,16 @@ def run_benchmark(
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    resolved_config_path = (
-        Path(config_path).resolve()
-        if config_path is not None
-        else _DEFAULT_BENCHMARK_CONFIG_PATH
-    )
-    config = load_benchmark_config(resolved_config_path)
-    methods_cfg = _load_methods_config(config)
-    dataset_dir = _resolve_dataset_dir(dataset_dir, config, resolved_config_path)
+    config, resolved_config_path = load_config(config_path, _DEFAULT_BENCHMARK_CONFIG_PATH)
+
+    methods_cfg = config.get("methods")
+    if not methods_cfg:
+        raise ValueError(
+            "Benchmark config must define a 'methods' list. "
+            "Each method needs at least {'name', 'model_config'}."
+        )
+
+    dataset_dir = resolve_dataset_dir(dataset_dir, config, resolved_config_path)
     if train is None:
         train = bool(config.get("train", False))
 
@@ -256,19 +212,21 @@ def run_benchmark(
     ds_cfg = config.get("dataset", {})
     print(f"Spectrum  : k={ds_cfg.get('k', 200)}")
     print(f"Train     : {'yes' if train else 'no'}")
+    if n_pairs:
+        print(f"Pairs     : {n_pairs} (random, seed={seed})")
     print()
 
     train_pairs = None
     val_pairs = None
     if train:
-        train_dataset_dir = _resolve_dataset_dir(
+        train_dataset_dir = resolve_dataset_dir(
             train_dataset_dir,
             config,
             resolved_config_path,
             config_key="train_root",
             default=None,
         )
-        val_dataset_dir = _resolve_dataset_dir(
+        val_dataset_dir = resolve_dataset_dir(
             val_dataset_dir,
             config,
             resolved_config_path,
@@ -294,7 +252,7 @@ def run_benchmark(
                 "Each entry must have 'name' and 'model_config'."
             )
 
-        model_config_path = _resolve_path(resolved_config_path, model_config)
+        model_config_path = resolve_path(resolved_config_path, model_config)
         model = build_model_from_json(str(model_config_path), device=device)
 
         if train:
@@ -307,7 +265,7 @@ def run_benchmark(
                 val_pairs=val_pairs,
             )
 
-        checkpoint_path = _resolve_path(
+        checkpoint_path = resolve_path(
             resolved_config_path, method_cfg.get("checkpoint")
         )
         if checkpoint_path is not None:
@@ -337,17 +295,11 @@ def run_benchmark(
     print(f"Methods   : {list(methods)}")
     print()
 
-    pairs = build_dataset(dataset_dir, config, n_pairs, device=device)
+    pairs = build_dataset(dataset_dir, config, n_pairs, seed=seed, device=device)
 
     metrics = config.get("metrics", ["geodesic_error"])
-    bidirectional = config.get("bidirectional", False)
 
-    suite = compare(
-        methods,
-        dataset=pairs,
-        metrics=metrics,
-        bidirectional=bidirectional,
-    )
+    suite = compare(methods, dataset=pairs, metrics=metrics)
 
     print()
     suite.print_comparison(metrics=metrics)
@@ -416,6 +368,12 @@ if __name__ == "__main__":
         default=None,
         help="PyTorch device: 'cuda', 'cpu', 'cuda:1', etc. (default: auto).",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for reproducible pair selection.",
+    )
     args = parser.parse_args()
 
     run_benchmark(
@@ -427,4 +385,5 @@ if __name__ == "__main__":
         train=args.train,
         train_dataset_dir=args.train_dataset,
         val_dataset_dir=args.val_dataset,
+        seed=args.seed,
     )

@@ -2,7 +2,7 @@
   "_name": "Refinement FAUST Benchmark",
   "_description": "Benchmark suite for refinement methods on FAUST. All methods share the same base matcher; differences come only from the refiner.",
   "dataset": {
-    "root": "../../data/dummy_faust/test_set",
+    "root": "../../../../datasets/dummy_faust/test_set",
     "k": 200
   },
   "base_matcher_config": "../matchers/fmap.json",

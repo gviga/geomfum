@@ -2,7 +2,7 @@
   "_name": "Landmark FAUST Smoke Benchmark",
   "_description": "Fast smoke benchmark on dummy FAUST for quick routine checks.",
   "dataset": {
-    "root": "../../data/dummy_faust/test_set",
+    "root": "../../../../datasets/dummy_faust/test_set",
     "k": 64,
     "landmark_indices": [2959, 2948, 3116, 5130, 1252, 4583, 728]
   },

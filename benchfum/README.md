@@ -1,588 +1,451 @@
 # benchfum
 
-**benchfum** is the benchmarking and experiment framework for [geomfum](../geomfum/), a library for shape matching with functional maps. It provides:
+**benchfum** is the benchmarking and experiment framework for [geomfum](../geomfum/), a library for shape matching with functional maps.
 
-- **Named baseline matchers** — all classical methods available by name, backed by JSON configs
-- **Benchmark challenges** — ready-to-run scripts comparing your method against the state of the art
-- **Experiment routines** — the `compare()` function and `ExperimentSuite` for any custom comparison
-- **Learning presets** — quick setup for deep functional map models (FMNet, RobustFMNet)
+The core idea is simple: **you define methods, benchfum runs and compares them**. Methods can be defined either programmatically (subclassing a base class) or declaratively (writing a JSON config file). No other integration work is required.
 
 ---
 
-## Repository Structure
+## How it works
+
+```
+Your method (Python class or JSON config)
+        ↓
+  build_matcher_from_json() / build_model_from_json()
+        ↓
+      compare({"name": method, ...}, dataset=pairs)
+        ↓
+  ExperimentSuite  →  print_comparison()  →  save_all()
+```
+
+The `compare()` function runs every method on every pair in the dataset, collects metrics, measures wall-clock time per pair, and returns an `ExperimentSuite` you can print, save, or query. That's the whole loop.
+
+---
+
+## File structure
 
 ```
 benchfum/
-├── __init__.py                # Public API: compare, MatcherPresets, ...
-├── experiment.py              # Experiment, ExperimentSuite, compare()
-├── presets.py                 # MatcherPresets — load any matcher by name
-├── learning_presets.py        # ModelPresets, TrainingPresets, quick_train
+├── __init__.py           # Public API
+├── experiment.py         # Experiment, ExperimentSuite, compare()
+├── refinement.py         # RefinementMatcher
+├── _build.py             # JSON → Python factory (recursive builder)
 │
 ├── configs/
-│   ├── matchers/              # One JSON file per named matcher
-│   │   ├── wks_nn.json        # WKS nearest-neighbour (simplest baseline)
-│   │   ├── fmap.json          # Classic FM, no refinement
-│   │   ├── fmap_zo.json       # FM + ICP + ZoomOut
-│   │   ├── lfmap.json         # Landmark-constrained FM
-│   │   ├── lfmap_zo.json      # Landmark FM + ICP + ZoomOut (strongest classical)
-│   │   ├── quick.json         # Fast preset (k=20, ICP only)
-│   │   ├── standard.json      # Balanced preset (k=30, ICP+ZO)
-│   │   ├── precise.json       # High-quality preset (k=50, more iterations)
-│   │   └── feature_wks.json   # Feature-based WKS matching
-│   │
-│   └── challenges/            # One JSON file per benchmark challenge
-│       ├── landmark_faust.json      # Classical: baselines declared by matcher name
-│       ├── deep_fmap_faust.json     # Deep: baselines declared by model preset
-│       └── refinement_faust.json   # Refinement: base method + list of refiners
+│   ├── matchers/         # One JSON per classical matcher
+│   ├── refiners/         # One JSON per refiner
+│   ├── models/           # One JSON per deep model architecture
+│   ├── training/         # One JSON per training configuration
+│   └── challenges/       # One JSON per benchmark challenge
 │
-├── refinement.py              # RefinementMatcher, RefinementPresets
-│
-└── challenges/                # One sub-package per benchmark category
-    ├── landmark_based/
-    │   └── run.py             # Classical landmark-based runner
-    ├── deep_fmap/
-    │   └── run.py             # Deep FM runner (requires checkpoints)
-    └── refinement/
-        └── run.py             # Refinement runner (fixed base map, swap refiners)
+└── challenges/
+    ├── _common.py                 # Shared utilities for runners
+    ├── landmark_based/run.py      # Classical benchmark runner
+    ├── refinement/run.py          # Refinement benchmark runner
+    └── deep_fmap/run.py           # Deep learning benchmark runner
 ```
 
-**Design principle:** `geomfum` is the pure algorithm library. `benchfum` never modifies
-`geomfum` — it only imports from it. All experiment, comparison, and preset logic lives here.
+**Design principle:** `geomfum` contains only algorithm classes. `benchfum` owns everything related to comparison, configuration, and experiment management — it only imports from `geomfum`, never the other way around.
 
 ---
 
-## Benchmark Challenges
+## Quick start
 
-Each challenge is defined by a config file in `configs/challenges/` and a runner in `challenges/`.
-
-| Challenge | Config | Runner | Type | Description |
-|-----------|--------|--------|------|-------------|
-| Landmark-Based FAUST | `landmark_faust.json` | `challenges/landmark_based/` | Classical | Landmark-guided FM on FAUST |
-| Deep FM FAUST | `deep_fmap_faust.json` | `challenges/deep_fmap/` | Deep | FMNet & RobustFMNet on FAUST |
-| Refinement FAUST | `refinement_faust.json` | `challenges/refinement/` | Refinement | Compare refiners on a fixed initial FM |
-
----
-
-## Smoke Tests (Dummy FAUST)
-
-Use these configs to quickly verify that runners, config loading, trainers, and evaluation loops are wired correctly.
-
-### Included smoke configs
-
-- `configs/challenges/landmark_faust_smoke.json`
-- `configs/challenges/refinement_faust_smoke.json`
-- `configs/challenges/deep_fmap_faust_smoke.json`
-- `configs/training/unsupervised_smoke_1epoch.json`
-
-These are intentionally lightweight:
-
-- dummy dataset roots (`benchfum/data/dummy_faust/...`)
-- small pair counts
-- fewer compared methods
-- deep training capped to 1 epoch
-
-### Run from `benchfum/`
-
-```bash
-python .\challenges\landmark_based\run.py --config .\configs\challenges\landmark_faust_smoke.json
-python .\challenges\refinement\run.py --config .\configs\challenges\refinement_faust_smoke.json
-python .\challenges\deep_fmap\run.py --config .\configs\challenges\deep_fmap_faust_smoke.json
-```
-
-### Notes
-
-- Challenge runners are now config-driven for dataset roots (`dataset.root`, and for deep training also `dataset.train_root`/`dataset.val_root`).
-- In deep challenge configs, `"train": true|false` controls whether trainers run by default.
-- CLI has priority over config (`--dataset`, `--train_dataset`, `--val_dataset`, `--train`, `--no-train`).
-
----
-
-## Classical Methods — Landmark-Based Challenge
-
-### Quick Start
-
-```bash
-pip install -e .
-
-# Run all classical baselines (dataset from config)
-python -m benchfum.challenges.landmark_based.run
-
-# Limit to 20 random pairs for a quick check
-python -m benchfum.challenges.landmark_based.run \
-    --dataset /path/to/faust/train_set --n_pairs 20
-
-# Save per-method JSON results
-python -m benchfum.challenges.landmark_based.run \
-    --dataset /path/to/faust/train_set --save results/landmark_faust/
-```
-
-Expected output:
-```
-Challenge : Landmark-Based FAUST
-Dataset   : /path/to/faust/train_set
-Spectrum  : k=200  |  Landmarks: 7
-Baselines : ['wks_nn', 'fmap', 'fmap_zo', 'lfmap', 'lfmap_zo']
-
-Method               | geodesic_error
----------------------|----------------
-wks_nn               | 0.1823±0.0412
-fmap                 | 0.0934±0.0201
-fmap_zo              | 0.0612±0.0143
-lfmap                | 0.0541±0.0129
-lfmap_zo             | 0.0387±0.0097
-```
-
-### Add Your Classical Method
-
-**Option A — Subclass BaseMatcher** (full programmatic control):
+### One-liner comparison
 
 ```python
-from geomfum.matcher import BaseMatcher, CorrespondenceResult
+from benchfum import compare, build_matcher_from_json
+from geomfum.dataset.torch import ShapeDataset, PairsDataset
 
-class MyMethod(BaseMatcher):
-    def __call__(self, shape_a, shape_b, bidirectional=False):
-        # shape_a.landmark_indices  — landmark vertex indices on shape A
-        # shape_b.landmark_indices  — landmark vertex indices on shape B
-        # shape_a.basis.vecs        — Laplacian eigenvectors [n_vertices, k]
-        # shape_a.basis.vals        — Laplacian eigenvalues  [k]
-        p2p21 = ...  # your algorithm
-        return CorrespondenceResult(fmap12=None, p2p21=p2p21)
-```
+# Load a dataset
+shape_data = ShapeDataset("path/to/faust/train_set", spectral=True, k=200,
+                          distances=True, correspondences=True)
+pairs = PairsDataset(shape_data, pair_mode="all")
 
-Then run the comparison in Python:
-
-```python
-from benchfum import compare, MatcherPresets
-
+# Compare any mix of methods
 results = compare(
     {
-        "MyMethod":  MyMethod(),
-        "LFMap+ZO":  MatcherPresets.build("lfmap_zo"),
-        "FMap+ZO":   MatcherPresets.build("fmap_zo"),
+        "FMap":    build_matcher_from_json("configs/matchers/fmap.json"),
+        "FMap+ZO": build_matcher_from_json("configs/matchers/fmap_zo.json"),
+        "Mine":    MyMatcher(),   # any BaseMatcher subclass
     },
     dataset=pairs,
     metrics=["geodesic_error"],
 )
+
 results.print_comparison()
-results.save_all("results/my_method/")
+results.save_all("results/my_experiment/")
 ```
 
-**Option B — JSON Config** (no code, fully reproducible):
+Output:
+```
+Method                 |  ms/pair | geodesic_error
+--------------------------------------------------
+FMap                   |   312.4 | 0.0934±0.0201
+FMap+ZO                |   891.2 | 0.0612±0.0143
+Mine                   |   145.1 | 0.0721±0.0188
+```
 
-Write `my_method.json` describing your FM pipeline:
+### Load saved results later
+
+```python
+from benchfum import ExperimentSuite
+
+results = ExperimentSuite.load_all("results/my_experiment/")
+# → dict[str, ExperimentResult]
+```
+
+---
+
+## Adding a classical matcher
+
+### Option A — Python class
+
+Subclass `BaseMatcher` and implement `__call__`:
+
+```python
+from geomfum.matcher import BaseMatcher, CorrespondenceResult
+
+class MyMatcher(BaseMatcher):
+    def __call__(self, shape_a, shape_b):
+        # shape_a.basis.vecs       — Laplacian eigenvectors [n_vertices, k]
+        # shape_a.basis.vals       — Laplacian eigenvalues  [k]
+        # shape_a.landmark_indices — landmark vertex indices (if loaded)
+        p2p21 = ...  # array of length n_b: for each vertex in B, its match in A
+        return CorrespondenceResult(p2p21=p2p21)
+```
+
+Pass it directly to `compare()` — no registration needed.
+
+### Option B — JSON config
+
+Write a JSON file describing the pipeline. Every nested Python object needs a `"type"` key; all other keys are constructor parameters.
 
 ```json
 {
-  "_name": "MyMethod",
+  "_name": "MyFMap",
+  "_description": "Landmark FM with ZoomOut refinement.",
   "type": "FunctionalMapMatcher",
-  "fmap_size": 40,
-  "descriptor_pipeline": [
-    {"type": "WaveKernelSignature",         "n_domain": 200, "k": 200},
-    {"type": "LandmarkWaveKernelSignature", "n_domain": 200, "k": 200},
-    {"type": "ArangeSubsampler", "subsample_step": 10},
-    {"type": "L2InnerNormalizer"}
-  ],
+  "fmap_size": 30,
+  "descriptor_pipeline": {
+    "type": "DescriptorPipeline",
+    "steps": [
+      {"type": "WaveKernelSignature",         "n_domain": 200, "k": 200},
+      {"type": "LandmarkWaveKernelSignature",  "n_domain": 200, "k": 200},
+      {"type": "ArangeSubsampler", "subsample_step": 10},
+      {"type": "L2InnerNormalizer"}
+    ]
+  },
   "fmap_optimizer": {
-    "factors": [
+    "type": "FunctionalMapOptimizer",
+    "factor_builders": [
       {"type": "SDPFactorBuilder",  "weight": 1.0},
       {"type": "LBFactorBuilder",   "weight": 0.05},
       {"type": "MultFactorBuilder", "weight": 0.2}
     ]
   },
-  "refiner": [
-    {"type": "IcpRefiner", "nit": 10},
-    {"type": "ZoomOut",    "nit": 20, "step": 5}
-  ]
+  "refiner": {
+    "type": "RefinementPipeline",
+    "refiners": [
+      {"type": "IcpRefiner",  "nit": 10},
+      {"type": "ZoomOut",     "nit": 20, "step": 5}
+    ]
+  }
 }
 ```
 
 Load and use:
 
 ```python
-from geomfum.matcher import BaseMatcher
-my_method = BaseMatcher.from_json("my_method.json")
+from benchfum import build_matcher_from_json
+
+matcher = build_matcher_from_json("my_matcher.json")
 ```
 
-**Option C — Edit `run.py` directly**:
-
-Open `challenges/landmark_based/run.py`, implement the `MyMethod` class, and run:
-
-```bash
-python -m benchfum.challenges.landmark_based.run \
-    --dataset /path/to/faust --my_method
-```
+To make it a permanent named baseline, drop the file in `configs/matchers/` and reference it from a challenge config.
 
 ---
 
-## Deep Learning Methods — Deep FM Challenge
+## Adding a deep learning model
 
-### Workflow Overview
+### Option A — Python class
 
-```
-1. Train baselines (FMNet, RobustFMNet) on your training split
-2. Train your model on the same split
-3. Run the benchmark (can train from config and evaluate in one call)
-```
-
-### Step 1 — Train Baselines
-
-```python
-from benchfum import ModelPresets, quick_train
-from geomfum.dataset.torch import ShapeDataset, PairsDataset
-
-# Load dataset
-shapes = ShapeDataset(dataset_dir="faust/train", spectral=True, k=200,
-                      distances=True, correspondences=True)
-train_pairs = PairsDataset(shapes, pair_mode="random", pairs_ratio=80)
-val_pairs   = PairsDataset(shapes, pair_mode="random", pairs_ratio=20)
-
-# Train FMNet (standard preset)
-trainer = quick_train(
-    "unsupervised_standard",
-    train_pairs, val_pairs,
-    model_preset="fmnet_diffusion_standard",
-    checkpoint_path="checkpoints/FMNet.pth",
-)
-trainer.train()
-
-# Train RobustFMNet
-trainer = quick_train(
-    "unsupervised_standard",
-    train_pairs, val_pairs,
-    model_preset="robust_fmnet_standard",
-    checkpoint_path="checkpoints/RobustFMNet.pth",
-)
-trainer.train()
-```
-
-### Step 2 — Implement and Train Your Model
+Subclass `nn.Module`. The `forward` signature must match:
 
 ```python
 import torch.nn as nn
 from geomfum.matcher import CorrespondenceResult
 
-class MyDeepFMNet(nn.Module):
-    """Your deep functional map architecture."""
-
-    def __init__(self):
-        super().__init__()
-        # self.feature_net = ...
-        # self.fmap_layer  = ...
-
-    def forward(self, shape_a, shape_b, bidirectional=False):
-        # shape_a.basis.vecs  [n_vertices, k]  — Laplacian eigenvectors
-        # shape_a.basis.vals  [k]               — Laplacian eigenvalues
-        # ...compute p2p21...
+class MyDeepModel(nn.Module):
+    def forward(self, shape_a, shape_b):
+        # shape_a.basis.vecs   [n_vertices, k]
+        # shape_a.basis.vals   [k]
+        # ...
         return CorrespondenceResult(fmap12=fmap12, p2p21=p2p21)
 ```
 
-Train using `TrainingPresets` or a custom loop:
+Pass it to `compare()` directly. `Experiment` detects `nn.Module` automatically and calls `model.eval()` + `torch.no_grad()` during evaluation.
+
+### Option B — JSON config
+
+Write a model config and load it:
+
+```json
+{
+  "_name": "MyFMNet",
+  "type": "FMNet",
+  "feature_extractor": {
+    "type": "FeatureExtractor",
+    "which": "diffusionnet",
+    "k": 200,
+    "in_channels": 128,
+    "descriptor": {"type": "WaveKernelSignature", "n_domain": 128}
+  },
+  "fmap_module": {
+    "type": "ForwardFunctionalMap",
+    "lmbda": 1000.0,
+    "bijective": true
+  }
+}
+```
 
 ```python
-from benchfum import TrainingPresets
+from benchfum import build_model_from_json, build_trainer_from_json
 
-model = MyDeepFMNet()
-trainer = TrainingPresets.create_trainer(
-    "unsupervised_standard",
-    model=model,
-    train_set=train_pairs,
-    val_set=val_pairs,
-    checkpoint_path="checkpoints/my_model.pth",
-)
+model   = build_model_from_json("my_model.json", device="cuda")
+trainer = build_trainer_from_json("configs/training/unsupervised_standard.json",
+                                  model, train_pairs, val_pairs)
 trainer.train()
 ```
 
-### Step 3 — Run the Benchmark
-
-```bash
-python -m benchfum.challenges.deep_fmap.run \
-    --config benchfum/configs/challenges/deep_fmap_faust.json
-
-# force train/eval behavior from CLI if needed
-python -m benchfum.challenges.deep_fmap.run \
-    --config benchfum/configs/challenges/deep_fmap_faust.json --no-train
-
-python -m benchfum.challenges.deep_fmap.run \
-    --config benchfum/configs/challenges/deep_fmap_faust.json --train
-```
-
-Or in Python using `TrainedModelWrapper`:
-
-```python
-from benchfum import compare, ModelPresets
-from geomfum.learning.wrappers import TrainedModelWrapper
-
-methods = {
-    "MyDeepFMNet": TrainedModelWrapper(
-        MyDeepFMNet(), checkpoint_path="checkpoints/my_model.pth"
-    ),
-    "FMNet": TrainedModelWrapper(
-        ModelPresets.build("fmnet_diffusion_standard"),
-        checkpoint_path="checkpoints/FMNet.pth",
-    ),
-    "RobustFMNet": TrainedModelWrapper(
-        ModelPresets.build("robust_fmnet_standard"),
-        checkpoint_path="checkpoints/RobustFMNet.pth",
-    ),
-}
-
-results = compare(methods, dataset=test_pairs, metrics=["geodesic_error"])
-results.print_comparison()
-results.save_all("results/deep_fmap/")
-```
+> **Important:** deep learning runners require `GEOMSTATS_BACKEND=pytorch` to be set in the shell **before** the process starts, because the geomfum core library reads the backend at first import:
+> ```bash
+> GEOMSTATS_BACKEND=pytorch python my_script.py
+> # or
+> GEOMSTATS_BACKEND=pytorch python -m benchfum.challenges.deep_fmap.run ...
+> ```
 
 ---
 
-## Refinement Methods — Refinement Challenge
+## Adding a refinement method
 
-The refinement challenge isolates the contribution of a **refinement step** from the rest of
-the pipeline. All methods start from the **same** initial functional map (produced by a fixed
-base matcher); any difference in the final score is therefore **solely due to refinement**.
+A refiner is any callable with signature `(fmap12, basis_a, basis_b) → refined_fmap12`.
 
-### Quick Start
-
-```bash
-# Run all standard refiners (identity / ICP / ZoomOut / ICP+ZO)
-python -m benchfum.challenges.refinement.run \
-    --dataset /path/to/faust/train_set
-
-# Override the base method (any name from MatcherPresets)
-python -m benchfum.challenges.refinement.run \
-    --dataset /path/to/faust/train_set --base_method fmap_zo
-
-# Quick check with 20 pairs
-python -m benchfum.challenges.refinement.run \
-    --dataset /path/to/faust/train_set --n_pairs 20
-
-# Include your own refiner in the comparison
-python -m benchfum.challenges.refinement.run \
-    --dataset /path/to/faust/train_set --my_refiner
-```
-
-Expected output:
-```
-Challenge   : Refinement FAUST
-Dataset     : /path/to/faust/train_set
-Base method : fmap
-Refiners    : ['identity', 'icp', 'zoomout', 'icp_zoomout']
-Spectrum    : k=200
-
-Method          | geodesic_error
-----------------|----------------
-No Refinement   | 0.0934±0.0201
-ICP             | 0.0712±0.0165
-ZoomOut         | 0.0681±0.0153
-ICP+ZoomOut     | 0.0612±0.0143
-```
-
-### Refiner Interface
-
-A refiner is any callable with this signature:
+### Option A — Python class
 
 ```python
-def __call__(self, fmap12, basis_a, basis_b):
-    # fmap12         : np.ndarray [k_b, k_a]  — initial functional map from A→B
-    # basis_a.vecs   : np.ndarray [n_a, k_a]  — Laplacian eigenvectors of shape A
-    # basis_a.vals   : np.ndarray [k_a]        — Laplacian eigenvalues of shape A
-    # basis_b.vecs   : np.ndarray [n_b, k_b]  — Laplacian eigenvectors of shape B
-    # basis_b.vals   : np.ndarray [k_b]        — Laplacian eigenvalues of shape B
-    #
-    # return: refined fmap12 of shape [k_b, k_a]
-    ...
-```
-
-### Add Your Refinement Method
-
-**Option A — Implement and compare directly in Python:**
-
-```python
-from benchfum import compare, MatcherPresets, RefinementMatcher, RefinementPresets
+from benchfum import compare, build_matcher_from_json, build_refiner_from_json, RefinementMatcher
 
 class MyRefiner:
     def __call__(self, fmap12, basis_a, basis_b):
-        # your refinement algorithm
+        # fmap12         [k_b, k_a]   initial functional map A→B
+        # basis_a.vecs   [n_a, k_a]   Laplacian eigenvectors of shape A
+        # basis_b.vecs   [n_b, k_b]   Laplacian eigenvectors of shape B
         return refined_fmap12
 
-base = MatcherPresets.build("fmap")
+base = build_matcher_from_json("configs/matchers/fmap.json")
+
 results = compare(
     {
-        "No refinement": RefinementMatcher(base, RefinementPresets.build("identity")),
-        "ICP+ZO":        RefinementMatcher(base, RefinementPresets.build("icp_zoomout")),
-        "MyRefiner":     RefinementMatcher(base, MyRefiner()),
+        "No refinement": RefinementMatcher(base, build_refiner_from_json("configs/refiners/identity.json")),
+        "ICP+ZO":        RefinementMatcher(base, build_refiner_from_json("configs/refiners/icp_zoomout.json")),
+        "Mine":          RefinementMatcher(base, MyRefiner()),
     },
     dataset=pairs,
-    metrics=["geodesic_error"],
 )
 results.print_comparison()
-results.save_all("results/refinement/")
 ```
 
-**Option B — JSON config** (drop a file in `configs/refiners/`):
+`RefinementMatcher` shares a single base matcher instance across all methods, so all comparisons start from the **same** initial map — any score difference is entirely due to the refinement step.
+
+### Option B — JSON config
 
 ```json
 {
   "_name": "MyRefiner",
-  "_description": "My custom refinement strategy.",
   "type": "IcpRefiner",
   "nit": 30
 }
 ```
 
-Then access it by name: `RefinementPresets.build("my_refiner")`.
+```python
+from benchfum import build_refiner_from_json
+refiner = build_refiner_from_json("my_refiner.json")
+```
 
-**Option C — Edit `challenges/refinement/run.py` directly:**
+---
 
-Implement the `MyRefiner` placeholder in `run.py` and run with `--my_refiner`:
+## Challenge runners
+
+Challenges are structured benchmarks defined by a JSON config + a runner script. Three are included:
+
+| Runner | Config | What it compares |
+|---|---|---|
+| `challenges/landmark_based/run.py` | `configs/challenges/landmark_faust.json` | Classical matchers side by side |
+| `challenges/refinement/run.py` | `configs/challenges/refinement_faust.json` | Refiners on a shared base map |
+| `challenges/deep_fmap/run.py` | `configs/challenges/deep_fmap_faust.json` | Deep models (optional train + eval) |
+
+### Running a challenge
+
+All runners are invoked from the `geomfum/` directory:
 
 ```bash
+# Classical
+python -m benchfum.challenges.landmark_based.run \
+    --dataset /path/to/faust/train_set
+
+# Refinement
 python -m benchfum.challenges.refinement.run \
-    --dataset /path/to/faust --my_refiner
+    --dataset /path/to/faust/train_set
+
+# Deep (pytorch backend required)
+GEOMSTATS_BACKEND=pytorch python -m benchfum.challenges.deep_fmap.run \
+    --dataset /path/to/faust/test_set
 ```
 
-### Available Refiners
+Common flags (all runners):
 
-```python
-from benchfum import RefinementPresets
+| Flag | Description |
+|---|---|
+| `--dataset PATH` | Override the dataset root from the config |
+| `--config PATH` | Use a different challenge config JSON |
+| `--n_pairs N` | Evaluate on N random pairs instead of all |
+| `--seed N` | Fix random seed for reproducible pair selection |
+| `--save DIR` | Save per-method JSON results to DIR |
 
-print(RefinementPresets.list_presets())     # list all named refiners
-r   = RefinementPresets.build("icp_zoomout")  # build a refiner
-cfg = RefinementPresets.describe("zoomout")   # inspect raw JSON config
-```
+Deep runner only:
 
-| Name | Description |
-|------|-------------|
-| `identity` | No refinement — pass-through baseline |
-| `icp` | Iterative Closest Point on the functional map |
-| `zoomout` | ZoomOut upsampling (gradually increases FM size) |
-| `icp_zoomout` | ICP followed by ZoomOut — strong standard baseline |
+| Flag | Description |
+|---|---|
+| `--train` / `--no-train` | Force enable / disable training step |
+| `--train_dataset PATH` | Training dataset root |
+| `--val_dataset PATH` | Validation dataset root |
+| `--device cuda\|cpu` | PyTorch device (default: auto) |
 
----
+### Extending a challenge — no code changes needed
 
-## Challenge Config Format
+The challenge configs are the only place you need to edit. Add your method to the `methods` list:
 
-A challenge config is a JSON file that fully specifies a benchmark run.
-
-### Classical challenge config
-
-```jsonc
+**Classical** (`landmark_faust.json`):
+```json
 {
-  "_name": "Landmark-Based FAUST",
-  "_description": "...",
-  "dataset": {
-    "k": 200,                           // Laplacian spectrum size
-    "landmark_indices": [2959, 2948]    // canonical vertex indices (optional)
-  },
-  // Baselines: names must match files in configs/matchers/
-  "baselines": ["wks_nn", "fmap", "fmap_zo", "lfmap", "lfmap_zo"],
-  "metrics": ["geodesic_error"],
-  "bidirectional": false,
-  "n_pairs": null                       // null = all pairs; int = random sample
+  "name": "MyMethod",
+  "matcher_config": "../matchers/my_method.json"
 }
 ```
 
-### Deep learning challenge config
-
-```jsonc
+**Refinement** (`refinement_faust.json`):
+```json
 {
-  "_name": "Deep Functional Maps FAUST",
-  "_description": "...",
-    "train": true,
-    "dataset": {
-        "root": "../../data/dummy_faust/test_set",
-        "train_root": "../../data/dummy_faust/train_set",
-        "val_root": "../../data/dummy_faust/test_set",
-        "k": 200
-    },
-    "methods": [
-        {
-            "name": "FMNet",
-            "model_config": "../models/fmnet_standard.json",
-            "trainer_config": "../training/unsupervised_standard.json",
-            "checkpoint": "../checkpoints/fmnet_standard.pth"
-        }
-    ],
-  "metrics": ["geodesic_error"],
-  "bidirectional": false
+  "name": "MyRefiner",
+  "refiner_config": "../refiners/my_refiner.json"
 }
 ```
 
-### Refinement challenge config
-
-```jsonc
+**Deep** (`deep_fmap_faust.json`):
+```json
 {
-  "_name": "Refinement FAUST",
-  "_description": "...",
-  "dataset": {"k": 200},
-  "base_method": "fmap",              // any name from configs/matchers/
-  // Refiners: names must match files in configs/refiners/
-  "refiners": ["identity", "icp", "zoomout", "icp_zoomout"],
-  "metrics": ["geodesic_error"],
-  "bidirectional": false
+  "name": "MyModel",
+  "model_config": "../models/my_model.json",
+  "trainer_config": "../training/unsupervised_standard.json",
+  "checkpoint": "../checkpoints/my_model.pth"
 }
 ```
 
 ---
 
-## Extending benchfum
+## JSON config schema reference
 
-### Add a new named matcher
+The builder is **generic and recursive**: every nested Python object needs a `"type"` key naming its class; all other keys are constructor parameters matched by name. Keys starting with `_` (e.g. `_name`, `_description`) are metadata and silently ignored.
 
-1. Write a JSON config in `benchfum/configs/matchers/my_matcher.json`
-2. It's immediately available via `MatcherPresets.build("my_matcher")`
+**Available types:**
 
-No code changes required.
+| Type | Category |
+|---|---|
+| `FunctionalMapMatcher`, `FeatureMatcher` | Matchers |
+| `WaveKernelSignature`, `HeatKernelSignature` | Descriptors |
+| `LandmarkWaveKernelSignature`, `LandmarkHeatKernelSignature` | Descriptors |
+| `DescriptorPipeline`, `L2InnerNormalizer`, `ArangeSubsampler` | Pipeline |
+| `FunctionalMapOptimizer` | FM optimizer |
+| `SDPFactorBuilder`, `LBFactorBuilder`, `MultFactorBuilder`, `OrientFactorBuilder` | FM factors |
+| `IdentityRefiner`, `OrthogonalRefiner`, `IcpRefiner`, `ZoomOut`, `AdjointBijectiveZoomOut` | Refiners |
+| `RefinementPipeline`, `CorrespondenceRefinementPipeline` | Refiner pipelines |
+| `P2pFromFmConverter`, `NeighborFinder`, `SoftmaxNeighborFinder` | Converters |
+| `FMNet`, `RobustFMNet` | Deep models (torch required) |
+| `FeatureExtractor`, `ForwardFunctionalMap` | Deep components (torch required) |
+| `LossManager`, `OrthonormalityLoss`, `BijectivityLoss`, `LaplacianCommutativityLoss`, `DescriptorCommutativityLoss`, `GroundTruthSupervisionLoss`, `FmapDescriptorsSupervisionLoss`, `GeodesicError` | Losses (torch required) |
 
-### Add a new benchmark challenge
-
-1. Create `benchfum/configs/challenges/my_challenge.json`
-2. Copy the closest `challenges/*/run.py` to `challenges/my_challenge/run.py` and adapt:
-   - Update `_CHALLENGE_CONFIG_PATH` to point at your new config
-   - Adjust `build_dataset()` if your dataset has a different structure
-3. Run: `python -m benchfum.challenges.my_challenge.run --dataset /path/to/data`
+To register a new geomfum class, add it to `_build.py` → `_build_component_registry()`.
 
 ---
 
-## Matcher Reference
+## Smoke tests
 
-All matchers in `configs/matchers/` are accessible via `MatcherPresets.build(name)`.
+Use these to verify the full pipeline on a tiny dummy dataset before running on real data:
 
-| Name | Type | Description |
-|------|------|-------------|
-| `wks_nn` | FeatureMatcher | WKS nearest-neighbour — simplest baseline, no FM |
-| `fmap` | FunctionalMapMatcher | Classic FM with WKS, no refinement |
-| `fmap_zo` | FunctionalMapMatcher | FM + ICP + ZoomOut — strong non-landmark baseline |
-| `lfmap` | FunctionalMapMatcher | Landmark-constrained FM, no refinement |
-| `lfmap_zo` | FunctionalMapMatcher | Landmark FM + ICP + ZoomOut — strongest classical |
-| `quick` | FunctionalMapMatcher | k=20, ICP only — fast, approximate |
-| `standard` | FunctionalMapMatcher | k=30, ICP + ZoomOut — good default |
-| `precise` | FunctionalMapMatcher | k=50, more iterations — best quality |
-| `feature_wks` | FeatureMatcher | WKS feature matching, no functional map |
+```bash
+cd geomfum
 
-```python
-from benchfum import MatcherPresets
+# Classical (no GPU needed)
+python -m benchfum.challenges.landmark_based.run \
+    --config benchfum/configs/challenges/landmark_faust_smoke.json
 
-print(MatcherPresets.list_presets())         # all available names
-m   = MatcherPresets.build("lfmap_zo")       # build a matcher
-cfg = MatcherPresets.describe("lfmap_zo")    # inspect the raw JSON config
+# Refinement (no GPU needed)
+python -m benchfum.challenges.refinement.run \
+    --config benchfum/configs/challenges/refinement_faust_smoke.json
+
+# Deep (GPU recommended, pytorch backend required)
+GEOMSTATS_BACKEND=pytorch python -m benchfum.challenges.deep_fmap.run \
+    --config benchfum/configs/challenges/deep_fmap_faust_smoke.json
 ```
 
+Smoke configs use `datasets/dummy_faust/`, cap evaluation to 1 pair, and cap deep training to 1 epoch.
+
 ---
 
-## Model Preset Reference
+## Available configs at a glance
 
-| Name | Architecture | Size | Description |
-|------|-------------|------|-------------|
-| `fmnet_diffusion_small` | FMNet | k=128, ch=64 | Fast training |
-| `fmnet_diffusion_standard` | FMNet | k=200, ch=128 | Recommended |
-| `fmnet_diffusion_large` | FMNet | k=300, ch=256 | Best accuracy |
-| `robust_fmnet_small` | RobustFMNet | k=128, ch=64 | Fast training |
-| `robust_fmnet_standard` | RobustFMNet | k=200, ch=128 | Recommended |
-| `robust_fmnet_large` | RobustFMNet | k=300, ch=256 | Best accuracy |
+### Matchers (`configs/matchers/`)
 
-| Training Preset | Epochs | Losses | Description |
-|----------------|--------|--------|-------------|
-| `unsupervised_quick` | 5 | Orth + Bij | Fast sanity check |
-| `unsupervised_standard` | 50 | Orth + Bij + LapComm | Recommended |
-| `unsupervised_precise` | 100 | + DescComm | Best quality |
-| `supervised` | 50 | GroundTruth | When GT is available |
-| `supervised_plus_regularization` | 50 | GT + Orth + Bij | GT + regularization |
+| File | Type | Description |
+|---|---|---|
+| `wks_nn.json` | `FeatureMatcher` | WKS + nearest-neighbour, no FM |
+| `fmap.json` | `FunctionalMapMatcher` | Classic FM, WKS, no refinement |
+| `fmap_zo.json` | `FunctionalMapMatcher` | FM + ICP + ZoomOut |
+| `lfmap.json` | `FunctionalMapMatcher` | Landmark-constrained FM |
+| `lfmap_zo.json` | `FunctionalMapMatcher` | Landmark FM + ICP + ZoomOut |
+| `feature_wks.json` | `FeatureMatcher` | WKS feature matching |
+| `quick.json` | `FunctionalMapMatcher` | Small k, fast |
+| `standard.json` | `FunctionalMapMatcher` | Balanced default |
+| `precise.json` | `FunctionalMapMatcher` | High-quality, slow |
+
+### Refiners (`configs/refiners/`)
+
+| File | Description |
+|---|---|
+| `identity.json` | No-op (pass-through baseline) |
+| `icp.json` | ICP only |
+| `zoomout.json` | ZoomOut only |
+| `icp_zoomout.json` | ICP then ZoomOut |
+
+### Models (`configs/models/`)
+
+| File | Architecture | Notes |
+|---|---|---|
+| `fmnet_small.json` | FMNet | k=128, fast |
+| `fmnet_standard.json` | FMNet | k=200, recommended |
+| `fmnet_large.json` | FMNet | k=300, best accuracy |
+| `robust_fmnet_small.json` | RobustFMNet | k=128, fast |
+| `robust_fmnet_standard.json` | RobustFMNet | k=200, recommended |
+| `robust_fmnet_large.json` | RobustFMNet | k=300, best accuracy |
+
+### Training (`configs/training/`)
+
+| File | Epochs | Description |
+|---|---|---|
+| `unsupervised_quick.json` | 5 | Fast sanity check |
+| `unsupervised_standard.json` | 50 | Recommended default |
+| `unsupervised_precise.json` | 100 | Best unsupervised quality |
+| `supervised.json` | 50 | Ground-truth supervision |
+| `supervised_plus_regularization.json` | 50 | GT + regularization |
+| `unsupervised_smoke_1epoch.json` | 1 | Smoke test only |

@@ -72,6 +72,7 @@ Usage — trainers
 >>> trainer = build_trainer_from_json("my_training.json", model, train_set, val_set)
 """
 
+import functools
 import json
 
 
@@ -93,12 +94,14 @@ def _sync_module_device_attributes(module, device):
                 pass
 
 
+@functools.lru_cache(maxsize=None)
 def _build_component_registry():
     """Build the mapping from type-name strings to geomfum classes.
 
     Imported lazily to avoid circular imports at module load time.
     To support a new geomfum class in JSON configs, add it here.
 
+    The result is cached so imports only happen once per process.
     Learning classes are added only when ``torch`` is available.
     """
     from geomfum.convert import (

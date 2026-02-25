@@ -62,7 +62,7 @@ repository = "http://github.com/3diglab/geomfum"
 version = { attr = "geomfum.__version__" }
 
 [tool.setuptools.packages.find]
-include = ["geomfum", "geomfum.*"]
+include = ["geomfum", "geomfum.*", "benchfum", "benchfum.*"]
 
 [tool.pytest.ini_options]
 markers = [

@@ -8,12 +8,11 @@ Usage
 -----
 Run benchmark declared in config:
 
-    python -m benchfum.challenges.refinement.run \\
+    python -m benchfum.challenges.refinement.run \
         --dataset datasets/faust/train_set
 """
 
 import argparse
-import json
 import os
 from pathlib import Path
 
@@ -26,6 +25,12 @@ from benchfum import (
     build_matcher_from_json,
     build_refiner_from_json,
     compare,
+)
+from benchfum.challenges._common import (
+    load_config,
+    resolve_dataset_dir,
+    resolve_path,
+    seed_random,
 )
 from benchfum.refinement import RefinementMatcher
 from geomfum.dataset.torch import PairsDataset, ShapeDataset
@@ -41,35 +46,12 @@ _DEFAULT_BENCHMARK_CONFIG_PATH = (
 )
 
 
-def load_benchmark_config(path=None):
-    """Load the benchmark configuration.
-
-    Parameters
-    ----------
-    path : str or Path, optional
-        Override path to a benchmark config JSON. Defaults to
-        ``benchfum/configs/challenges/refinement_faust.json``.
-
-    Returns
-    -------
-    config : dict
-    """
-    config_path = Path(path) if path is not None else _DEFAULT_BENCHMARK_CONFIG_PATH
-    with open(config_path) as f:
-        return json.load(f)
-
-
-def load_challenge_config(path=None):
-    """Backward-compatible alias for ``load_benchmark_config``."""
-    return load_benchmark_config(path)
-
-
 # ============================================================================
 # DATASET
 # ============================================================================
 
 
-def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None):
+def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None, seed=None):
     """Build a PairsDataset from a benchmark config and a dataset path.
 
     Parameters
@@ -80,6 +62,8 @@ def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None):
         Benchmark config dict.
     n_pairs : int or None
         Override the number of pairs.
+    seed : int or None
+        Random seed for reproducible pair selection.
 
     Returns
     -------
@@ -90,6 +74,8 @@ def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None):
 
     if n_pairs is None:
         n_pairs = config.get("n_pairs", None)
+
+    seed_random(seed)
 
     shape_data = ShapeDataset(
         dataset_dir=dataset_dir,
@@ -114,60 +100,6 @@ def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None):
 # ============================================================================
 
 
-def _resolve_path(config_path: Path, relative_or_abs: str) -> Path:
-    """Resolve relative paths against config file directory."""
-    candidate = Path(relative_or_abs)
-    if candidate.is_absolute():
-        return candidate
-    return (config_path.parent / candidate).resolve()
-
-
-def _resolve_dataset_dir(
-    dataset_dir: str | None,
-    config: dict,
-    config_path: Path,
-) -> str:
-    """Resolve evaluation dataset dir from CLI or config."""
-    if dataset_dir is not None:
-        return dataset_dir
-
-    ds_cfg = config.get("dataset", {})
-    configured_dataset_dir = ds_cfg.get("root")
-    if configured_dataset_dir is not None:
-        return str(_resolve_path(config_path, configured_dataset_dir))
-
-    return "datasets/faust/train_set"
-
-
-def _load_methods_cfg(config: dict):
-    """Return methods config, with legacy fallback.
-
-    Preferred schema:
-      methods: [{name, refiner_config}, ...]
-      base_matcher_config: ../matchers/fmap.json
-    Legacy fallback:
-      base_method: fmap
-      refiners: [identity, icp, ...]
-    """
-    methods_cfg = config.get("methods")
-    if methods_cfg:
-        return methods_cfg
-
-    refiners = config.get("refiners", [])
-    if not refiners:
-        raise ValueError(
-            "Benchmark config must define 'methods' (preferred) or legacy 'refiners'."
-        )
-
-    return [
-        {
-            "name": refiner_name,
-            "refiner_config": f"../refiners/{refiner_name}.json",
-        }
-        for refiner_name in refiners
-    ]
-
-
 def build_methods(config: dict, config_path: Path, base_matcher) -> dict:
     """Build one RefinementMatcher per refiner declared in the config.
 
@@ -184,9 +116,14 @@ def build_methods(config: dict, config_path: Path, base_matcher) -> dict:
     -------
     methods : dict[str, RefinementMatcher]
     """
-    methods_cfg = _load_methods_cfg(config)
-    methods = {}
+    methods_cfg = config.get("methods")
+    if not methods_cfg:
+        raise ValueError(
+            "Benchmark config must define a 'methods' list. "
+            "Each entry needs 'name' and 'refiner_config'."
+        )
 
+    methods = {}
     for method_cfg in methods_cfg:
         if "name" not in method_cfg:
             raise ValueError(f"Method entry missing 'name': {method_cfg!r}")
@@ -196,7 +133,7 @@ def build_methods(config: dict, config_path: Path, base_matcher) -> dict:
             )
 
         method_name = method_cfg["name"]
-        refiner_path = _resolve_path(config_path, method_cfg["refiner_config"])
+        refiner_path = resolve_path(config_path, method_cfg["refiner_config"])
         refiner = build_refiner_from_json(str(refiner_path))
         methods[method_name] = RefinementMatcher(base_matcher, refiner)
 
@@ -209,16 +146,17 @@ def build_methods(config: dict, config_path: Path, base_matcher) -> dict:
 
 
 def run_benchmark(
-    dataset_dir: str | None = None,
-    config_path: str = None,
+    dataset_dir=None,
+    config_path=None,
     n_pairs: int = None,
     save_dir: str = None,
+    seed=None,
 ):
     """Run the refinement benchmark.
 
     Parameters
     ----------
-    dataset_dir : str
+    dataset_dir : str or None
         Path to the dataset root.
     config_path : str or None
         Override path to benchmark config JSON.
@@ -226,30 +164,26 @@ def run_benchmark(
         Limit evaluation to this many random pairs (None = all from config).
     save_dir : str or None
         If given, save per-method JSON results here.
+    seed : int or None
+        Random seed for reproducible pair selection.
 
     Returns
     -------
     suite : ExperimentSuite
     """
-    resolved_config_path = (
-        Path(config_path).resolve()
-        if config_path is not None
-        else _DEFAULT_BENCHMARK_CONFIG_PATH
+    config, resolved_config_path = load_config(config_path, _DEFAULT_BENCHMARK_CONFIG_PATH)
+    dataset_dir = resolve_dataset_dir(
+        dataset_dir, config, resolved_config_path, default="datasets/faust/train_set"
     )
-    config = load_benchmark_config(resolved_config_path)
 
-    dataset_dir = _resolve_dataset_dir(dataset_dir, config, resolved_config_path)
     base_matcher_cfg = config.get("base_matcher_config")
     if base_matcher_cfg is None:
-        legacy_base_method = config.get("base_method")
-        if legacy_base_method is None:
-            raise ValueError(
-                "Benchmark config must define 'base_matcher_config' "
-                "(preferred) or legacy 'base_method'."
-            )
-        base_matcher_cfg = f"../matchers/{legacy_base_method}.json"
+        raise ValueError(
+            "Benchmark config must define 'base_matcher_config' "
+            "(path to a matcher JSON relative to this config file)."
+        )
 
-    base_matcher_path = _resolve_path(resolved_config_path, base_matcher_cfg)
+    base_matcher_path = resolve_path(resolved_config_path, base_matcher_cfg)
 
     print(f"Benchmark   : {config.get('_name', 'Refinement')}")
     print(f"Dataset     : {dataset_dir}")
@@ -257,24 +191,18 @@ def run_benchmark(
     ds_cfg = config.get("dataset", {})
     print(f"Spectrum    : k={ds_cfg.get('k', 200)}")
     if n_pairs:
-        print(f"Pairs       : {n_pairs} (random)")
+        print(f"Pairs       : {n_pairs} (random, seed={seed})")
     print()
 
     base_matcher = build_matcher_from_json(str(base_matcher_path))
     methods = build_methods(config, resolved_config_path, base_matcher)
     print(f"Methods     : {list(methods.keys())}")
 
-    pairs = build_dataset(dataset_dir, config, n_pairs)
+    pairs = build_dataset(dataset_dir, config, n_pairs, seed=seed)
 
     metrics = config.get("metrics", ["geodesic_error"])
-    bidirectional = config.get("bidirectional", False)
 
-    suite = compare(
-        methods,
-        dataset=pairs,
-        metrics=metrics,
-        bidirectional=bidirectional,
-    )
+    suite = compare(methods, dataset=pairs, metrics=metrics)
 
     print()
     suite.print_comparison(metrics=metrics)
@@ -314,6 +242,12 @@ if __name__ == "__main__":
         default=None,
         help="Directory to save per-method JSON results.",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for reproducible pair selection.",
+    )
     args = parser.parse_args()
 
     run_benchmark(
@@ -321,4 +255,5 @@ if __name__ == "__main__":
         config_path=args.config,
         n_pairs=args.n_pairs,
         save_dir=args.save,
+        seed=args.seed,
     )

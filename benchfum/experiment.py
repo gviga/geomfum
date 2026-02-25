@@ -3,28 +3,27 @@
 This module provides a unified way to run experiments with both classical
 matchers and learning-based models on shape datasets.
 
-The Experiment class mirrors the Trainer pattern but focuses on evaluation
-rather than training, making it easy to benchmark different methods.
+The Experiment class focuses on evaluation rather than training, making it
+easy to benchmark different methods on the same dataset.
 """
 
 import json
 import logging
 import numbers
 import os
-from dataclasses import asdict, dataclass
-from typing import Dict, List
+import time
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Dict, List, Optional
 
-import gsops.backend as gs
 import numpy as np
 from tqdm import tqdm
 
 from geomfum.eval import evaluate_correspondence
 from geomfum.matcher import CorrespondenceResult
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 def get_dataset_attr(dataset, attr):
@@ -42,7 +41,6 @@ def get_dataset_attr(dataset, attr):
     value
         The attribute value.
     """
-    # Handle torch Subset
     try:
         import torch
 
@@ -61,15 +59,19 @@ class ExperimentResult:
     Parameters
     ----------
     metrics : dict
-        Aggregated metrics (mean values).
+        Aggregated metrics (mean and std values).
     per_pair_metrics : list
-        List of metrics for each pair.
+        List of metric dicts for each pair.
     pair_indices : list
         List of (source_idx, target_idx) tuples.
     method_name : str
         Name of the method used.
     dataset_name : str
         Name of the dataset.
+    per_pair_time_s : list[float]
+        Wall-clock time in seconds for each pair (correspondence only).
+    total_time_s : float
+        Total wall-clock time for the full run.
     """
 
     metrics: Dict[str, float]
@@ -77,6 +79,8 @@ class ExperimentResult:
     pair_indices: List[tuple]
     method_name: str = ""
     dataset_name: str = ""
+    per_pair_time_s: List[float] = field(default_factory=list)
+    total_time_s: float = 0.0
 
     def to_dict(self):
         """Convert to dictionary."""
@@ -91,7 +95,6 @@ class ExperimentResult:
             Path to save the results.
         """
 
-        # Convert numpy types to Python types for JSON serialization
         def convert(obj):
             if isinstance(obj, (np.integer, np.floating)):
                 return float(obj)
@@ -99,9 +102,6 @@ class ExperimentResult:
                 return obj.tolist()
             return obj
 
-        data = self.to_dict()
-
-        # Recursively convert numpy types
         def deep_convert(d):
             if isinstance(d, dict):
                 return {k: deep_convert(v) for k, v in d.items()}
@@ -110,11 +110,11 @@ class ExperimentResult:
             return convert(d)
 
         with open(path, "w") as f:
-            json.dump(deep_convert(data), f, indent=2)
+            json.dump(deep_convert(self.to_dict()), f, indent=2)
 
     @classmethod
-    def load(cls, path: str):
-        """Load results from JSON file.
+    def load(cls, path: str) -> "ExperimentResult":
+        """Load results from a JSON file.
 
         Parameters
         ----------
@@ -124,100 +124,66 @@ class ExperimentResult:
         Returns
         -------
         ExperimentResult
-            Loaded experiment result.
         """
         with open(path, "r") as f:
             data = json.load(f)
+        # Tolerate older saves that pre-date timing fields
+        data.setdefault("per_pair_time_s", [])
+        data.setdefault("total_time_s", 0.0)
         return cls(**data)
 
 
-@dataclass
-class ExperimentConfig:
-    """Configuration for an experiment.
-
-    Parameters
-    ----------
-    name : str
-        Name of the experiment.
-    bidirectional : bool
-        Whether to compute bidirectional correspondences.
-    metrics : list[str] or None
-        List of metrics to compute. If None, computes all available.
-    save_correspondences : bool
-        Whether to save the correspondence results.
-    progress_bar : bool
-        Whether to show progress bar.
-    progress_accuracy_threshold : float
-        Threshold on geodesic error for reporting running accuracy in tqdm.
-    """
-
-    name: str = "experiment"
-    bidirectional: bool = False
-    metrics: List[str] = None
-    save_correspondences: bool = False
-    progress_bar: bool = True
-    progress_accuracy_threshold: float = 0.05
-
-
 class Experiment:
-    """Run experiments with matchers or models on shape datasets.
-
-    This class provides a unified interface for benchmarking different
-    shape matching methods (both classical and learning-based) on datasets.
+    """Run an experiment with a single matcher or model on a shape dataset.
 
     Parameters
     ----------
     method : BaseMatcher or nn.Module
-        The matching method to evaluate. Can be a Matcher or a Model.
+        The matching method to evaluate.
     dataset : PairsDataset
         Dataset of shape pairs to evaluate on.
-    config : ExperimentConfig, optional
-        Configuration for the experiment.
+    name : str
+        Name shown in the progress bar and log output.
+    metrics : list[str] or None
+        Metrics to compute. If None, all available metrics are computed.
+    save_correspondences : bool
+        Whether to store the raw p2p maps in the result.
+    progress_bar : bool
+        Whether to show a tqdm progress bar.
+    progress_accuracy_threshold : float
+        Geodesic-error threshold used when reporting running accuracy in tqdm.
     """
 
     def __init__(
         self,
         method,
         dataset,
-        config: ExperimentConfig = None,
+        name: str = "experiment",
+        metrics: Optional[List[str]] = None,
+        save_correspondences: bool = False,
+        progress_bar: bool = True,
+        progress_accuracy_threshold: float = 0.05,
     ):
         self.method = method
         self.dataset = dataset
-        self.config = config or ExperimentConfig()
+        self.name = name
+        self.metrics = metrics
+        self.save_correspondences = save_correspondences
+        self.progress_bar = progress_bar
+        self.progress_accuracy_threshold = progress_accuracy_threshold
 
-        # Determine if method is a model (has .eval()) or matcher
+        # Detect models (have .eval()) vs plain matchers
         self._is_model = hasattr(method, "eval") and callable(method.eval)
 
     def _get_correspondence(self, shape_a, shape_b) -> CorrespondenceResult:
-        """Get correspondence between two shapes.
-
-        Parameters
-        ----------
-        shape_a : Shape
-            Source shape.
-        shape_b : Shape
-            Target shape.
-
-        Returns
-        -------
-        result : CorrespondenceResult
-            The correspondence result.
-        """
         if self._is_model:
-            # For models, ensure eval mode
             self.method.eval()
             import torch
 
             with torch.no_grad():
-                result = self.method(
-                    shape_a, shape_b, bidirectional=self.config.bidirectional
-                )
+                result = self.method(shape_a, shape_b)
         else:
-            # For matchers
-            result = self.method(
-                shape_a, shape_b, bidirectional=self.config.bidirectional
-            )
-
+            result = self.method(shape_a, shape_b)
         return result
 
     def _evaluate_pair(
@@ -228,32 +194,7 @@ class Experiment:
         corr_a=None,
         corr_b=None,
         dist_a=None,
-        dist_b=None,
     ) -> Dict[str, float]:
-        """Evaluate a single pair.
-
-        Parameters
-        ----------
-        result : CorrespondenceResult
-            The correspondence result.
-        shape_a : Shape
-            Source shape (target for p2p21).
-        shape_b : Shape
-            Target shape (source for p2p21).
-        corr_a : array-like, optional
-            Ground truth on shape A.
-        corr_b : array-like, optional
-            Ground truth on shape B.
-        dist_a : array-like, optional
-            Geodesic distance matrix on shape A.
-        dist_b : array-like, optional
-            Geodesic distance matrix on shape B.
-
-        Returns
-        -------
-        metrics : dict
-            Dictionary of metric values.
-        """
         metrics = evaluate_correspondence(
             shape_a=shape_a,
             shape_b=shape_b,
@@ -261,27 +202,10 @@ class Experiment:
             corr_a=corr_a,
             corr_b=corr_b,
             dist_a=dist_a,
-            metrics=self.config.metrics,
+            metrics=self.metrics,
         )
-
-        # If bidirectional, also evaluate reverse direction
-        if self.config.bidirectional and result.p2p12 is not None:
-            metrics_rev = evaluate_correspondence(
-                shape_a=shape_b,
-                shape_b=shape_a,
-                p2p21=result.p2p12,
-                corr_a=corr_b,
-                corr_b=corr_a,
-                dist_a=dist_b,
-            )
-            # Add reverse metrics with suffix
-            for k, v in metrics_rev.items():
-                metrics[f"{k}_rev"] = v
-
-        # Filter metrics if specified
-        if self.config.metrics is not None:
-            metrics = {k: v for k, v in metrics.items() if k in self.config.metrics}
-
+        if self.metrics is not None:
+            metrics = {k: v for k, v in metrics.items() if k in self.metrics}
         return metrics
 
     def run(self) -> ExperimentResult:
@@ -290,46 +214,45 @@ class Experiment:
         Returns
         -------
         result : ExperimentResult
-            Aggregated experiment results.
+            Aggregated experiment results with per-pair timing.
         """
         per_pair_metrics = []
+        per_pair_times = []
         pair_indices = []
-        correspondences = [] if self.config.save_correspondences else None
+        correspondences = [] if self.save_correspondences else None
 
-        # Check if dataset has correspondences and distances
         has_correspondences = get_dataset_attr(
             self.dataset.shape_data, "correspondences"
         )
         has_distances = get_dataset_attr(self.dataset.shape_data, "distances")
 
-        # Setup iterator
         iterator = self.dataset
-        if self.config.progress_bar:
-            iterator = tqdm(iterator, desc=f"Running {self.config.name}", unit="pair")
+        if self.progress_bar:
+            iterator = tqdm(
+                iterator,
+                desc=f"Running {self.name}",
+                unit="pair",
+                leave=False,
+            )
 
         running_sums = {}
         running_counts = {}
         geodesic_hits = 0
+        total_start = time.perf_counter()
 
         for idx, pair in enumerate(iterator):
             shape_a = pair["source"]["shape"]
             shape_b = pair["target"]["shape"]
 
-            # Get ground truth correspondences if available
             corr_a = pair["source"].get("corr") if has_correspondences else None
             corr_b = pair["target"].get("corr") if has_correspondences else None
-
-            # Get distance matrices if available
             dist_a = pair["source"].get("dist_matrix") if has_distances else None
-            dist_b = pair["target"].get("dist_matrix") if has_distances else None
 
-            # Compute correspondence
+            pair_start = time.perf_counter()
             result = self._get_correspondence(shape_a, shape_b)
+            per_pair_times.append(time.perf_counter() - pair_start)
 
-            # Evaluate
-            metrics = self._evaluate_pair(
-                result, shape_a, shape_b, corr_a, corr_b, dist_a, dist_b
-            )
+            metrics = self._evaluate_pair(result, shape_a, shape_b, corr_a, corr_b, dist_a)
             per_pair_metrics.append(metrics)
             pair_indices.append(self.dataset.pairs[idx])
 
@@ -339,23 +262,16 @@ class Experiment:
                     running_counts[key] = running_counts.get(key, 0) + 1
 
             if "geodesic_error" in metrics:
-                if metrics["geodesic_error"] <= self.config.progress_accuracy_threshold:
+                if metrics["geodesic_error"] <= self.progress_accuracy_threshold:
                     geodesic_hits += 1
 
-            if self.config.save_correspondences:
-                correspondences.append(
-                    {
-                        "p2p21": gs.to_numpy(result.p2p21).tolist(),
-                        "p2p12": (
-                            gs.to_numpy(result.p2p12).tolist()
-                            if result.p2p12 is not None
-                            else None
-                        ),
-                    }
-                )
+            if self.save_correspondences:
+                p2p = result.p2p21
+                if hasattr(p2p, "cpu"):
+                    p2p = p2p.detach().cpu().numpy()
+                correspondences.append({"p2p21": np.asarray(p2p).tolist()})
 
-            # Update progress bar
-            if self.config.progress_bar:
+            if self.progress_bar:
                 postfix = {}
                 if "geodesic_error" in metrics:
                     geo_avg = (
@@ -365,29 +281,25 @@ class Experiment:
                     postfix["geo(cur/avg)"] = (
                         f"{metrics['geodesic_error']:.4f}/{geo_avg:.4f}"
                     )
-                    postfix[f"acc@{self.config.progress_accuracy_threshold:g}"] = (
+                    postfix[f"acc@{self.progress_accuracy_threshold:g}"] = (
                         f"{100.0 * geodesic_hits / (idx + 1):.1f}%"
                     )
-
                 if "euclidean_error" in metrics:
                     euc_avg = (
                         running_sums["euclidean_error"]
                         / running_counts["euclidean_error"]
                     )
                     postfix["euc(avg)"] = f"{euc_avg:.4f}"
-
                 if "coverage" in metrics:
                     cov_avg = running_sums["coverage"] / running_counts["coverage"]
                     postfix["cov(avg)"] = f"{cov_avg:.3f}"
-
                 if postfix:
                     iterator.set_postfix(postfix)
 
-        # Aggregate metrics
+        total_time_s = time.perf_counter() - total_start
         aggregated = self._aggregate_metrics(per_pair_metrics)
 
-        # Get method and dataset names
-        method_name = getattr(self.method, "__class__", type(self.method)).__name__
+        method_name = type(self.method).__name__
         dataset_name = getattr(self.dataset, "dataset_dir", "unknown")
         if hasattr(self.dataset, "shape_data"):
             dataset_name = getattr(self.dataset.shape_data, "dataset_dir", dataset_name)
@@ -398,33 +310,31 @@ class Experiment:
             pair_indices=pair_indices,
             method_name=method_name,
             dataset_name=str(dataset_name),
+            per_pair_time_s=per_pair_times,
+            total_time_s=total_time_s,
         )
 
-        logging.info(f"Experiment '{self.config.name}' completed:")
+        avg_ms = 1000.0 * float(np.mean(per_pair_times)) if per_pair_times else 0.0
+        logger.info(
+            "Experiment '%s' completed in %.1fs (avg %.1fms/pair):",
+            self.name,
+            total_time_s,
+            avg_ms,
+        )
         for k, v in aggregated.items():
-            logging.info(f"  {k}: {v:.4f}")
+            if not k.endswith("_std"):
+                logger.info(
+                    "  %s: %.4f ± %.4f", k, v, aggregated.get(f"{k}_std", 0.0)
+                )
 
         return result
 
     def _aggregate_metrics(
         self, per_pair_metrics: List[Dict[str, float]]
     ) -> Dict[str, float]:
-        """Aggregate metrics across all pairs.
-
-        Parameters
-        ----------
-        per_pair_metrics : list[dict]
-            List of per-pair metrics.
-
-        Returns
-        -------
-        aggregated : dict
-            Aggregated metrics (mean, std).
-        """
         if not per_pair_metrics:
             return {}
 
-        # Get all metric keys
         all_keys = set()
         for m in per_pair_metrics:
             all_keys.update(m.keys())
@@ -448,19 +358,18 @@ class ExperimentSuite:
         Dictionary mapping method names to methods.
     dataset : PairsDataset
         Dataset to evaluate on.
-    config : ExperimentConfig, optional
-        Base configuration (name will be overridden per method).
+    metrics : list[str] or None
+        Metrics to compute for each experiment. If None, computes all.
+    save_correspondences : bool
+        Whether to store raw p2p maps in results.
+    progress_bar : bool
+        Whether to show tqdm progress bars.
+    progress_accuracy_threshold : float
+        Geodesic-error threshold for reporting running accuracy.
 
     Examples
     --------
-    >>> from geomfum.matcher import FunctionalMapMatcher, FeatureMatcher
-    >>>
-    >>> methods = {
-    ...     "FMap": FunctionalMapMatcher(),
-    ...     "Feature": FeatureMatcher(),
-    ... }
-    >>>
-    >>> suite = ExperimentSuite(methods, pairs)
+    >>> suite = ExperimentSuite({"FMap": matcher_a, "Mine": matcher_b}, pairs)
     >>> suite.run()
     >>> suite.print_comparison()
     """
@@ -469,11 +378,17 @@ class ExperimentSuite:
         self,
         methods: Dict,
         dataset,
-        config: ExperimentConfig = None,
+        metrics: Optional[List[str]] = None,
+        save_correspondences: bool = False,
+        progress_bar: bool = True,
+        progress_accuracy_threshold: float = 0.05,
     ):
         self.methods = methods
         self.dataset = dataset
-        self.base_config = config or ExperimentConfig()
+        self.metrics = metrics
+        self.save_correspondences = save_correspondences
+        self.progress_bar = progress_bar
+        self.progress_accuracy_threshold = progress_accuracy_threshold
         self.results: Dict[str, ExperimentResult] = {}
 
     def run(self) -> Dict[str, ExperimentResult]:
@@ -482,31 +397,30 @@ class ExperimentSuite:
         Returns
         -------
         results : dict[str, ExperimentResult]
-            Dictionary mapping method names to results.
         """
         methods_items = list(self.methods.items())
         methods_iterator = methods_items
-        if self.base_config.progress_bar:
+        if self.progress_bar:
             methods_iterator = tqdm(methods_items, desc="Methods", unit="method")
 
         best_geo = float("inf")
         best_method = None
 
         for name, method in methods_iterator:
-            logging.info(f"Running experiment: {name}")
-            config = ExperimentConfig(
+            logger.info("Running experiment: %s", name)
+            experiment = Experiment(
+                method=method,
+                dataset=self.dataset,
                 name=name,
-                bidirectional=self.base_config.bidirectional,
-                metrics=self.base_config.metrics,
-                save_correspondences=self.base_config.save_correspondences,
-                progress_bar=self.base_config.progress_bar,
-                progress_accuracy_threshold=self.base_config.progress_accuracy_threshold,
+                metrics=self.metrics,
+                save_correspondences=self.save_correspondences,
+                progress_bar=self.progress_bar,
+                progress_accuracy_threshold=self.progress_accuracy_threshold,
             )
-            experiment = Experiment(method, self.dataset, config)
             result = experiment.run()
             self.results[name] = result
 
-            if self.base_config.progress_bar:
+            if self.progress_bar:
                 geo = result.metrics.get("geodesic_error")
                 if geo is not None and geo < best_geo:
                     best_geo = geo
@@ -522,36 +436,40 @@ class ExperimentSuite:
 
         return self.results
 
-    def print_comparison(self, metrics: List[str] = None):
-        """Print comparison table of results.
+    def print_comparison(self, metrics: Optional[List[str]] = None):
+        """Print comparison table of results with timing.
 
         Parameters
         ----------
         metrics : list[str], optional
-            Metrics to include in comparison. If None, uses geodesic_error.
+            Metrics to include. If None, uses geodesic_error.
         """
         if not self.results:
-            logging.warning("No results to compare. Run experiments first.")
+            logger.warning("No results to compare. Run experiments first.")
             return
 
         if metrics is None:
             metrics = ["geodesic_error"]
 
-        # Print header
-        header = f"{'Method':<20}"
+        header = f"{'Method':<22} | {'ms/pair':>8}"
         for metric in metrics:
-            header += f" | {metric:<15}"
+            header += f" | {metric:<20}"
+        sep = "-" * len(header)
         print(header)
-        print("-" * len(header))
+        print(sep)
 
-        # Print rows
         for name, result in self.results.items():
-            row = f"{name:<20}"
+            avg_ms = (
+                1000.0 * float(np.mean(result.per_pair_time_s))
+                if result.per_pair_time_s
+                else 0.0
+            )
+            row = f"{name:<22} | {avg_ms:>7.1f}"
             for metric in metrics:
                 value = result.metrics.get(metric, float("nan"))
-                std = result.metrics.get(f"{metric}_std", 0)
-                row += f" | {value:.4f}±{std:.4f}"
-            print(row)
+                std = result.metrics.get(f"{metric}_std", 0.0)
+                row += f" | {value:.4f}±{std:.4f}          "
+            print(row.rstrip())
 
     def save_all(self, directory: str):
         """Save all results to a directory.
@@ -559,16 +477,46 @@ class ExperimentSuite:
         Parameters
         ----------
         directory : str
-            Directory to save results.
+            Directory to save results (created if needed).
         """
         os.makedirs(directory, exist_ok=True)
         for name, result in self.results.items():
             path = os.path.join(directory, f"{name}.json")
             result.save(path)
-            logging.info(f"Saved {name} results to {path}")
+            logger.info("Saved %s results to %s", name, path)
+
+    @staticmethod
+    def load_all(directory: str) -> Dict[str, ExperimentResult]:
+        """Load results previously saved with save_all.
+
+        Parameters
+        ----------
+        directory : str
+            Directory containing ``<method_name>.json`` files.
+
+        Returns
+        -------
+        results : dict[str, ExperimentResult]
+
+        Examples
+        --------
+        >>> suite.save_all("results/my_experiment/")
+        >>> results = ExperimentSuite.load_all("results/my_experiment/")
+        """
+        results = {}
+        for path in sorted(Path(directory).glob("*.json")):
+            results[path.stem] = ExperimentResult.load(str(path))
+        return results
 
 
-def compare(methods, dataset, metrics=None, bidirectional=False, progress_bar=True):
+def compare(
+    methods,
+    dataset,
+    metrics=None,
+    progress_bar=True,
+    save_correspondences=False,
+    progress_accuracy_threshold=0.05,
+):
     """Compare multiple matching methods on a dataset.
 
     This is the main entry point for benchmarking. It runs all methods on
@@ -583,16 +531,18 @@ def compare(methods, dataset, metrics=None, bidirectional=False, progress_bar=Tr
     metrics : list[str], optional
         Metrics to compute (e.g. ``["geodesic_error"]``).
         If ``None``, all available metrics are computed.
-    bidirectional : bool
-        Whether to compute correspondences in both directions.
     progress_bar : bool
-        Whether to display a tqdm progress bar.
+        Whether to display tqdm progress bars.
+    save_correspondences : bool
+        Whether to store raw p2p maps in results.
+    progress_accuracy_threshold : float
+        Geodesic-error threshold for reporting running accuracy in tqdm.
 
     Returns
     -------
     suite : ExperimentSuite
-        Populated suite with ``results``, ``print_comparison()`` and
-        ``save_all()`` methods.
+        Populated suite with ``results``, ``print_comparison()``,
+        ``save_all()``, and ``load_all()`` methods.
 
     Examples
     --------
@@ -607,12 +557,16 @@ def compare(methods, dataset, metrics=None, bidirectional=False, progress_bar=Tr
     ... )
     >>> results.print_comparison()
     >>> results.save_all("results/my_experiment/")
+    >>> # Later:
+    >>> saved = ExperimentSuite.load_all("results/my_experiment/")
     """
-    config = ExperimentConfig(
-        bidirectional=bidirectional,
+    suite = ExperimentSuite(
+        methods,
+        dataset,
         metrics=metrics,
         progress_bar=progress_bar,
+        save_correspondences=save_correspondences,
+        progress_accuracy_threshold=progress_accuracy_threshold,
     )
-    suite = ExperimentSuite(methods, dataset, config)
     suite.run()
     return suite

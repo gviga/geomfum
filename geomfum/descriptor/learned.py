@@ -84,6 +84,9 @@ class LearnedDescriptor(Descriptor, abc.ABC, nn.Module):
             Descriptors of the shape, where `n_features` is the number of features extracted by the feature extractor.
         """
         features = self.feature_extractor(shape)
-        features = gs.array(features.squeeze().double()).T
+        # feature_extractor returns a torch Tensor (CPU or CUDA); gs.array()
+        # routes through numpy dtype utilities which fail on CUDA tensors.
+        # squeeze/double/T are native torch ops that work on any device.
+        features = features.squeeze().double().T
 
         return features

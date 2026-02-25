@@ -21,6 +21,9 @@ Quick start — matchers
 >>>
 >>> results = compare({"mine": matcher}, dataset=pairs)
 >>> results.print_comparison()
+>>> results.save_all("results/my_run/")
+>>> # Later, load saved results without re-running:
+>>> saved = ExperimentSuite.load_all("results/my_run/")
 
 Quick start — models (requires torch)
 --------------------------------------
@@ -46,7 +49,6 @@ from benchfum._build import (
 )
 from benchfum.experiment import (
     Experiment,
-    ExperimentConfig,
     ExperimentResult,
     ExperimentSuite,
     compare,
@@ -58,7 +60,6 @@ __all__ = [
     "compare",
     # Core experiment classes
     "Experiment",
-    "ExperimentConfig",
     "ExperimentResult",
     "ExperimentSuite",
     # JSON factory — matchers
