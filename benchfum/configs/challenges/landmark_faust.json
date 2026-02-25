@@ -2,6 +2,7 @@
   "_name": "Landmark-Based FAUST Benchmark",
   "_description": "Benchmark suite for matcher methods on FAUST using landmark-aware data. Add new methods by adding matcher configs and appending them to the methods list.",
   "dataset": {
+    "root": "../../data/dummy_faust/test_set",
     "k": 200,
     "landmark_indices": [
       2959,

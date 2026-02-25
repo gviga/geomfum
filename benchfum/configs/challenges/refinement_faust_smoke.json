@@ -1,0 +1,22 @@
+{
+  "_name": "Refinement FAUST Smoke Benchmark",
+  "_description": "Fast smoke benchmark on dummy FAUST for refinement pipeline checks.",
+  "dataset": {
+    "root": "../../data/dummy_faust/test_set",
+    "k": 64
+  },
+  "base_matcher_config": "../matchers/quick.json",
+  "methods": [
+    {
+      "name": "No Refinement",
+      "refiner_config": "../refiners/identity.json"
+    },
+    {
+      "name": "ICP",
+      "refiner_config": "../refiners/icp.json"
+    }
+  ],
+  "metrics": ["geodesic_error"],
+  "bidirectional": false,
+  "n_pairs": 1
+}

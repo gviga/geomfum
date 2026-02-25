@@ -1,21 +1,23 @@
 {
   "_name": "Deep Functional Maps FAUST Benchmark",
   "_description": "Benchmark suite for deep functional-map methods on FAUST. Methods are defined by model and trainer JSON configs; users can add methods by appending entries in the methods list.",
+  "train": true,
   "dataset": {
+    "root": "../../data/dummy_faust/train_set",
+    "train_root": "../../data/dummy_faust/train_set",
+    "val_root": "../../data/dummy_faust/test_set",
     "k": 200
   },
   "methods": [
     {
       "name": "FMNet",
       "model_config": "../models/fmnet_standard.json",
-      "trainer_config": "../training/unsupervised_standard.json",
-      "checkpoint": "../checkpoints/fmnet_standard.pth"
+      "trainer_config": "../training/unsupervised_standard.json"
     },
     {
       "name": "RobustFMNet",
       "model_config": "../models/robust_fmnet_standard.json",
-      "trainer_config": "../training/unsupervised_standard.json",
-      "checkpoint": "../checkpoints/robust_fmnet_standard.pth"
+      "trainer_config": "../training/unsupervised_standard.json"
     }
   ],
   "metrics": ["geodesic_error"],

@@ -75,6 +75,24 @@ Usage — trainers
 import json
 
 
+def _sync_module_device_attributes(module, device):
+    """Best-effort sync for custom `.device` attrs after `module.to(device)`.
+
+    Some geomfum wrappers store device in custom attributes and rely on that
+    field in `forward()`. `nn.Module.to(...)` moves parameters/buffers but does
+    not update arbitrary attributes.
+    """
+    import torch
+
+    resolved_device = torch.device(device)
+    for submodule in module.modules():
+        if hasattr(submodule, "device"):
+            try:
+                submodule.device = resolved_device
+            except Exception:
+                pass
+
+
 def _build_component_registry():
     """Build the mapping from type-name strings to geomfum classes.
 
@@ -381,6 +399,7 @@ def build_model(config, device=None):
     model = _build_component(config, registry)
     if device is not None:
         model = model.to(device)
+        _sync_module_device_attributes(model, device)
     return model
 
 
@@ -437,15 +456,15 @@ def build_trainer(config, model, train_set, val_set):
 
     registry = _build_component_registry()
 
-    optimizer = _build_optimizer(config["optimizer"], model) if "optimizer" in config else None
+    optimizer = (
+        _build_optimizer(config["optimizer"], model) if "optimizer" in config else None
+    )
     scheduler = _build_scheduler(config.get("scheduler"), optimizer)
 
     kwargs = {
         k: _build_value(v, registry)
         for k, v in config.items()
-        if k != "type"
-        and not k.startswith("_")
-        and k not in ("optimizer", "scheduler")
+        if k != "type" and not k.startswith("_") and k not in ("optimizer", "scheduler")
     }
     return DeepFunctionalMapTrainer(
         model=model,

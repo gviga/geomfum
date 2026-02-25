@@ -9,6 +9,7 @@ rather than training, making it easy to benchmark different methods.
 
 import json
 import logging
+import numbers
 import os
 from dataclasses import asdict, dataclass
 from typing import Dict, List
@@ -146,6 +147,8 @@ class ExperimentConfig:
         Whether to save the correspondence results.
     progress_bar : bool
         Whether to show progress bar.
+    progress_accuracy_threshold : float
+        Threshold on geodesic error for reporting running accuracy in tqdm.
     """
 
     name: str = "experiment"
@@ -153,6 +156,7 @@ class ExperimentConfig:
     metrics: List[str] = None
     save_correspondences: bool = False
     progress_bar: bool = True
+    progress_accuracy_threshold: float = 0.05
 
 
 class Experiment:
@@ -257,6 +261,7 @@ class Experiment:
             corr_a=corr_a,
             corr_b=corr_b,
             dist_a=dist_a,
+            metrics=self.config.metrics,
         )
 
         # If bidirectional, also evaluate reverse direction
@@ -302,6 +307,10 @@ class Experiment:
         if self.config.progress_bar:
             iterator = tqdm(iterator, desc=f"Running {self.config.name}", unit="pair")
 
+        running_sums = {}
+        running_counts = {}
+        geodesic_hits = 0
+
         for idx, pair in enumerate(iterator):
             shape_a = pair["source"]["shape"]
             shape_b = pair["target"]["shape"]
@@ -324,6 +333,15 @@ class Experiment:
             per_pair_metrics.append(metrics)
             pair_indices.append(self.dataset.pairs[idx])
 
+            for key, value in metrics.items():
+                if isinstance(value, numbers.Number):
+                    running_sums[key] = running_sums.get(key, 0.0) + float(value)
+                    running_counts[key] = running_counts.get(key, 0) + 1
+
+            if "geodesic_error" in metrics:
+                if metrics["geodesic_error"] <= self.config.progress_accuracy_threshold:
+                    geodesic_hits += 1
+
             if self.config.save_correspondences:
                 correspondences.append(
                     {
@@ -338,12 +356,32 @@ class Experiment:
 
             # Update progress bar
             if self.config.progress_bar:
-                # Show running average of geodesic error if available
+                postfix = {}
                 if "geodesic_error" in metrics:
-                    avg_error = np.mean(
-                        [m.get("geodesic_error", 0) for m in per_pair_metrics]
+                    geo_avg = (
+                        running_sums["geodesic_error"]
+                        / running_counts["geodesic_error"]
                     )
-                    iterator.set_postfix({"geo_err": f"{avg_error:.4f}"})
+                    postfix["geo(cur/avg)"] = (
+                        f"{metrics['geodesic_error']:.4f}/{geo_avg:.4f}"
+                    )
+                    postfix[f"acc@{self.config.progress_accuracy_threshold:g}"] = (
+                        f"{100.0 * geodesic_hits / (idx + 1):.1f}%"
+                    )
+
+                if "euclidean_error" in metrics:
+                    euc_avg = (
+                        running_sums["euclidean_error"]
+                        / running_counts["euclidean_error"]
+                    )
+                    postfix["euc(avg)"] = f"{euc_avg:.4f}"
+
+                if "coverage" in metrics:
+                    cov_avg = running_sums["coverage"] / running_counts["coverage"]
+                    postfix["cov(avg)"] = f"{cov_avg:.3f}"
+
+                if postfix:
+                    iterator.set_postfix(postfix)
 
         # Aggregate metrics
         aggregated = self._aggregate_metrics(per_pair_metrics)
@@ -446,7 +484,15 @@ class ExperimentSuite:
         results : dict[str, ExperimentResult]
             Dictionary mapping method names to results.
         """
-        for name, method in self.methods.items():
+        methods_items = list(self.methods.items())
+        methods_iterator = methods_items
+        if self.base_config.progress_bar:
+            methods_iterator = tqdm(methods_items, desc="Methods", unit="method")
+
+        best_geo = float("inf")
+        best_method = None
+
+        for name, method in methods_iterator:
             logging.info(f"Running experiment: {name}")
             config = ExperimentConfig(
                 name=name,
@@ -454,9 +500,25 @@ class ExperimentSuite:
                 metrics=self.base_config.metrics,
                 save_correspondences=self.base_config.save_correspondences,
                 progress_bar=self.base_config.progress_bar,
+                progress_accuracy_threshold=self.base_config.progress_accuracy_threshold,
             )
             experiment = Experiment(method, self.dataset, config)
-            self.results[name] = experiment.run()
+            result = experiment.run()
+            self.results[name] = result
+
+            if self.base_config.progress_bar:
+                geo = result.metrics.get("geodesic_error")
+                if geo is not None and geo < best_geo:
+                    best_geo = geo
+                    best_method = name
+
+                postfix = {}
+                if geo is not None:
+                    postfix["last_geo"] = f"{geo:.4f}"
+                if best_method is not None:
+                    postfix["best"] = f"{best_method}:{best_geo:.4f}"
+                if postfix:
+                    methods_iterator.set_postfix(postfix)
 
         return self.results
 

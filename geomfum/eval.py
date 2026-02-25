@@ -246,7 +246,13 @@ def coverage_count(shape_a, shape_b, p2p21):
 
 
 def evaluate_correspondence(
-    shape_a, shape_b, p2p21, corr_a=None, corr_b=None, dist_a=None
+    shape_a,
+    shape_b,
+    p2p21,
+    corr_a=None,
+    corr_b=None,
+    dist_a=None,
+    metrics=None,
 ):
     """Compute all evaluation metrics for a correspondence.
 
@@ -268,6 +274,8 @@ def evaluate_correspondence(
     dist_a : array-like, shape=[n_vertices_a, n_vertices_a], optional
         Geodesic distance matrix on shape A. If None and geodesic_error
         is requested, it will be computed from shape_a.
+    metrics : list[str], optional
+        Subset of metrics to compute. If None, computes all available metrics.
 
     Returns
     -------
@@ -279,23 +287,37 @@ def evaluate_correspondence(
         - 'coverage': Area-weighted coverage
         - 'coverage_count': Count-based coverage
     """
-    metrics = {}
+    requested_metrics = set(metrics) if metrics is not None else None
+    output_metrics = {}
 
     # Geodesic error requires distance matrix
-    if dist_a is not None:
-        metrics["geodesic_error"] = float(
+    if (
+        requested_metrics is None or "geodesic_error" in requested_metrics
+    ) and dist_a is not None:
+        output_metrics["geodesic_error"] = float(
             normalized_geodesic_error(dist_a, p2p21, corr_a, corr_b)
         )
 
     # Euclidean error requires ground truth correspondences
-    if corr_a is not None and corr_b is not None:
-        metrics["euclidean_error"] = float(
+    if (
+        (requested_metrics is None or "euclidean_error" in requested_metrics)
+        and corr_a is not None
+        and corr_b is not None
+    ):
+        output_metrics["euclidean_error"] = float(
             normalized_euclidean_error(shape_a, p2p21, corr_a, corr_b)
         )
 
     # Metrics that don't require ground truth
-    metrics["dirichlet_energy"] = float(dirichlet_energy(shape_a, shape_b, p2p21))
-    metrics["coverage"] = float(coverage(shape_a, shape_b, p2p21))
-    metrics["coverage_count"] = float(coverage_count(shape_a, shape_b, p2p21))
+    if requested_metrics is None or "dirichlet_energy" in requested_metrics:
+        output_metrics["dirichlet_energy"] = float(
+            dirichlet_energy(shape_a, shape_b, p2p21)
+        )
+    if requested_metrics is None or "coverage" in requested_metrics:
+        output_metrics["coverage"] = float(coverage(shape_a, shape_b, p2p21))
+    if requested_metrics is None or "coverage_count" in requested_metrics:
+        output_metrics["coverage_count"] = float(
+            coverage_count(shape_a, shape_b, p2p21)
+        )
 
-    return metrics
+    return output_metrics

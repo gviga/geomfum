@@ -1,4 +1,4 @@
-"""Deep functional-map benchmark.
+r"""Deep functional-map benchmark.
 
 This runner compares deep learning methods declared in a benchmark config.
 Each method can be evaluated from a checkpoint and optionally trained first
@@ -25,6 +25,13 @@ from pathlib import Path
 
 import torch
 
+os.environ.setdefault("GEOMSTATS_BACKEND", "pytorch")
+
+if __package__ is None or __package__ == "":
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
 from benchfum import build_model_from_json, build_trainer_from_json, compare
 from geomfum.dataset.torch import PairsDataset, ShapeDataset
 from geomfum.learning.wrappers import TrainedModelWrapper
@@ -36,7 +43,7 @@ _DEFAULT_BENCHMARK_CONFIG_PATH = (
     Path(__file__).parent.parent.parent
     / "configs"
     / "challenges"
-    / "deep_fmap_faust_benchmark.json"
+    / "deep_fmap_faust.json"
 )
 
 
@@ -47,7 +54,7 @@ def load_benchmark_config(path=None):
     ----------
     path : str or Path, optional
         Override path to a benchmark config JSON. Defaults to
-        ``benchfum/configs/challenges/deep_fmap_faust_benchmark.json``.
+        ``benchfum/configs/challenges/deep_fmap_faust.json``.
 
     Returns
     -------
@@ -68,7 +75,12 @@ def load_challenge_config(path=None):
 # ============================================================================
 
 
-def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None):
+def build_dataset(
+    dataset_dir: str,
+    config: dict,
+    n_pairs: int = None,
+    device: str | None = None,
+):
     """Build a PairsDataset from a benchmark config and a dataset path.
 
     Parameters
@@ -97,6 +109,7 @@ def build_dataset(dataset_dir: str, config: dict, n_pairs: int = None):
         k=k,
         distances=True,
         correspondences=True,
+        device=device,
     )
 
     if n_pairs is not None:
@@ -121,6 +134,25 @@ def _resolve_path(config_path: Path, relative_or_abs: str | None):
     if candidate.is_absolute():
         return candidate
     return (config_path.parent / candidate).resolve()
+
+
+def _resolve_dataset_dir(
+    dataset_dir: str | None,
+    config: dict,
+    config_path: Path,
+    config_key: str = "root",
+    default: str | None = "datasets/faust/train_set",
+) -> str | None:
+    """Resolve dataset dir from CLI, then config dataset key, then default."""
+    if dataset_dir is not None:
+        return dataset_dir
+
+    ds_cfg = config.get("dataset", {})
+    configured_dataset_dir = ds_cfg.get(config_key)
+    if configured_dataset_dir is not None:
+        return str(_resolve_path(config_path, configured_dataset_dir))
+
+    return default
 
 
 def _load_methods_config(config: dict):
@@ -157,6 +189,7 @@ def _maybe_train_method(
 
     checkpoint_path = _resolve_path(config_path, method_cfg.get("checkpoint"))
     if checkpoint_path is not None:
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         trainer.checkpoint_path = str(checkpoint_path)
 
     print(f"  [train] {method_name}: trainer={trainer_config_path}")
@@ -169,12 +202,12 @@ def _maybe_train_method(
 
 
 def run_benchmark(
-    dataset_dir: str,
+    dataset_dir: str | None = None,
     config_path: str = None,
     n_pairs: int = None,
     save_dir: str = None,
     device: str = None,
-    train: bool = False,
+    train: bool | None = None,
     train_dataset_dir: str = None,
     val_dataset_dir: str = None,
 ):
@@ -213,6 +246,9 @@ def run_benchmark(
     )
     config = load_benchmark_config(resolved_config_path)
     methods_cfg = _load_methods_config(config)
+    dataset_dir = _resolve_dataset_dir(dataset_dir, config, resolved_config_path)
+    if train is None:
+        train = bool(config.get("train", False))
 
     print(f"Benchmark : {config.get('_name', 'Deep Functional Maps')}")
     print(f"Dataset   : {dataset_dir}")
@@ -225,12 +261,27 @@ def run_benchmark(
     train_pairs = None
     val_pairs = None
     if train:
+        train_dataset_dir = _resolve_dataset_dir(
+            train_dataset_dir,
+            config,
+            resolved_config_path,
+            config_key="train_root",
+            default=None,
+        )
+        val_dataset_dir = _resolve_dataset_dir(
+            val_dataset_dir,
+            config,
+            resolved_config_path,
+            config_key="val_root",
+            default=None,
+        )
         if train_dataset_dir is None or val_dataset_dir is None:
             raise ValueError(
-                "When --train is enabled, both --train_dataset and --val_dataset are required."
+                "When --train is enabled, provide --train_dataset and --val_dataset "
+                "or set dataset.train_root and dataset.val_root in config."
             )
-        train_pairs = build_dataset(train_dataset_dir, config)
-        val_pairs = build_dataset(val_dataset_dir, config)
+        train_pairs = build_dataset(train_dataset_dir, config, device=device)
+        val_pairs = build_dataset(val_dataset_dir, config, device=device)
 
     methods = {}
     print("Building methods...")
@@ -267,11 +318,13 @@ def run_benchmark(
                     device=device,
                     checkpoint_path=str(checkpoint_path),
                 )
+                continue
             else:
                 print(
                     f"  [skip] {method_name}: checkpoint not found at '{checkpoint_path}'"
                 )
-            continue
+                if not train:
+                    continue
 
         methods[method_name] = model
 
@@ -284,7 +337,7 @@ def run_benchmark(
     print(f"Methods   : {list(methods)}")
     print()
 
-    pairs = build_dataset(dataset_dir, config, n_pairs)
+    pairs = build_dataset(dataset_dir, config, n_pairs, device=device)
 
     metrics = config.get("metrics", ["geodesic_error"])
     bidirectional = config.get("bidirectional", False)
@@ -315,28 +368,37 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Deep functional-map benchmark")
     parser.add_argument(
         "--dataset",
-        default="datasets/faust/train_set",
-        help="Path to dataset root directory (must contain shapes/).",
+        default=None,
+        help="Path to dataset root directory (must contain shapes/). Overrides dataset.root in config.",
     )
     parser.add_argument(
         "--config",
         default=None,
         help="Override path to benchmark config JSON.",
     )
-    parser.add_argument(
+    train_group = parser.add_mutually_exclusive_group()
+    train_group.add_argument(
         "--train",
+        dest="train",
         action="store_true",
         help="Train methods (with trainer_config) before evaluation.",
     )
+    train_group.add_argument(
+        "--no-train",
+        dest="train",
+        action="store_false",
+        help="Disable training and evaluate from checkpoints only.",
+    )
+    parser.set_defaults(train=None)
     parser.add_argument(
         "--train_dataset",
         default=None,
-        help="Training dataset root (required when --train is used).",
+        help="Training dataset root. Overrides dataset.train_root in config.",
     )
     parser.add_argument(
         "--val_dataset",
         default=None,
-        help="Validation dataset root (required when --train is used).",
+        help="Validation dataset root. Overrides dataset.val_root in config.",
     )
     parser.add_argument(
         "--n_pairs",

@@ -63,6 +63,40 @@ Each challenge is defined by a config file in `configs/challenges/` and a runner
 
 ---
 
+## Smoke Tests (Dummy FAUST)
+
+Use these configs to quickly verify that runners, config loading, trainers, and evaluation loops are wired correctly.
+
+### Included smoke configs
+
+- `configs/challenges/landmark_faust_smoke.json`
+- `configs/challenges/refinement_faust_smoke.json`
+- `configs/challenges/deep_fmap_faust_smoke.json`
+- `configs/training/unsupervised_smoke_1epoch.json`
+
+These are intentionally lightweight:
+
+- dummy dataset roots (`benchfum/data/dummy_faust/...`)
+- small pair counts
+- fewer compared methods
+- deep training capped to 1 epoch
+
+### Run from `benchfum/`
+
+```bash
+python .\challenges\landmark_based\run.py --config .\configs\challenges\landmark_faust_smoke.json
+python .\challenges\refinement\run.py --config .\configs\challenges\refinement_faust_smoke.json
+python .\challenges\deep_fmap\run.py --config .\configs\challenges\deep_fmap_faust_smoke.json
+```
+
+### Notes
+
+- Challenge runners are now config-driven for dataset roots (`dataset.root`, and for deep training also `dataset.train_root`/`dataset.val_root`).
+- In deep challenge configs, `"train": true|false` controls whether trainers run by default.
+- CLI has priority over config (`--dataset`, `--train_dataset`, `--val_dataset`, `--train`, `--no-train`).
+
+---
+
 ## Classical Methods — Landmark-Based Challenge
 
 ### Quick Start
@@ -70,9 +104,8 @@ Each challenge is defined by a config file in `configs/challenges/` and a runner
 ```bash
 pip install -e .
 
-# Run all classical baselines
-python -m benchfum.challenges.landmark_based.run \
-    --dataset /path/to/faust/train_set
+# Run all classical baselines (dataset from config)
+python -m benchfum.challenges.landmark_based.run
 
 # Limit to 20 random pairs for a quick check
 python -m benchfum.challenges.landmark_based.run \
@@ -188,7 +221,7 @@ python -m benchfum.challenges.landmark_based.run \
 ```
 1. Train baselines (FMNet, RobustFMNet) on your training split
 2. Train your model on the same split
-3. Run the benchmark (evaluation only — loads pretrained checkpoints)
+3. Run the benchmark (can train from config and evaluate in one call)
 ```
 
 ### Step 1 — Train Baselines
@@ -263,10 +296,14 @@ trainer.train()
 
 ```bash
 python -m benchfum.challenges.deep_fmap.run \
-    --dataset           /path/to/faust            \
-    --fmnet_ckpt        checkpoints/FMNet.pth      \
-    --robust_fmnet_ckpt checkpoints/RobustFMNet.pth \
-    --my_model_ckpt     checkpoints/my_model.pth
+    --config benchfum/configs/challenges/deep_fmap_faust.json
+
+# force train/eval behavior from CLI if needed
+python -m benchfum.challenges.deep_fmap.run \
+    --config benchfum/configs/challenges/deep_fmap_faust.json --no-train
+
+python -m benchfum.challenges.deep_fmap.run \
+    --config benchfum/configs/challenges/deep_fmap_faust.json --train
 ```
 
 Or in Python using `TrainedModelWrapper`:
@@ -449,12 +486,21 @@ A challenge config is a JSON file that fully specifies a benchmark run.
 {
   "_name": "Deep Functional Maps FAUST",
   "_description": "...",
-  "dataset": {"k": 200},
-  // Baselines: name → ModelPresets key (checkpoint paths given at runtime)
-  "baselines": {
-    "FMNet":       "fmnet_diffusion_standard",
-    "RobustFMNet": "robust_fmnet_standard"
-  },
+    "train": true,
+    "dataset": {
+        "root": "../../data/dummy_faust/test_set",
+        "train_root": "../../data/dummy_faust/train_set",
+        "val_root": "../../data/dummy_faust/test_set",
+        "k": 200
+    },
+    "methods": [
+        {
+            "name": "FMNet",
+            "model_config": "../models/fmnet_standard.json",
+            "trainer_config": "../training/unsupervised_standard.json",
+            "checkpoint": "../checkpoints/fmnet_standard.pth"
+        }
+    ],
   "metrics": ["geodesic_error"],
   "bidirectional": false
 }

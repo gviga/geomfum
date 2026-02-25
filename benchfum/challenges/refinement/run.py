@@ -17,6 +17,11 @@ import json
 import os
 from pathlib import Path
 
+if __package__ is None or __package__ == "":
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
 from benchfum import (
     build_matcher_from_json,
     build_refiner_from_json,
@@ -32,7 +37,7 @@ _DEFAULT_BENCHMARK_CONFIG_PATH = (
     Path(__file__).parent.parent.parent
     / "configs"
     / "challenges"
-    / "refinement_faust_benchmark.json"
+    / "refinement_faust.json"
 )
 
 
@@ -43,7 +48,7 @@ def load_benchmark_config(path=None):
     ----------
     path : str or Path, optional
         Override path to a benchmark config JSON. Defaults to
-        ``benchfum/configs/challenges/refinement_faust_benchmark.json``.
+        ``benchfum/configs/challenges/refinement_faust.json``.
 
     Returns
     -------
@@ -117,6 +122,23 @@ def _resolve_path(config_path: Path, relative_or_abs: str) -> Path:
     return (config_path.parent / candidate).resolve()
 
 
+def _resolve_dataset_dir(
+    dataset_dir: str | None,
+    config: dict,
+    config_path: Path,
+) -> str:
+    """Resolve evaluation dataset dir from CLI or config."""
+    if dataset_dir is not None:
+        return dataset_dir
+
+    ds_cfg = config.get("dataset", {})
+    configured_dataset_dir = ds_cfg.get("root")
+    if configured_dataset_dir is not None:
+        return str(_resolve_path(config_path, configured_dataset_dir))
+
+    return "datasets/faust/train_set"
+
+
 def _load_methods_cfg(config: dict):
     """Return methods config, with legacy fallback.
 
@@ -187,7 +209,7 @@ def build_methods(config: dict, config_path: Path, base_matcher) -> dict:
 
 
 def run_benchmark(
-    dataset_dir: str,
+    dataset_dir: str | None = None,
     config_path: str = None,
     n_pairs: int = None,
     save_dir: str = None,
@@ -216,6 +238,7 @@ def run_benchmark(
     )
     config = load_benchmark_config(resolved_config_path)
 
+    dataset_dir = _resolve_dataset_dir(dataset_dir, config, resolved_config_path)
     base_matcher_cfg = config.get("base_matcher_config")
     if base_matcher_cfg is None:
         legacy_base_method = config.get("base_method")
@@ -272,8 +295,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Refinement method benchmark")
     parser.add_argument(
         "--dataset",
-        default="datasets/faust/train_set",
-        help="Path to dataset root directory (must contain shapes/).",
+        default=None,
+        help="Path to dataset root directory (must contain shapes/). Overrides dataset.root in config.",
     )
     parser.add_argument(
         "--config",
