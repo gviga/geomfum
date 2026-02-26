@@ -1,0 +1,37 @@
+{
+  "_name": "EchoMatch Training (Xie et al., CVPR 2025)",
+  "_description": "Training config for EchoMatch on partial shape datasets. Combines fmap losses (orthonormality, bijectivity) with overlap BCE and contrastive NCE losses.",
+  "optimizer": {
+    "type": "Adam",
+    "lr": 1e-3,
+    "betas": [0.9, 0.99]
+  },
+  "scheduler": {
+    "type": "StepLR",
+    "step_size": 100,
+    "gamma": 0.5
+  },
+  "scheduler_step_on": "epoch",
+  "epochs": 300,
+  "grad_clip_norm": 1.0,
+  "monitor_metric": "PartialGeodesicError",
+  "mode": "min",
+  "train_loss_manager": {
+    "type": "LossManager",
+    "losses": [
+      {"type": "OrthonormalityLoss",  "weight": 1.0},
+      {"type": "BijectivityLoss",     "weight": 1.0},
+      {"type": "WeightedBCELoss",     "weight": 1.0},
+      {"type": "CrossNCELoss",        "weight": 0.1, "temperature": 0.07},
+      {"type": "SelfNCELoss",         "weight": 0.1, "temperature": 0.07}
+    ]
+  },
+  "val_loss_manager": {
+    "type": "LossManager",
+    "losses": [
+      {"type": "PartialGeodesicError"},
+      {"type": "OverlapIoU"},
+      {"type": "PCKMetric"}
+    ]
+  }
+}

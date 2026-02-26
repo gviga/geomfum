@@ -13,7 +13,7 @@ logging.basicConfig(
 
 
 # helper function
-def get_dataset_attr(dataset, attr):
+def get_dataset_attr(dataset, attr, default=None):
     """
     Recursively get the attribute from Subset or the base dataset.
 
@@ -23,10 +23,12 @@ def get_dataset_attr(dataset, attr):
         The dataset from which we want to get the attribute
     attr: Str
         The attribute string
+    default:
+        Value to return when the attribute is not found (default None).
     """
     while isinstance(dataset, torch.utils.data.Subset):
         dataset = dataset.dataset
-    return getattr(dataset, attr)
+    return getattr(dataset, attr, default)
 
 
 class DeepFunctionalMapTrainer:
@@ -131,20 +133,30 @@ class DeepFunctionalMapTrainer:
                         "shape_b": shape_b,
                     }
                 )
-                if getattr(get_dataset_attr(self.train_set, "shape_data"), "correspondences", False):
+                if getattr(get_dataset_attr(self.train_set, "shape_data", None), "correspondences", False):
                     outputs.update(
                         {
                             "corr_a": pair["source"]["corr"],
                             "corr_b": pair["target"]["corr"],
                         }
                     )
-                if getattr(get_dataset_attr(self.train_set, "shape_data"), "distances", False):
+                # Forward correspondences from pair dict when present (partial datasets)
+                if "corr_a" not in outputs and pair["source"].get("corr") is not None:
+                    outputs["corr_a"] = pair["source"]["corr"]
+                if "corr_b" not in outputs and pair["target"].get("corr") is not None:
+                    outputs["corr_b"] = pair["target"]["corr"]
+                if getattr(get_dataset_attr(self.train_set, "shape_data", None), "distances", False):
                     outputs.update(
                         {
                             "dist_a": pair["source"]["dist_matrix"],
                             "dist_b": pair["target"]["dist_matrix"],
                         }
                     )
+                # Forward partiality masks when present (partial shape datasets)
+                if pair["source"].get("mask") is not None:
+                    outputs["mask_a"] = pair["source"]["mask"]
+                if pair["target"].get("mask") is not None:
+                    outputs["mask_b"] = pair["target"]["mask"]
 
                 loss, loss_dict = self.train_loss_manager.compute_loss(outputs)
 
@@ -184,20 +196,30 @@ class DeepFunctionalMapTrainer:
                             "shape_b": shape_b,
                         }
                     )
-                    if getattr(get_dataset_attr(self.val_set, "shape_data"), "correspondences", False):
+                    if getattr(get_dataset_attr(self.val_set, "shape_data", None), "correspondences", False):
                         outputs.update(
                             {
                                 "corr_a": pair["source"]["corr"],
                                 "corr_b": pair["target"]["corr"],
                             }
                         )
-                    if getattr(get_dataset_attr(self.val_set, "shape_data"), "distances", False):
+                    # Forward correspondences from pair dict when present (partial datasets)
+                    if "corr_a" not in outputs and pair["source"].get("corr") is not None:
+                        outputs["corr_a"] = pair["source"]["corr"]
+                    if "corr_b" not in outputs and pair["target"].get("corr") is not None:
+                        outputs["corr_b"] = pair["target"]["corr"]
+                    if getattr(get_dataset_attr(self.val_set, "shape_data", None), "distances", False):
                         outputs.update(
                             {
                                 "dist_a": pair["source"]["dist_matrix"],
                                 "dist_b": pair["target"]["dist_matrix"],
                             }
                         )
+                    # Forward partiality masks when present (partial shape datasets)
+                    if pair["source"].get("mask") is not None:
+                        outputs["mask_a"] = pair["source"]["mask"]
+                    if pair["target"].get("mask") is not None:
+                        outputs["mask_b"] = pair["target"]["mask"]
                     loss, loss_dict = self.val_loss_manager.compute_loss(outputs)
                     val_loss += loss.item()
                     for k, v in loss_dict.items():

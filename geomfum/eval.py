@@ -218,6 +218,108 @@ def coverage(shape_a, shape_b, p2p21):
     return covered_area / total_area
 
 
+def partial_geodesic_error(dist_a, p2p21, corr_a, corr_b, mask_a):
+    """Geodesic error filtered to the ground-truth overlap region.
+
+    Only correspondences where ``mask_a[corr_a] == 1`` are evaluated,
+    following the filtered protocol of EchoMatch / SHREC16.
+
+    Parameters
+    ----------
+    dist_a : array-like, shape=[n_vertices_a, n_vertices_a]
+        Geodesic distance matrix on shape A (normalised or raw).
+    p2p21 : array-like, shape=[n_vertices_b]
+        Predicted p2p map: for each vertex in B, its match in A.
+    corr_a : array-like, shape=[n_corr]
+        GT correspondence indices into shape A.
+    corr_b : array-like, shape=[n_corr]
+        GT correspondence indices into shape B.
+    mask_a : array-like, shape=[n_vertices_a]
+        Binary mask: 1 if vertex in A is in the overlap region.
+
+    Returns
+    -------
+    error : float
+        Mean geodesic error over valid (overlap-masked) correspondence pairs.
+    """
+    mask_a = np.asarray(mask_a)
+    corr_a = np.asarray(corr_a)
+    corr_b = np.asarray(corr_b)
+    p2p21 = np.asarray(p2p21)
+
+    valid = mask_a[corr_a] > 0.5
+    if valid.sum() == 0:
+        return 0.0
+    return float(np.mean(dist_a[corr_a[valid], p2p21[corr_b[valid]]]))
+
+
+def overlap_iou(overlap_ab, mask_a, threshold=0.5):
+    """Intersection-over-Union between predicted and GT overlap masks.
+
+    Parameters
+    ----------
+    overlap_ab : array-like, shape=[n_vertices_a]
+        Predicted overlap scores in [0, 1].
+    mask_a : array-like, shape=[n_vertices_a]
+        Ground-truth binary overlap mask.
+    threshold : float
+        Binarisation threshold for predicted scores.  Default 0.5.
+
+    Returns
+    -------
+    iou : float
+        IoU score in [0, 1].
+    """
+    pred = np.asarray(overlap_ab) >= threshold
+    gt = np.asarray(mask_a) >= 0.5
+    intersection = (pred & gt).sum()
+    union = (pred | gt).sum()
+    return 1.0 if union == 0 else float(intersection / union)
+
+
+def pck_auc(dist_a, p2p21, corr_a, corr_b, mask_a, t_max=0.20, n_steps=100):
+    """Area under the PCK (Percentage of Correct Keypoints) curve.
+
+    Parameters
+    ----------
+    dist_a : array-like, shape=[n_vertices_a, n_vertices_a]
+        Geodesic distance matrix on shape A.
+    p2p21 : array-like, shape=[n_vertices_b]
+        Predicted p2p map.
+    corr_a : array-like, shape=[n_corr]
+        GT correspondence indices into A.
+    corr_b : array-like, shape=[n_corr]
+        GT correspondence indices into B.
+    mask_a : array-like, shape=[n_vertices_a]
+        Binary overlap mask.
+    t_max : float
+        Maximum normalised geodesic threshold.  Default 0.20.
+    n_steps : int
+        Number of threshold steps.  Default 100.
+
+    Returns
+    -------
+    auc : float
+        AUC of the PCK curve in [0, 1].
+    """
+    mask_a = np.asarray(mask_a)
+    corr_a = np.asarray(corr_a)
+    corr_b = np.asarray(corr_b)
+    p2p21 = np.asarray(p2p21)
+
+    valid = mask_a[corr_a] > 0.5
+    if valid.sum() == 0:
+        return 0.0
+
+    geo_err = dist_a[corr_a[valid], p2p21[corr_b[valid]]]
+    diam = dist_a.max()
+    geo_err_norm = geo_err / diam if diam > 0 else geo_err
+
+    thresholds = np.linspace(0.0, t_max, n_steps)
+    pck_values = np.array([(geo_err_norm <= t).mean() for t in thresholds])
+    return float(np.trapezoid(pck_values, thresholds) / t_max)
+
+
 def coverage_count(shape_a, shape_b, p2p21):
     """Compute count-based coverage of a correspondence.
 

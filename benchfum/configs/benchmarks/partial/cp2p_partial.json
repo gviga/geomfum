@@ -1,0 +1,24 @@
+{
+  "_name": "CP2P24 Partial-to-Partial Shape Benchmark",
+  "_description": "Partial-to-partial shape matching on CP2P24 dataset (cat, centaur, david, dog, horse, michael, victoria, wolf). Uses .map files with embedded correspondences and partiality masks.",
+
+  "dataset": {
+    "root": "../../../datasets/cp2p/test",
+    "train_root": "../../../datasets/cp2p/train",
+    "val_root": "../../../datasets/cp2p/test",
+    "format": "cp2p",
+    "spectral": true,
+    "k": 128
+  },
+
+  "methods": [
+    {
+      "name": "EchoMatch",
+      "model_config": "../../models/echo_match.json",
+      "trainer_config": "../../training/echo_match.json",
+      "checkpoint": "../../checkpoints/echo_match_cp2p.pth"
+    }
+  ],
+
+  "metrics": ["PartialGeodesicError", "OverlapIoU", "PCKMetric"]
+}

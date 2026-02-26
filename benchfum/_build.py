@@ -187,10 +187,16 @@ def _build_component_registry():
     # Learning classes — only when torch is available
     try:
         from geomfum.dataset.augmentation import RandomAugmentation
+        from geomfum.dataset.partial import (
+            CP2PPairsDataset,
+            PartialSmalPairsDataset,
+            Shrec16PairsDataset,
+        )
         from geomfum.descriptor.learned import FeatureExtractor
         from geomfum.forward_functional_map import ForwardFunctionalMap
         from geomfum.learning.losses import (
             BijectivityLoss,
+            CrossNCELoss,
             DescriptorCommutativityLoss,
             DirichletLoss,
             FmapDescriptorsSupervisionLoss,
@@ -199,9 +205,18 @@ def _build_component_registry():
             LaplacianCommutativityLoss,
             LossManager,
             OrthonormalityLoss,
+            SelfNCELoss,
+            WeightedBCELoss,
         )
-        from geomfum.learning.models import FMNet, RobustFMNet
+        from geomfum.learning.models import (
+            EchoMatchNet,
+            EchoScorer,
+            FMNet,
+            OverlapRefiner,
+            RobustFMNet,
+        )
         from geomfum.learning.wrappers import TestTimeRefiner
+        from geomfum.learning.losses import OverlapIoU, PCKMetric, PartialGeodesicError
 
         def _feature_extractor_builder(**kwargs):
             return FeatureExtractor.from_registry(**kwargs)
@@ -211,8 +226,14 @@ def _build_component_registry():
                 # FeatureExtractor uses from_registry(which=...) not __init__
                 "FeatureExtractor": _feature_extractor_builder,
                 "ForwardFunctionalMap": ForwardFunctionalMap,
+                # --- Full-shape models ---
                 "FMNet": FMNet,
                 "RobustFMNet": RobustFMNet,
+                # --- EchoMatch partial-shape model ---
+                "EchoMatchNet": EchoMatchNet,
+                "EchoScorer": EchoScorer,
+                "OverlapRefiner": OverlapRefiner,
+                # --- Full-shape losses ---
                 "OrthonormalityLoss": OrthonormalityLoss,
                 "BijectivityLoss": BijectivityLoss,
                 "LaplacianCommutativityLoss": LaplacianCommutativityLoss,
@@ -221,6 +242,19 @@ def _build_component_registry():
                 "FmapDescriptorsSupervisionLoss": FmapDescriptorsSupervisionLoss,
                 "GeodesicError": GeodesicError,
                 "DirichletLoss": DirichletLoss,
+                # --- Partial-shape losses ---
+                "WeightedBCELoss": WeightedBCELoss,
+                "CrossNCELoss": CrossNCELoss,
+                "SelfNCELoss": SelfNCELoss,
+                # --- Partial-shape metrics ---
+                "PartialGeodesicError": PartialGeodesicError,
+                "OverlapIoU": OverlapIoU,
+                "PCKMetric": PCKMetric,
+                # --- Partial-shape datasets ---
+                "Shrec16PairsDataset": Shrec16PairsDataset,
+                "CP2PPairsDataset": CP2PPairsDataset,
+                "PartialSmalPairsDataset": PartialSmalPairsDataset,
+                # --- Misc ---
                 "LossManager": LossManager,
                 "TestTimeRefiner": TestTimeRefiner,
                 "RandomAugmentation": RandomAugmentation,

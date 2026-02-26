@@ -1,0 +1,27 @@
+{
+  "_name": "PARTIALSMAL Partial Shape Benchmark",
+  "_description": "Partial-to-partial shape matching benchmark on PARTIALSMAL (.vts format). Evaluates filtered geodesic error and overlap IoU using EchoMatch.",
+
+  "dataset": {
+    "root": "../../../../datasets/PARTIALSMAL",
+    "train_root": "../../../../datasets/PARTIALSMAL",
+    "val_root": "../../../../datasets/PARTIALSMAL",
+    "format": "partialsmal",
+    "split": "test",
+    "train_split": "train",
+    "val_split": "test",
+    "spectral": true,
+    "k": 128
+  },
+
+  "methods": [
+    {
+      "name": "EchoMatch",
+      "model_config": "../../models/echo_match.json",
+      "trainer_config": "../../training/echo_match.json",
+      "checkpoint": "../../checkpoints/echo_match_partialsmal.pth"
+    }
+  ],
+
+  "metrics": ["PartialGeodesicError", "OverlapIoU", "PCKMetric"]
+}

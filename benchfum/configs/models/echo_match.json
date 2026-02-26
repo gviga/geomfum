@@ -1,0 +1,59 @@
+{
+  "_name": "EchoMatch (Xie et al., CVPR 2025)",
+  "_description": "Partial-to-partial shape matching via correspondence reflection. Uses DiffusionNet features + bidirectional soft permutation (echo) matrices to jointly predict functional maps and per-vertex overlap scores.",
+  "type": "EchoMatchNet",
+  "feature_extractor": {
+    "type": "FeatureExtractor",
+    "which": "diffusionnet",
+    "k": 128,
+    "in_channels": 128,
+    "out_channels": 128,
+    "descriptor": {
+      "type": "NormalizedDescriptor",
+      "descriptor": {
+        "type": "WaveKernelSignature",
+        "k": 128,
+        "domain": {"type": "UrrsmWksDomain", "n_domain": 128},
+        "scale": true
+      },
+      "normalizer": {"type": "L2InnerNormalizer"}
+    }
+  },
+  "fmap_module": {
+    "type": "ForwardFunctionalMap",
+    "lmbda": 100.0,
+    "resolvent_gamma": 0.5,
+    "bijective": true
+  },
+  "converter": {
+    "type": "P2pFromFmConverter",
+    "neighbor_finder": {
+      "type": "SoftmaxNeighborFinder",
+      "n_neighbors": 1,
+      "tau": 0.07
+    }
+  },
+  "neighbor_finder": {
+    "type": "SoftmaxNeighborFinder",
+    "n_neighbors": 1,
+    "tau": 0.10
+  },
+  "echo_scorer": {
+    "type": "EchoScorer",
+    "neighbor_size": 64
+  },
+  "overlap_refiner": {
+    "type": "OverlapRefiner",
+    "neighbor_size": 64,
+    "feature_extractor": {
+      "type": "FeatureExtractor",
+      "which": "diffusionnet",
+      "in_channels": 64,
+      "out_channels": 1,
+      "hidden_channels": 16,
+      "n_block": 3,
+      "k": 128,
+      "dropout": false
+    }
+  }
+}

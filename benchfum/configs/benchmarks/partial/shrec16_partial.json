@@ -1,0 +1,23 @@
+{
+  "_name": "SHREC16 Partial Shape Benchmark",
+  "_description": "Full-to-partial shape matching benchmark on SHREC16 cuts split. Evaluates filtered geodesic error and overlap IoU.",
+
+  "dataset": {
+    "root": "../../../datasets/shrec16",
+    "format": "shrec16",
+    "partial_split": "cuts",
+    "spectral": true,
+    "k": 128
+  },
+
+  "methods": [
+    {
+      "name": "EchoMatch",
+      "model_config": "../../models/echo_match.json",
+      "trainer_config": "../../training/echo_match.json",
+      "checkpoint": "../../checkpoints/echo_match_shrec16.pth"
+    }
+  ],
+
+  "metrics": ["PartialGeodesicError", "OverlapIoU", "PCKMetric"]
+}

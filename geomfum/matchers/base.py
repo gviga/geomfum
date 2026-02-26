@@ -39,6 +39,12 @@ class CorrespondenceResult:
     soft_perm_ba : array-like, shape=[n_vertices_b, n_vertices_a], optional
         Soft permutation matrix mapping a vertices to b domain (P21 in RobustFMNet).
         soft_perm_ba[i, j] = probability that vertex i in b corresponds to vertex j in a.
+    overlap_ab : array-like, shape=[n_vertices_a], optional
+        Predicted overlap scores (0–1) for shape A. overlap_ab[i] = probability
+        that vertex i in A is in the overlap region with shape B.
+    overlap_ba : array-like, shape=[n_vertices_b], optional
+        Predicted overlap scores (0–1) for shape B. overlap_ba[j] = probability
+        that vertex j in B is in the overlap region with shape A.
     """
 
     fmap12: "gs.ndarray"
@@ -51,6 +57,8 @@ class CorrespondenceResult:
     refined_fmap21: "gs.ndarray" = None
     soft_perm_ab: "gs.ndarray" = None
     soft_perm_ba: "gs.ndarray" = None
+    overlap_ab: "gs.ndarray" = None
+    overlap_ba: "gs.ndarray" = None
 
     def to_dict(self):
         """Convert to dictionary (for backward compatibility).
