@@ -1,5 +1,6 @@
 """Datasets for Loading Meshes and Point Clouds using PyTorch."""
 
+import copy
 import itertools
 import os
 import random
@@ -38,6 +39,10 @@ class ShapeDataset(Dataset):
         Number of eigenvectors to use for the spectral features.
     device : torch.device, optional
         Device to move the data to.
+    augmentation : callable or None, optional
+        Augmentation callable applied to vertex coordinates at ``__getitem__``
+        time (e.g. ``RandomAugmentation()``).  When set, a shallow copy of the
+        cached shape is made so the cached vertices are never mutated.
     """
 
     def __init__(
@@ -51,6 +56,7 @@ class ShapeDataset(Dataset):
         k=200,
         device=None,
         corr_offset=0,
+        augmentation=None,
     ):
         if shape_type not in ["mesh", "pointcloud"]:
             raise ValueError("shape_type must be either 'mesh' or 'pointcloud'")
@@ -80,6 +86,7 @@ class ShapeDataset(Dataset):
         self.landmark_indices = (
             gs.array(landmark_indices) if landmark_indices is not None else None
         )
+        self.augmentation = augmentation
         # Preload shapes (or their important features) into memory
         self.shapes = {}
         self.corrs = {}
@@ -180,6 +187,11 @@ class ShapeDataset(Dataset):
         # Only move faces to device for meshes
         if self.shape_type == "mesh":
             shape.faces = gs.to_device(shape.faces, self.device)
+
+        # Apply augmentation without corrupting the cached original
+        if self.augmentation is not None:
+            shape = copy.copy(shape)
+            shape.vertices = self.augmentation(shape.vertices)
 
         shape_data.update({"shape": shape})
 

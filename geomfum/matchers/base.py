@@ -33,6 +33,12 @@ class CorrespondenceResult:
         Refined functional map matrix (if refinement was applied).
     refined_fmap21 : array-like, shape=[spectrum_size_a, spectrum_size_b], optional
         Refined functional map matrix from B to A (if bidirectional refinement).
+    soft_perm_ab : array-like, shape=[n_vertices_a, n_vertices_b], optional
+        Soft permutation matrix mapping b vertices to a domain (P12 in RobustFMNet).
+        soft_perm_ab[i, j] = probability that vertex i in a corresponds to vertex j in b.
+    soft_perm_ba : array-like, shape=[n_vertices_b, n_vertices_a], optional
+        Soft permutation matrix mapping a vertices to b domain (P21 in RobustFMNet).
+        soft_perm_ba[i, j] = probability that vertex i in b corresponds to vertex j in a.
     """
 
     fmap12: "gs.ndarray"
@@ -43,6 +49,8 @@ class CorrespondenceResult:
     descr_b: "gs.ndarray" = None
     refined_fmap12: "gs.ndarray" = None
     refined_fmap21: "gs.ndarray" = None
+    soft_perm_ab: "gs.ndarray" = None
+    soft_perm_ba: "gs.ndarray" = None
 
     def to_dict(self):
         """Convert to dictionary (for backward compatibility).

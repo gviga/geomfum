@@ -1,0 +1,17 @@
+{
+  "_name": "URRSM Test-Time Refinement",
+  "_description": "Per-pair transductive refinement matching the URRSM paper: 5 gradient steps with Adam lr=1e-3, gradient clipping at 1.0, weights restored after each pair. Losses: orthonormality + bijectivity + alignment (w=1) + Dirichlet (w=5).",
+  "n_steps": 5,
+  "optimizer_config": {"type": "Adam", "lr": 0.001},
+  "grad_clip_norm": 1.0,
+  "restore_weights": true,
+  "loss_manager": {
+    "type": "LossManager",
+    "losses": [
+      {"type": "OrthonormalityLoss", "weight": 1.0},
+      {"type": "BijectivityLoss", "weight": 1.0},
+      {"type": "FmapDescriptorsSupervisionLoss", "weight": 1.0},
+      {"type": "DirichletLoss", "weight": 5.0}
+    ]
+  }
+}

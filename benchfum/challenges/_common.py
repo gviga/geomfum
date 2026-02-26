@@ -140,6 +140,14 @@ def build_dataset(dataset_dir, config, n_pairs=None, seed=None, **extra_kwargs):
 
     seed_random(seed)
 
+    # If augmentation is specified as a JSON sub-object, build it via the registry.
+    if isinstance(shape_kwargs.get("augmentation"), dict):
+        from benchfum._build import _build_component, _build_component_registry
+
+        shape_kwargs["augmentation"] = _build_component(
+            shape_kwargs["augmentation"], _build_component_registry()
+        )
+
     shape_data = ShapeDataset(dataset_dir=dataset_dir, **shape_kwargs)
 
     if n_pairs is not None:

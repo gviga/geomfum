@@ -26,6 +26,7 @@ from geomfum.learning.losses import LossManager
 from geomfum.learning.trainer import DeepFunctionalMapTrainer
 from geomfum.learning.wrappers import (
     ModelEvaluator,
+    TestTimeRefiner,
     TrainedModelWrapper,
     load_trained_model,
 )
@@ -37,5 +38,6 @@ __all__ = [
     # Evaluation
     "TrainedModelWrapper",
     "ModelEvaluator",
+    "TestTimeRefiner",
     "load_trained_model",
 ]

@@ -1,20 +1,29 @@
 {
-  "_name": "RobustFMNet Standard",
-  "_description": "RobustFMNet with standard DiffusionNet and SoftmaxNeighborFinder converter.",
+  "_name": "RobustFMNet (URRSM)",
+  "_description": "RobustFMNet matching the URRSM paper exactly: DiffusionNet k_eig=128/out=256, WKS with UrrsmWksDomain + mass-L2 normalization, k=128, lmbda=100, resolvent_gamma=0.5, tau=0.07.",
   "type": "RobustFMNet",
   "feature_extractor": {
     "type": "FeatureExtractor",
     "which": "diffusionnet",
-    "k": 200,
+    "k": 128,
+    "out_channels": 256,
     "in_channels": 128,
-    "descriptor": {"type": "WaveKernelSignature", "n_domain": 128, "k": 200}
+    "descriptor": {
+      "type": "NormalizedDescriptor",
+      "descriptor": {
+        "type": "WaveKernelSignature",
+        "k": 128,
+        "domain": {"type": "UrrsmWksDomain", "n_domain": 128},
+        "scale": true
+      },
+      "normalizer": {"type": "L2InnerNormalizer"}
+    }
   },
   "fmap_module": {
     "type": "ForwardFunctionalMap",
-    "lmbda": 1000.0,
-    "resolvent_gamma": 1.0,
-    "bijective": true,
-    "fmap_size": 200
+    "lmbda": 100.0,
+    "resolvent_gamma": 0.5,
+    "bijective": true
   },
   "converter": {
     "type": "P2pFromFmConverter",

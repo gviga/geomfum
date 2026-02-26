@@ -59,6 +59,10 @@ class DeepFunctionalMapTrainer:
         Metric to monitor for saving checkpoints (default is "loss").
     mode : str, optional
         Mode for monitoring the metric, either "min" or "max" (default is "min").
+    grad_clip_norm : float, optional
+        If set, gradients are clipped to this maximum L2 norm after each
+        backward pass (default is None, no clipping). The original URRSM
+        paper uses 1.0.
     """
 
     def __init__(
@@ -76,6 +80,7 @@ class DeepFunctionalMapTrainer:
         checkpoint_path=None,
         monitor_metric="loss",
         mode="min",
+        grad_clip_norm=None,
     ):
         self.model = model
         self.train_loss_manager = train_loss_manager
@@ -98,6 +103,7 @@ class DeepFunctionalMapTrainer:
         self.checkpoint_path = checkpoint_path
         self.monitor_metric = monitor_metric
         self.mode = mode
+        self.grad_clip_norm = grad_clip_norm
 
     def train_one_epoch(self, epoch):
         """Train the model for one epoch."""
@@ -143,6 +149,10 @@ class DeepFunctionalMapTrainer:
                 loss, loss_dict = self.train_loss_manager.compute_loss(outputs)
 
                 loss.backward()
+                if self.grad_clip_norm is not None:
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(), self.grad_clip_norm
+                    )
                 self.optimizer.step()
 
                 # Step scheduler if configured to step on batch

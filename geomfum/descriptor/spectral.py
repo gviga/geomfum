@@ -163,6 +163,104 @@ def hks_default_domain(shape, n_domain):
     ), None
 
 
+class UrrsmWksDomain:
+    """WKS energy domain replicating ``auto_wks`` / ``compute_wks_autoscale`` from URRSM.
+
+    Exactly matches the domain construction in
+    "Unsupervised Learning of Robust Spectral Shape Matching":
+
+    Exactly matches the domain construction in
+    "Unsupervised Learning of Robust Spectral Shape Matching":
+
+    * ``abs_ev = sort(|evals|)``
+    * ``e_min = log(abs_ev[1])``  — skips the trivial zero eigenvalue at index 0
+    * ``e_max = log(abs_ev[-1])``
+    * ``sigma = 7 * (e_max - e_min) / n_domain``
+    * Adjust: ``e_min += 2*sigma``, ``e_max -= 2*sigma``
+    * ``energy = linspace(e_min, e_max, n_domain)``
+
+    Use with ``WaveKernelSignature(domain=UrrsmWksDomain(n_domain=128),
+    scale=True, k=128)`` to reproduce URRSM's WKS exactly.
+
+    Parameters
+    ----------
+    n_domain : int
+        Number of energy levels (128 in the original URRSM paper).
+    """
+
+    def __init__(self, n_domain):
+        self.n_domain = n_domain
+
+    def __call__(self, shape):
+        """Compute URRSM WKS energy domain.
+
+        Parameters
+        ----------
+        shape : Shape
+            Shape with ``basis.vals`` containing sorted Laplacian eigenvalues.
+
+        Returns
+        -------
+        energy : array-like, shape=[n_domain]
+            Energy levels.
+        sigma : float
+            Gaussian bandwidth.
+        """
+        vals = shape.basis.vals  # sorted ascending; vals[0] ≈ 0
+        device = getattr(vals, "device", None)
+
+        # abs_ev[1] is the first non-trivial eigenvalue (URRSM convention)
+        abs_ev = gs.abs(vals)  # still sorted since Laplacian evals >= 0
+        e_min = gs.log(abs_ev[1])
+        e_max = gs.log(abs_ev[-1])
+
+        sigma = 7 * (e_max - e_min) / self.n_domain
+        e_min = e_min + 2 * sigma
+        e_max = e_max - 2 * sigma
+
+        energy = gs.to_device(gs.linspace(e_min, e_max, self.n_domain), device)
+        return energy, sigma
+
+
+class UrrsmHksDomain:
+    """HKS time domain replicating ``compute_hks_autoscale`` from the URRSM paper.
+
+    Uses a fixed ``logspace(-2, 0)`` time grid (spectrum-independent),
+    matching the original URRSM utility.
+
+    Use with ``HeatKernelSignature(domain=UrrsmHksDomain(n_domain=16),
+    scale=False)`` to reproduce URRSM's HKS exactly.
+
+    Parameters
+    ----------
+    n_domain : int
+        Number of time scales (16 in the original URRSM paper).
+    """
+
+    def __init__(self, n_domain):
+        self.n_domain = n_domain
+
+    def __call__(self, shape):
+        """Compute URRSM HKS time domain.
+
+        Parameters
+        ----------
+        shape : Shape
+            Shape (only used to infer device).
+
+        Returns
+        -------
+        scales : array-like, shape=[n_domain]
+            Time scales from 1e-2 to 1.0 (log-uniform).
+        None
+            Sigma is unused for HKS.
+        """
+        device = getattr(shape.basis.vals, "device", None)
+        # Fixed logspace: 10^-2 to 10^0 = [0.01, ..., 1.0], spectrum-independent
+        scales = gs.to_device(gs.geomspace(1e-2, 1.0, self.n_domain), device)
+        return scales, None
+
+
 class WksDefaultDomain:
     """Default domain generator for Wave Kernel Signature using logarithmic energy sampling.
 

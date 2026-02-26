@@ -433,9 +433,9 @@ class FmapDescriptorsSupervisionLoss(nn.Module):
         self.weight = weight
         self.metric = SquaredFrobeniusLoss()
 
-    required_inputs = ["fmap12", "fmap21", "fmap12_desc", "fmap21_desc"]
+    required_inputs = ["fmap12", "fmap21", "refined_fmap12", "refined_fmap21"]
 
-    def forward(self, fmap12, fmap21, fmap12_desc, fmap21_desc):
+    def forward(self, fmap12, fmap21, refined_fmap12, refined_fmap21):
         """
         Forward pass.
 
@@ -445,19 +445,104 @@ class FmapDescriptorsSupervisionLoss(nn.Module):
             Functional map tensor from shape 1 to shape 2 of shape (spectrum_size_b, spectrum_size_a).
         fmap21 : torch.Tensor
             Functional map tensor from shape 2 to shape 1 of shape (spectrum_size_a, spectrum_size_b).
-        fmap12_desc : torch.Tensor
-            Functional map from the descriptor similarity tensor from shape 1 to shape 2 of shape (spectrum_size_b, spectrum_size_a).
-        fmap21_desc : torch.Tensor
-            Functional map from the descriptor similarity tensor from shape 2 to shape 1 of shape (spectrum_size_a, spectrum_size_b).
+        refined_fmap12 : torch.Tensor
+            Descriptor-based functional map from shape 1 to shape 2 of shape (spectrum_size_b, spectrum_size_a).
+        refined_fmap21 : torch.Tensor
+            Descriptor-based functional map from shape 2 to shape 1 of shape (spectrum_size_a, spectrum_size_b).
 
         Returns
         -------
         torch.Tensor
-            Scalar tensor representing the weighted mean squared Frobenius norm between fmap12 and fmap12_desc, and between fmap21 and fmap21_desc.
+            Scalar tensor representing the weighted mean squared Frobenius norm between fmap12 and refined_fmap12, and between fmap21 and refined_fmap21.
         """
         return self.weight * self.metric(
-            fmap12, fmap12_desc
-        ) + self.weight * self.metric(fmap21, fmap21_desc)
+            fmap12, refined_fmap12
+        ) + self.weight * self.metric(fmap21, refined_fmap21)
+
+
+class DirichletLoss(nn.Module):
+    """Dirichlet energy of transported vertex positions (URRSM test-time loss).
+
+    Encourages correspondences to map smooth functions to smooth functions.
+    Replicates the ``DirichletLoss`` used in URRSM at test-time refinement.
+
+    For each pair, the loss computes:
+
+    .. math::
+
+        w \\left(
+            E_{\\text{Dir}}(P_{ab} \\, v_b,\\, \\mathcal{S}_a)
+            +
+            E_{\\text{Dir}}(P_{ba} \\, v_a,\\, \\mathcal{S}_b)
+        \\right)
+
+    where :math:`E_{\\text{Dir}}(f, \\mathcal{S})` is approximated spectrally as
+
+    .. math::
+
+        \\sum_k \\lambda_k \\| \\Phi_k^\\top M f \\|^2
+
+    using the pre-computed Laplace–Beltrami eigenvalues :math:`\\lambda_k` and
+    mass-weighted pseudo-inverse :math:`\\Phi^\\top M` (``basis.pinv``).
+
+    Parameters
+    ----------
+    weight : float, optional
+        Loss weight (default: 1.0).
+    """
+
+    required_inputs = ["soft_perm_ab", "soft_perm_ba", "shape_a", "shape_b"]
+
+    def __init__(self, weight=1.0):
+        super().__init__()
+        self.weight = weight
+
+    @staticmethod
+    def _spectral_dirichlet(perm, verts, basis):
+        """Spectral Dirichlet energy of ``perm @ verts`` on the shape with ``basis``.
+
+        Parameters
+        ----------
+        perm : torch.Tensor, shape=[n_target, n_source]
+            Soft permutation (rows sum to 1).
+        verts : torch.Tensor, shape=[n_source, 3]
+            Vertex positions of the source shape.
+        basis : LaplaceEigenBasis
+            Basis of the target shape (provides ``vals`` and ``pinv``).
+
+        Returns
+        -------
+        energy : torch.Tensor
+            Scalar Dirichlet energy.
+        """
+        # Transport source vertices to target domain: [n_target, 3]
+        transported = perm @ verts
+        # Spectral coefficients: [K, 3]  (pinv = Phi^T M, shape [K, n_target])
+        coeffs = basis.pinv @ transported
+        # Dirichlet energy: sum_k lambda_k * ||coeffs_k||^2
+        # basis.vals: [K], coeffs: [K, 3]
+        energy = (basis.vals[:, None] * coeffs**2).mean()
+        return energy
+
+    def forward(self, soft_perm_ab, soft_perm_ba, shape_a, shape_b):
+        """Compute Dirichlet loss.
+
+        Parameters
+        ----------
+        soft_perm_ab : torch.Tensor, shape=[n_a, n_b]
+            Soft permutation mapping b vertices to a domain.
+        soft_perm_ba : torch.Tensor, shape=[n_b, n_a]
+            Soft permutation mapping a vertices to b domain.
+        shape_a : TriangleMesh
+        shape_b : TriangleMesh
+
+        Returns
+        -------
+        loss : torch.Tensor
+        """
+        e_a = self._spectral_dirichlet(soft_perm_ab, shape_b.vertices, shape_a.basis)
+        e_b = self._spectral_dirichlet(soft_perm_ba, shape_a.vertices, shape_b.basis)
+        return self.weight * (e_a + e_b)
 
 
 class GeodesicError(nn.Module):

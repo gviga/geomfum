@@ -114,11 +114,14 @@ def _build_component_registry():
         ArangeSubsampler,
         DescriptorPipeline,
         L2InnerNormalizer,
+        NormalizedDescriptor,
     )
     from geomfum.descriptor.spectral import (
         HeatKernelSignature,
         LandmarkHeatKernelSignature,
         LandmarkWaveKernelSignature,
+        UrrsmHksDomain,
+        UrrsmWksDomain,
         WaveKernelSignature,
     )
     from geomfum.functional_map import (
@@ -150,9 +153,13 @@ def _build_component_registry():
         "LandmarkWaveKernelSignature": LandmarkWaveKernelSignature,
         "LandmarkHeatKernelSignature": LandmarkHeatKernelSignature,
         "DistanceFromLandmarksDescriptor": DistanceFromLandmarksDescriptor,
+        # --- URRSM-compatible domain generators ---
+        "UrrsmWksDomain": UrrsmWksDomain,
+        "UrrsmHksDomain": UrrsmHksDomain,
         # --- Pipeline steps ---
         "ArangeSubsampler": ArangeSubsampler,
         "L2InnerNormalizer": L2InnerNormalizer,
+        "NormalizedDescriptor": NormalizedDescriptor,
         "DescriptorPipeline": DescriptorPipeline,
         # --- Functional map factors ---
         "SDPFactorBuilder": SDPFactorBuilder,
@@ -182,6 +189,7 @@ def _build_component_registry():
         from geomfum.learning.losses import (
             BijectivityLoss,
             DescriptorCommutativityLoss,
+            DirichletLoss,
             FmapDescriptorsSupervisionLoss,
             GeodesicError,
             GroundTruthSupervisionLoss,
@@ -189,7 +197,9 @@ def _build_component_registry():
             LossManager,
             OrthonormalityLoss,
         )
+        from geomfum.dataset.augmentation import RandomAugmentation
         from geomfum.learning.models import FMNet, RobustFMNet
+        from geomfum.learning.wrappers import TestTimeRefiner
 
         def _feature_extractor_builder(**kwargs):
             return FeatureExtractor.from_registry(**kwargs)
@@ -208,7 +218,10 @@ def _build_component_registry():
                 "GroundTruthSupervisionLoss": GroundTruthSupervisionLoss,
                 "FmapDescriptorsSupervisionLoss": FmapDescriptorsSupervisionLoss,
                 "GeodesicError": GeodesicError,
+                "DirichletLoss": DirichletLoss,
                 "LossManager": LossManager,
+                "TestTimeRefiner": TestTimeRefiner,
+                "RandomAugmentation": RandomAugmentation,
             }
         )
     except ImportError:
@@ -529,3 +542,66 @@ def build_trainer_from_json(path, model, train_set, val_set):
     with open(path) as f:
         config = json.load(f)
     return build_trainer(config, model, train_set, val_set)
+
+
+# ---------------------------------------------------------------------------
+# Public API — test-time refiners
+# ---------------------------------------------------------------------------
+
+
+def build_test_time_refiner(config, model):
+    """Build a ``TestTimeRefiner`` from a configuration dictionary.
+
+    The ``model`` is the trained model to wrap; it is passed at runtime because
+    it cannot be serialised to JSON.  All other keys are resolved recursively.
+
+    Parameters
+    ----------
+    config : dict
+        Configuration dict.  Special keys:
+
+        - ``loss_manager`` : ``LossManager`` config dict (built recursively).
+        - ``n_steps`` : int (default 5).
+        - ``optimizer_config`` : optimizer dict (passed as-is, not built via
+          torch.optim — ``TestTimeRefiner`` builds its own optimizer per pair).
+        - ``grad_clip_norm`` : float or null.
+        - ``restore_weights`` : bool (default True).
+        - ``device`` : str (default auto-detect).
+
+    model : nn.Module
+        Trained model instance.
+
+    Returns
+    -------
+    refiner : TestTimeRefiner
+    """
+    from geomfum.learning.wrappers import TestTimeRefiner
+
+    registry = _build_component_registry()
+
+    # ``optimizer_config`` is passed as a raw dict to TestTimeRefiner (which
+    # builds its own optimizer per pair via torch.optim).  Do NOT recurse into
+    # it with the component registry — Adam/SGD etc. are not registered there.
+    kwargs = {
+        k: (v if k == "optimizer_config" else _build_value(v, registry))
+        for k, v in config.items()
+        if k != "type" and not k.startswith("_")
+    }
+    return TestTimeRefiner(model=model, **kwargs)
+
+
+def build_test_time_refiner_from_json(path, model):
+    """Build a ``TestTimeRefiner`` from a JSON file.
+
+    Parameters
+    ----------
+    path : str or Path
+    model : nn.Module
+
+    Returns
+    -------
+    refiner : TestTimeRefiner
+    """
+    with open(path) as f:
+        config = json.load(f)
+    return build_test_time_refiner(config, model)

@@ -114,6 +114,58 @@ class L2InnerNormalizer(Normalizer):
         return la.scalarvecmul(1 / coeff, array)
 
 
+class NormalizedDescriptor(Descriptor):
+    """Descriptor that applies a normalizer to the output of another descriptor.
+
+    Lets you use any ``(Descriptor, Normalizer)`` pair as a single descriptor,
+    which is required when passing a normalized descriptor as input to
+    ``DiffusionnetFeatureExtractor``.
+
+    For URRSM exact replication, combine ``WaveKernelSignature`` (with
+    ``UrrsmWksDomain``) and ``L2InnerNormalizer`` to reproduce the
+    mass-weighted L2 normalization applied inside ``compute_wks_autoscale``.
+
+    Parameters
+    ----------
+    descriptor : Descriptor
+        Base descriptor to compute features from the shape.
+    normalizer : Normalizer
+        Normalizer to apply to the descriptor output.
+
+    Examples
+    --------
+    >>> from geomfum.descriptor.spectral import WaveKernelSignature, UrrsmWksDomain
+    >>> from geomfum.descriptor.pipeline import NormalizedDescriptor, L2InnerNormalizer
+    >>> desc = NormalizedDescriptor(
+    ...     descriptor=WaveKernelSignature(
+    ...         domain=UrrsmWksDomain(n_domain=128), scale=True, k=128
+    ...     ),
+    ...     normalizer=L2InnerNormalizer(),
+    ... )
+    """
+
+    def __init__(self, descriptor, normalizer):
+        super().__init__()
+        self.descriptor = descriptor
+        self.normalizer = normalizer
+
+    def __call__(self, shape):
+        """Compute and normalize the descriptor.
+
+        Parameters
+        ----------
+        shape : Shape
+            Input shape.
+
+        Returns
+        -------
+        array-like, shape=[..., n_vertices]
+            Normalized descriptor values.
+        """
+        desc = self.descriptor(shape)
+        return self.normalizer(shape, desc)
+
+
 class DescriptorPipeline:
     """Sequential pipeline for computing and processing shape descriptors.
 

@@ -121,6 +121,12 @@ class ForwardFunctionalMap(abc.ABC, nn.Module):
         evals_a = gs.array(evals_a)
         evals_b = gs.array(evals_b)
 
+        # Laplacian eigenvalues are theoretically non-negative, but can be
+        # slightly negative (~1e-14) due to floating-point precision.
+        # Clamp before raising to a fractional power to avoid NaN.
+        evals_a = gs.clip(evals_a, 0, None)
+        evals_b = gs.clip(evals_b, 0, None)
+
         scaling_factor = max(max(evals_a), max(evals_b))
         evals_a, evals_b = evals_a / scaling_factor, evals_b / scaling_factor
         evals_gamma_a = gs.power(evals_a, resolvant_gamma)[None, :]

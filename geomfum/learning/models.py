@@ -191,6 +191,8 @@ class RobustFMNet(BaseModel):
             descr_b=desc_b,
             refined_fmap12=fmap12_desc,
             refined_fmap21=fmap21_desc if bidirectional else None,
+            soft_perm_ab=P12,
+            soft_perm_ba=P21 if bidirectional else None,
         )
 
         if as_dict:
