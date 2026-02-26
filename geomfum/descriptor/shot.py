@@ -214,7 +214,9 @@ def _shot_single_point(
     inc_cos = np.clip(z / dists, -1.0, 1.0)
     inclination = np.arccos(inc_cos)
 
-    upper = (inclination > _DEG_90) | ((np.abs(inclination - _DEG_90) < 1e-30) & (z <= 0))
+    upper = (inclination > _DEG_90) | (
+        (np.abs(inclination - _DEG_90) < 1e-30) & (z <= 0)
+    )
     lower = ~upper
 
     inc_d_up = (inclination - _DEG_135) / _DEG_90
@@ -279,7 +281,7 @@ def _shot_single_point(
 
 
 class ShotDescriptor(Descriptor):
-    """SHOT descriptor (shape-only) for triangle meshes.
+    """SHOT descriptor for triangle meshes.
 
     Computes a 352-dimensional (by default) local shape signature per vertex
     by accumulating normal-alignment statistics of neighbours into a spatially
@@ -334,8 +336,12 @@ class ShotDescriptor(Descriptor):
         descriptors : array-like, shape=[descriptor_size, n_vertices]
             L2-normalised per-vertex SHOT descriptors.
         """
-        vertices = np.asarray(shape.vertices, dtype=np.float64)
-        normals = np.asarray(shape.vertex_normals, dtype=np.float64)
+        vertices = np.asarray(
+            gs.to_numpy(gs.to_device(shape.vertices, "cpu")), dtype=np.float64
+        )
+        normals = np.asarray(
+            gs.to_numpy(gs.to_device(shape.vertex_normals, "cpu")), dtype=np.float64
+        )
         n_vertices = vertices.shape[0]
 
         radius = self._resolve_radius(vertices)
@@ -372,5 +378,4 @@ class ShotDescriptor(Descriptor):
                 n_sectors,
             )
 
-        # Convention: [descriptor_size, n_vertices] (matches spectral descriptors)
         return gs.array(out.T)
