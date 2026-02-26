@@ -116,6 +116,7 @@ def _build_component_registry():
         L2InnerNormalizer,
         NormalizedDescriptor,
     )
+    from geomfum.descriptor.shot import ShotDescriptor
     from geomfum.descriptor.spectral import (
         HeatKernelSignature,
         LandmarkHeatKernelSignature,
@@ -153,6 +154,7 @@ def _build_component_registry():
         "LandmarkWaveKernelSignature": LandmarkWaveKernelSignature,
         "LandmarkHeatKernelSignature": LandmarkHeatKernelSignature,
         "DistanceFromLandmarksDescriptor": DistanceFromLandmarksDescriptor,
+        "ShotDescriptor": ShotDescriptor,
         # --- URRSM-compatible domain generators ---
         "UrrsmWksDomain": UrrsmWksDomain,
         "UrrsmHksDomain": UrrsmHksDomain,
@@ -184,6 +186,7 @@ def _build_component_registry():
 
     # Learning classes — only when torch is available
     try:
+        from geomfum.dataset.augmentation import RandomAugmentation
         from geomfum.descriptor.learned import FeatureExtractor
         from geomfum.forward_functional_map import ForwardFunctionalMap
         from geomfum.learning.losses import (
@@ -197,7 +200,6 @@ def _build_component_registry():
             LossManager,
             OrthonormalityLoss,
         )
-        from geomfum.dataset.augmentation import RandomAugmentation
         from geomfum.learning.models import FMNet, RobustFMNet
         from geomfum.learning.wrappers import TestTimeRefiner
 

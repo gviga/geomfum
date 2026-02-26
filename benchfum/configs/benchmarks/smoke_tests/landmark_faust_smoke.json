@@ -2,7 +2,7 @@
   "_name": "Landmark FAUST Smoke Benchmark",
   "_description": "Fast smoke benchmark on dummy FAUST for quick routine checks.",
   "dataset": {
-    "root": "../../../../../datasets/dummy_faust/test_set",
+    "root": "../../../../../datasets/dummy_datasets/dummy_faust/test_set",
     "k": 64,
     "landmark_indices": [2959, 2948, 3116, 5130, 1252, 4583, 728],
     "corr_offset": 1
@@ -10,11 +10,11 @@
   "methods": [
     {
       "name": "WKS+NN",
-      "matcher_config": "../matchers/wks_nn.json"
+      "matcher_config": "../../matchers/features_only/wks.json"
     },
     {
-      "name": "FunctionalMap",
-      "matcher_config": "../matchers/fmap.json"
+      "name": "SHOT+NN",
+      "matcher_config": "../../matchers/features_only/shot.json"
     }
   ],
   "metrics": ["geodesic_error"],

@@ -1,0 +1,10 @@
+{
+  "_description": "Feature-based matcher using SHOT descriptors and nearest-neighbour search.",
+  "type": "FeatureMatcher",
+  "descriptor_pipeline": {
+    "type": "DescriptorPipeline",
+    "steps": [
+      {"type": "ShotDescriptor"}
+    ]
+  }
+}
