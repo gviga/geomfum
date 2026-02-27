@@ -18,12 +18,12 @@ import warnings
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset
 
 from benchfum.datasets._utils import list_shapes, load_shape, move_shape_to_device
+from geomfum.dataset.torch import BasePairsDataset
 
 
-def _load_map_file(map_path):
+def _load_map_file(map_path, size_x=None, size_y=None):
     """Parse a CP2P ``.map`` file.
 
     Returns
@@ -33,15 +33,37 @@ def _load_map_file(map_path):
     mask_x : np.ndarray, shape=[size_x]
         Binary mask: 1 if vertex in X is in the overlap with Y.
     """
+    # Try binary CP2P layout first
     data = np.fromfile(map_path, dtype=np.int32)
-    size_x = int(data[0])
-    size_y = int(data[1])
-    corr = data[2 : 2 + size_y].astype(np.int64)
-    mask = data[2 + size_y : 2 + size_y + size_x].astype(np.float32)
+    if data.size >= 2:
+        bx = int(data[0])
+        by = int(data[1])
+        expected = 2 + by + bx
+        if bx >= 0 and by >= 0 and expected <= data.size:
+            corr = data[2 : 2 + by].astype(np.int64)
+            mask = data[2 + by : 2 + by + bx].astype(np.float32)
+            return corr, mask
+
+    # Fallback: text .map layout used by some CP2P24 variants
+    txt = np.loadtxt(map_path, dtype=np.int64)
+    txt = np.atleast_1d(txt)
+    if size_y is None:
+        raise ValueError(
+            f"Cannot parse text .map file {map_path} without target shape size."
+        )
+    corr = txt[:size_y].astype(np.int64)
+    if size_x is not None and txt.size >= size_y + size_x:
+        mask = txt[size_y : size_y + size_x].astype(np.float32)
+    elif size_x is not None:
+        mask = np.zeros(size_x, dtype=np.float32)
+        valid = corr[(corr >= 0) & (corr < size_x)]
+        mask[valid] = 1.0
+    else:
+        mask = np.array([], dtype=np.float32)
     return corr, mask
 
 
-class CP2PPairsDataset(Dataset):
+class CP2PPairsDataset(BasePairsDataset):
     """Partial-to-partial pairs in CP2P ``.map`` format.
 
     Parameters
@@ -66,13 +88,30 @@ class CP2PPairsDataset(Dataset):
         device=None,
         pairs_file=None,
     ):
+        super().__init__(dataset=None, device=device)
         self.dataset_dir = dataset_dir
-        self.device = device if device is not None else torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
 
-        shapes_dir = os.path.join(dataset_dir, "shapes")
-        corr_dir = os.path.join(dataset_dir, "corr")
+        shapes_dir = None
+        for candidate in ("shapes", "off"):
+            path = os.path.join(dataset_dir, candidate)
+            if os.path.isdir(path):
+                shapes_dir = path
+                break
+        if shapes_dir is None:
+            raise FileNotFoundError(
+                f"No shapes directory found under {dataset_dir}. Expected one of: shapes, off"
+            )
+
+        corr_dir = None
+        for candidate in ("corr", "maps"):
+            path = os.path.join(dataset_dir, candidate)
+            if os.path.isdir(path):
+                corr_dir = path
+                break
+        if corr_dir is None:
+            raise FileNotFoundError(
+                f"No correspondence directory found under {dataset_dir}. Expected one of: corr, maps"
+            )
 
         self._shapes = {}
         for fname in list_shapes(shapes_dir):
@@ -116,7 +155,9 @@ class CP2PPairsDataset(Dataset):
             if not os.path.exists(map_path):
                 warnings.warn(f"Map file not found: {map_path}")
                 continue
-            self._map_cache[key] = _load_map_file(map_path)
+            self._map_cache[key] = map_path
+
+        self._pairs = [(x, y) for (x, y) in self._pairs if f"{x}_{y}" in self._map_cache]
 
     def __len__(self):
         return len(self._pairs)
@@ -125,10 +166,15 @@ class CP2PPairsDataset(Dataset):
         """Return a ``(shape_x, shape_y)`` partial pair with partiality masks."""
         x_base, y_base = self._pairs[idx]
         key = f"{x_base}_{y_base}"
-        corr_yx, mask_x = self._map_cache[key]
-
         shape_x = self._shapes[x_base]
         shape_y = self._shapes[y_base]
+
+        map_path = self._map_cache[key]
+        corr_yx, mask_x = _load_map_file(
+            map_path,
+            size_x=shape_x.n_vertices,
+            size_y=shape_y.n_vertices,
+        )
 
         move_shape_to_device(shape_x, self.device)
         move_shape_to_device(shape_y, self.device)
@@ -142,4 +188,13 @@ class CP2PPairsDataset(Dataset):
         return {
             "source": {"shape": shape_x, "mask": mask_x_t, "corr": None},
             "target": {"shape": shape_y, "mask": mask_y_t, "corr": corr_t},
+            "source_id": x_base,
+            "target_id": y_base,
+            "source_corr": None,
+            "target_corr": corr_t,
+            "corr": corr_t,
+            "meta": {
+                "dataset": type(self).__name__,
+                "corr_type": "partial_target_to_source",
+            },
         }

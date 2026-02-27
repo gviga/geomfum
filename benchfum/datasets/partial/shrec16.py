@@ -5,7 +5,7 @@ Directory layout::
     dataset_dir/
       null/off/          <- full reference shapes (.off / .obj / .ply)
       cuts/off/          <- partial query shapes
-      cuts/corr/         <- correspondences: one .vts or .txt per partial shape
+    cuts/corr/ or cuts/corres/ <- correspondences: one .vts or .txt per partial shape
                            each line i contains the index in the full shape
                            that vertex i of the partial shape corresponds to.
 
@@ -21,9 +21,9 @@ import warnings
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset
 
 from benchfum.datasets._utils import list_shapes, load_shape, move_shape_to_device
+from geomfum.dataset.torch import BasePairsDataset
 
 
 def _load_corr(corr_path, corr_offset=0):
@@ -38,13 +38,14 @@ def _mask_from_corr(n_full, corr):
     return mask
 
 
-class Shrec16PairsDataset(Dataset):
+class Shrec16PairsDataset(BasePairsDataset):
     """Full-to-partial pairs in SHREC16 format.
 
     Parameters
     ----------
     dataset_dir : str
-        Root directory with ``null/off/``, ``cuts/off/``, ``cuts/corr/``
+        Root directory with ``null/off/``, ``cuts/off/``, and
+        ``cuts/corr/`` or ``cuts/corres/``
         sub-directories (or ``holes/`` instead of ``cuts/``).
     partial_split : str, optional
         Name of the partial split sub-directory.  Default is ``"cuts"``.
@@ -56,6 +57,9 @@ class Shrec16PairsDataset(Dataset):
         Target device for tensor data.
     corr_offset : int, optional
         Subtract this value from loaded correspondence indices (1 for 1-indexed).
+    corr_subdir : str or None, optional
+        Correspondence subdirectory name inside ``partial_split``.
+        If None (default), auto-detects ``corr`` then ``corres``.
     """
 
     def __init__(
@@ -66,19 +70,32 @@ class Shrec16PairsDataset(Dataset):
         k=200,
         device=None,
         corr_offset=0,
+        corr_subdir=None,
     ):
+        super().__init__(dataset=None, device=device)
         self.dataset_dir = dataset_dir
         self.partial_split = partial_split
         self.spectral = spectral
         self.k = k
-        self.device = device if device is not None else torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
         self.corr_offset = corr_offset
 
         full_dir = os.path.join(dataset_dir, "null", "off")
         partial_dir = os.path.join(dataset_dir, partial_split, "off")
-        corr_dir = os.path.join(dataset_dir, partial_split, "corr")
+        split_root = os.path.join(dataset_dir, partial_split)
+        if corr_subdir is not None:
+            corr_dir = os.path.join(split_root, corr_subdir)
+        else:
+            corr_dir = None
+            for candidate in ("corr", "corres"):
+                candidate_dir = os.path.join(split_root, candidate)
+                if os.path.isdir(candidate_dir):
+                    corr_dir = candidate_dir
+                    break
+        if corr_dir is None or not os.path.isdir(corr_dir):
+            raise FileNotFoundError(
+                f"No correspondence directory found under {split_root}. "
+                "Expected one of: corr, corres (or pass corr_subdir)."
+            )
 
         # Load full shapes
         self._full_shapes = {}
@@ -90,6 +107,12 @@ class Shrec16PairsDataset(Dataset):
         self._partial_shapes = {}
         self._corrs = {}
         self._masks_full = {}
+        self._full_for_partial = {}
+        corr_index = {}
+        for corr_name in sorted(os.listdir(corr_dir)):
+            stem, ext = os.path.splitext(corr_name)
+            if ext.lower() in (".vts", ".txt"):
+                corr_index[stem] = os.path.join(corr_dir, corr_name)
 
         for fname in list_shapes(partial_dir):
             base = os.path.splitext(fname)[0]
@@ -99,10 +122,18 @@ class Shrec16PairsDataset(Dataset):
             self._partial_shapes[base] = shape
 
             corr_file = None
-            for ext in (".vts", ".txt"):
-                candidate = os.path.join(corr_dir, base + ext)
-                if os.path.exists(candidate):
-                    corr_file = candidate
+            stem_candidates = [base]
+            split_prefix = f"{partial_split}_"
+            if base.startswith(split_prefix):
+                stem_candidates.append(base[len(split_prefix):])
+            for prefix in ("cuts_", "holes_"):
+                if base.startswith(prefix):
+                    stem_candidates.append(base[len(prefix):])
+            if "_" in base:
+                stem_candidates.append(base.split("_", 1)[1])
+            for stem in stem_candidates:
+                if stem in corr_index:
+                    corr_file = corr_index[stem]
                     break
             if corr_file is None:
                 warnings.warn(f"No correspondence file found for {fname}; skipping.")
@@ -112,9 +143,7 @@ class Shrec16PairsDataset(Dataset):
             corr = _load_corr(corr_file, corr_offset=corr_offset)
             self._corrs[base] = corr
 
-            full_base = base
-            if full_base not in self._full_shapes:
-                full_base = "_".join(base.split("_")[:-1])
+            full_base = self._resolve_full_base(base)
             if full_base not in self._full_shapes:
                 warnings.warn(
                     f"Cannot find full shape for partial {base}; tried '{full_base}'."
@@ -124,7 +153,24 @@ class Shrec16PairsDataset(Dataset):
                 continue
 
             n_full = self._full_shapes[full_base].n_vertices
+
+            # Handle common SHREC16 .vts indexing conventions robustly.
+            # If corr appears 1-indexed (max equals n_full), shift to 0-indexed.
+            if corr.size > 0 and np.max(corr) == n_full and np.min(corr) >= 1:
+                corr = corr - 1
+                self._corrs[base] = corr
+
+            if corr.size == 0 or np.min(corr) < 0 or np.max(corr) >= n_full:
+                warnings.warn(
+                    f"Invalid corr indices for {base}: range=[{int(np.min(corr)) if corr.size else 'empty'}, "
+                    f"{int(np.max(corr)) if corr.size else 'empty'}], n_full={n_full}; skipping."
+                )
+                del self._partial_shapes[base]
+                del self._corrs[base]
+                continue
+
             self._masks_full[base] = _mask_from_corr(n_full, corr)
+            self._full_for_partial[base] = full_base
 
         pairs_file = os.path.join(dataset_dir, partial_split, "pairs.txt")
         if os.path.exists(pairs_file):
@@ -142,11 +188,35 @@ class Shrec16PairsDataset(Dataset):
         else:
             self._pairs = [
                 (full_base, partial_base)
-                for partial_base in self._partial_shapes
-                for full_base in self._full_shapes
-                if partial_base.startswith(full_base)
-                or "_".join(partial_base.split("_")[:-1]) == full_base
+                for partial_base, full_base in self._full_for_partial.items()
             ]
+
+    def _resolve_full_base(self, partial_base):
+        """Resolve full-shape basename from a partial-shape basename."""
+        full_keys = set(self._full_shapes.keys())
+
+        candidates = [partial_base]
+        if "_" in partial_base:
+            candidates.append("_".join(partial_base.split("_")[:-1]))
+
+        # Common SHREC16 patterns: cuts_cat_shape_1 -> cat
+        normalized = partial_base
+        for prefix in (f"{self.partial_split}_", "cuts_", "holes_"):
+            if normalized.startswith(prefix):
+                normalized = normalized[len(prefix):]
+                break
+
+        candidates.append(normalized)
+        if "_shape_" in normalized:
+            candidates.append(normalized.split("_shape_", 1)[0])
+        if "_" in normalized:
+            candidates.append(normalized.split("_", 1)[0])
+
+        for cand in candidates:
+            if cand in full_keys:
+                return cand
+
+        return "_".join(partial_base.split("_")[:-1])
 
     def __len__(self):
         return len(self._pairs)
@@ -172,4 +242,13 @@ class Shrec16PairsDataset(Dataset):
         return {
             "source": {"shape": full_shape, "mask": mask_full_t, "corr": None},
             "target": {"shape": partial_shape, "mask": mask_partial_t, "corr": corr_t},
+            "source_id": full_base,
+            "target_id": partial_base,
+            "source_corr": None,
+            "target_corr": corr_t,
+            "corr": corr_t,
+            "meta": {
+                "dataset": type(self).__name__,
+                "corr_type": "partial_target_to_source",
+            },
         }

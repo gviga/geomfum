@@ -5,6 +5,7 @@ import itertools
 import os
 import random
 import warnings
+from abc import ABC, abstractmethod
 
 import gsops.backend as gs
 import meshio
@@ -292,7 +293,27 @@ class PointCloudDataset(ShapeDataset):
         )
 
 
-class PairsDataset(Dataset):
+class BasePairsDataset(Dataset, ABC):
+    """Abstract base class for datasets that yield shape pairs."""
+
+    def __init__(self, dataset=None, device=None):
+        self.shape_data = dataset
+        self.device = (
+            device
+            if device is not None
+            else torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        )
+
+    @abstractmethod
+    def __getitem__(self, idx):
+        """Get a pair sample by index."""
+
+    @abstractmethod
+    def __len__(self):
+        """Get dataset size."""
+
+
+class PairsDataset(BasePairsDataset):
     """
     Dataset of pairs of shapes. Each item is a pair (source, target) of shapes from the provided dataset.
 
@@ -309,14 +330,8 @@ class PairsDataset(Dataset):
     """
 
     def __init__(self, dataset=None, pair_mode="all", pairs_ratio=100, device=None):
-        # Preload meshes
-        self.shape_data = dataset
+        super().__init__(dataset=dataset, device=device)
         self.pair_mode = pair_mode
-        self.device = (
-            device
-            if device is not None
-            else torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        )
 
         # Depending on pair_mode, choose the appropriate strategy
         if pair_mode == "all":
@@ -360,9 +375,36 @@ class PairsDataset(Dataset):
             Dictionary containing the source and target shapes.
         """
         src_idx, tgt_idx = self.pairs[idx]
+        src = self.shape_data[src_idx]
+        tgt = self.shape_data[tgt_idx]
 
-        return {"source": self.shape_data[src_idx], "target": self.shape_data[tgt_idx]}
+        source_id = src.get("name", src_idx) if isinstance(src, dict) else src_idx
+        target_id = tgt.get("name", tgt_idx) if isinstance(tgt, dict) else tgt_idx
+
+        source_corr = src.get("corr") if isinstance(src, dict) else None
+        target_corr = tgt.get("corr") if isinstance(tgt, dict) else None
+
+        return {
+            "source": src,
+            "target": tgt,
+            "source_id": source_id,
+            "target_id": target_id,
+            "source_corr": source_corr,
+            "target_corr": target_corr,
+            "corr": None,
+            "meta": {
+                "dataset": type(self).__name__,
+                "pair_mode": self.pair_mode,
+            },
+        }
 
     def __len__(self):
         """Get the length of the dataset."""
         return len(self.pairs)
+
+
+class AllPairsDataset(PairsDataset):
+    """Backward-compatible alias for :class:`PairsDataset`."""
+
+    pass
+

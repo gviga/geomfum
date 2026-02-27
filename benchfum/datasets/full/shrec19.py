@@ -21,9 +21,9 @@ Layout::
       corres/       <- per-pair correspondence files ({i}_{j}.map, text, 1-indexed)
       dist/         <- precomputed geodesic distance .mat files (key "D")
 
-Both classes return ``{"source": ..., "target": ...}`` pairs directly and
-expose ``_is_pairs_dataset = True`` so :func:`benchfum.challenges._common.build_dataset`
-does not wrap them in a second ``PairsDataset``.
+Both classes return direct pair samples and inherit from
+``geomfum.dataset.torch.BasePairsDataset`` so benchmark runners can detect
+that they already yield source/target pairs.
 """
 
 import os
@@ -32,12 +32,12 @@ import warnings
 import numpy as np
 import scipy
 import torch
-from torch.utils.data import Dataset
 
 from benchfum.datasets._utils import list_shapes, load_shape, move_shape_to_device
+from geomfum.dataset.torch import BasePairsDataset
 
 
-class Shrec19Dataset(Dataset):
+class Shrec19Dataset(BasePairsDataset):
     """SHREC 2019 pair dataset with per-pair correspondence files.
 
     Shapes have different sizes, so correspondences are stored per pair
@@ -69,8 +69,6 @@ class Shrec19Dataset(Dataset):
         Defaults to ``PAIRS_list_SHREC19_connectivity.txt`` if it exists.
     """
 
-    _is_pairs_dataset = True  # tells build_dataset not to wrap in PairsDataset
-
     def __init__(
         self,
         dataset_dir,
@@ -84,11 +82,9 @@ class Shrec19Dataset(Dataset):
         device=None,
         pairs_file=None,
     ):
+        super().__init__(dataset=None, device=device)
         self.dataset_dir = dataset_dir
         self.dist_dir = dist_dir
-        self.device = device if device is not None else torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
 
         shapes_root = os.path.join(dataset_dir, shapes_dir)
         corr_root = os.path.join(dataset_dir, corr_dir)
@@ -198,7 +194,20 @@ class Shrec19Dataset(Dataset):
                 self._dist_cache[j], dtype=torch.float32, device=self.device
             )
 
-        return {"source": src, "target": tgt}
+        return {
+            "source": src,
+            "target": tgt,
+            "source_id": i,
+            "target_id": j,
+            "source_corr": src["corr"],
+            "target_corr": tgt["corr"],
+            "corr": tgt["corr"],
+            "meta": {
+                "dataset": type(self).__name__,
+                "pair": (i, j),
+                "corr_type": "pair_specific",
+            },
+        }
 
 
 class Shrec19rDataset(Shrec19Dataset):

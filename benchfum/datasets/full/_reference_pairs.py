@@ -16,12 +16,12 @@ import os
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset
 
 from benchfum.datasets._utils import load_shape, move_shape_to_device
+from geomfum.dataset.torch import BasePairsDataset
 
 
-class ReferencePairsDataset(Dataset):
+class ReferencePairsDataset(BasePairsDataset):
     """Pairs dataset with a fixed reference (source) shape.
 
     Each item is a ``(source=ref, target=shape_i)`` pair where
@@ -59,8 +59,6 @@ class ReferencePairsDataset(Dataset):
         Extensions used to load *target* shapes.  Default ``(".off",)``.
     """
 
-    _is_pairs_dataset = True
-
     def __init__(
         self,
         dataset_dir,
@@ -77,10 +75,8 @@ class ReferencePairsDataset(Dataset):
         ref_file_ext=None,
         target_file_exts=(".off",),
     ):
+        super().__init__(dataset=None, device=device)
         self.dataset_dir = dataset_dir
-        self.device = device if device is not None else torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
 
         off_root = os.path.join(dataset_dir, shapes_dir)
         corr_root = os.path.join(dataset_dir, corr_dir)
@@ -183,4 +179,16 @@ class ReferencePairsDataset(Dataset):
                 self._dist_ref, dtype=torch.float32, device=self.device
             )
 
-        return {"source": src_dict, "target": tgt_dict}
+        return {
+            "source": src_dict,
+            "target": tgt_dict,
+            "source_id": self._ref_name,
+            "target_id": tgt_name,
+            "source_corr": src_dict["corr"],
+            "target_corr": tgt_dict["corr"],
+            "corr": None,
+            "meta": {
+                "dataset": type(self).__name__,
+                "pair_type": "reference_target",
+            },
+        }

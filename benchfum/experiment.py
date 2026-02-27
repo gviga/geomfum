@@ -250,8 +250,15 @@ class Experiment:
             shape_a = pair["source"]["shape"]
             shape_b = pair["target"]["shape"]
 
-            corr_a = pair["source"].get("corr") if has_correspondences else None
-            corr_b = pair["target"].get("corr") if has_correspondences else None
+            corr_a = None
+            corr_b = None
+            if has_correspondences:
+                corr_a = pair.get("source_corr")
+                corr_b = pair.get("target_corr")
+                if corr_a is None and "source" in pair:
+                    corr_a = pair["source"].get("corr")
+                if corr_b is None and "target" in pair:
+                    corr_b = pair["target"].get("corr")
             dist_a = pair["source"].get("dist_matrix") if has_distances else None
 
             pair_start = time.perf_counter()

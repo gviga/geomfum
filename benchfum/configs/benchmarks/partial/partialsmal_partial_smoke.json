@@ -1,0 +1,25 @@
+{
+  "_name": "PARTIALSMAL partial smoke test",
+  "_description": "Fast sanity check on PARTIALSMAL test split with classical WKS+NN matcher.",
+  "device": "cpu",
+
+  "dataset": {
+    "root": "../../../../datasets/PARTIALSMAL",
+    "format": "partialsmal",
+    "split": "test",
+    "spectral": true,
+    "k": 30
+  },
+
+  "train": false,
+  "n_pairs": 5,
+
+  "methods": [
+    {
+      "name": "WKS+NN (k=30)",
+      "matcher_config": "../../matchers/features_only/wks_k30.json"
+    }
+  ],
+
+  "metrics": ["OverlapIoU", "PCKMetric"]
+}

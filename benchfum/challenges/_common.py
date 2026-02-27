@@ -135,7 +135,7 @@ def build_dataset(dataset_dir, config, n_pairs=None, seed=None, **extra_kwargs):
     -------
     pairs : PairsDataset
     """
-    from geomfum.dataset.torch import PairsDataset, ShapeDataset
+    from geomfum.dataset.torch import BasePairsDataset, PairsDataset, ShapeDataset
 
     ds_cfg = config.get("dataset", {})
 
@@ -154,11 +154,11 @@ def build_dataset(dataset_dir, config, n_pairs=None, seed=None, **extra_kwargs):
         cls = registry.get(dataset_type)
         if cls is None:
             raise ValueError(
-                f"Unknown dataset type {dataset_type!r}. "
-                f"Available: {sorted(registry)}"
+                f"Unknown dataset type {dataset_type!r}. Available: {sorted(registry)}"
             )
         cls_kwargs = {
-            k: v for k, v in ds_cfg.items()
+            k: v
+            for k, v in ds_cfg.items()
             if k not in _DATASET_RUNNER_KEYS and not k.startswith("_")
         }
         cls_kwargs.update(extra_kwargs)
@@ -170,8 +170,11 @@ def build_dataset(dataset_dir, config, n_pairs=None, seed=None, **extra_kwargs):
         # --- Generic ShapeDataset path ---
         shape_kwargs = {
             **_SHAPE_DATASET_DEFAULTS,
-            **{k: v for k, v in ds_cfg.items()
-               if k not in _DATASET_RUNNER_KEYS and not k.startswith("_")},
+            **{
+                k: v
+                for k, v in ds_cfg.items()
+                if k not in _DATASET_RUNNER_KEYS and not k.startswith("_")
+            },
             **extra_kwargs,
         }
         if isinstance(shape_kwargs.get("augmentation"), dict):
@@ -183,10 +186,11 @@ def build_dataset(dataset_dir, config, n_pairs=None, seed=None, **extra_kwargs):
 
     # Datasets that already yield (source, target) pairs are returned as-is,
     # but optionally subsampled to n_pairs via a Subset wrapper.
-    if getattr(shape_data, "_is_pairs_dataset", False):
+    if isinstance(shape_data, BasePairsDataset):
         if n_pairs is not None and n_pairs < len(shape_data):
             import random
             from torch.utils.data import Subset
+
             indices = random.sample(range(len(shape_data)), n_pairs)
             return Subset(shape_data, indices)
         return shape_data
@@ -215,8 +219,10 @@ def seed_random(seed) -> None:
     """
     if seed is None:
         return
+    import random
     import numpy as np
 
+    random.seed(seed)
     np.random.seed(seed)
     try:
         import torch

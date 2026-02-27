@@ -39,7 +39,7 @@ if __package__ is None or __package__ == "":
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from benchfum import build_model_from_json, build_trainer_from_json
+from benchfum import build_matcher_from_json, build_model_from_json, build_trainer_from_json
 from benchfum._build import _build_component_registry
 from benchfum.challenges._common import load_config, resolve_path, seed_random
 from benchfum.datasets.partial import (
@@ -58,6 +58,7 @@ _DEFAULT_CONFIG_PATH = (
     Path(__file__).parent.parent.parent
     / "configs"
     / "benchmarks"
+    / "partial"
     / "shrec16_partial.json"
 )
 
@@ -86,6 +87,7 @@ def _build_partial_dataset(dataset_dir, config, device, split_override=None):
     ds_cfg.pop("val_root", None)
     ds_cfg.pop("train_split", None)
     ds_cfg.pop("val_split", None)
+    ds_cfg.pop("device", None)
 
     # Build augmentation if specified
     if isinstance(ds_cfg.get("augmentation"), dict):
@@ -168,7 +170,7 @@ def _evaluate_model(model, dataset, device, n_pairs=None, seed=None):
                 continue
 
             p2p21 = result.p2p21
-            overlap_ab = result.overlap_ab
+            overlap_ab = getattr(result, "overlap_ab", None)
 
             if p2p21 is None:
                 continue
@@ -272,10 +274,12 @@ def run_benchmark(
     -------
     dict {method_name: {metric_name: float}}
     """
+    config, resolved_config_path = load_config(config_path, _DEFAULT_CONFIG_PATH)
+
+    if device is None:
+        device = config.get("device")
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    config, resolved_config_path = load_config(config_path, _DEFAULT_CONFIG_PATH)
 
     methods_cfg = config.get("methods")
     if not methods_cfg:
@@ -338,8 +342,17 @@ def run_benchmark(
     for method_cfg in methods_cfg:
         method_name = method_cfg.get("name")
         model_config = method_cfg.get("model_config")
-        if not method_name or not model_config:
+        matcher_config = method_cfg.get("matcher_config")
+        if not method_name or (model_config is None and matcher_config is None):
             raise ValueError(f"Invalid method entry: {method_cfg!r}")
+
+        if matcher_config is not None:
+            matcher_path = resolve_path(resolved_config_path, matcher_config)
+            matcher = build_matcher_from_json(str(matcher_path))
+            if train:
+                print(f"  [skip-train] {method_name}: matcher_config does not use trainer")
+            methods[method_name] = matcher
+            continue
 
         model_config_path = resolve_path(resolved_config_path, model_config)
         model = build_model_from_json(str(model_config_path), device=device)

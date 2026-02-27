@@ -1,13 +1,13 @@
 {
-  "_name": "DT4D_r intra-class benchmark",
-  "_description": "Full-shape matching on DT4D remeshed using only same-category pairs.",
+  "_name": "DT4D_r inter-class benchmark",
+  "_description": "Full-shape matching on DT4D remeshed using only cross-category pairs listed in cross_category_corres.",
 
   "dataset": {
     "type": "DT4DPairsDataset",
     "root": null,
-    "_note": "Intra-class mode: only pairs from the same category.",
+    "_note": "Inter-class mode: only category pairs with cross-category reference maps are used.",
     "phase": "test",
-    "inter_class": false,
+    "inter_class": true,
     "spectral": true,
     "k": 200,
     "_ignored_categories_default": ["pumpkinhulk"]

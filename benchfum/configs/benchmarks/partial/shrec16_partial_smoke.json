@@ -1,0 +1,25 @@
+{
+  "_name": "SHREC16 partial smoke test",
+  "_description": "Fast sanity check on SHREC16 cuts split with classical WKS+NN matcher.",
+  "device": "cpu",
+
+  "dataset": {
+    "root": "../../../../datasets/shrec16",
+    "format": "shrec16",
+    "partial_split": "cuts",
+    "spectral": true,
+    "k": 30
+  },
+
+  "train": false,
+  "n_pairs": 5,
+
+  "methods": [
+    {
+      "name": "WKS+NN (k=30)",
+      "matcher_config": "../../matchers/features_only/wks_k30.json"
+    }
+  ],
+
+  "metrics": ["OverlapIoU", "PCKMetric"]
+}

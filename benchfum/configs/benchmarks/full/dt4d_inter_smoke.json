@@ -1,6 +1,6 @@
 {
-  "_name": "DT4D_r intra-class smoke test",
-  "_description": "Fast sanity check on DT4D_r intra-class mode: WKS+NN only, k=30.",
+  "_name": "DT4D_r inter-class smoke test",
+  "_description": "Fast sanity check on DT4D_r inter-class mode: WKS+NN only, k=30.",
 
   "dataset": {
     "type": "DT4DPairsDataset",
@@ -8,7 +8,7 @@
     "spectral": true,
     "k": 30,
     "phase": "test",
-    "inter_class": false
+    "inter_class": true
   },
 
   "n_pairs": 10,

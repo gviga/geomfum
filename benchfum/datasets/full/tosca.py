@@ -22,10 +22,9 @@ import os
 import re
 
 import torch
-from torch.utils.data import Dataset
 
 from benchfum.datasets._utils import load_shape, move_shape_to_device
-from geomfum.dataset.torch import ShapeDataset
+from geomfum.dataset.torch import BasePairsDataset, ShapeDataset
 
 
 class ToscaDataset(ShapeDataset):
@@ -59,7 +58,7 @@ class ToscaDataset(ShapeDataset):
 _TOSCA_NAME_RE = re.compile(r"^([a-zA-Z]+)\d+$")
 
 
-class ToscaPairsDataset(Dataset):
+class ToscaPairsDataset(BasePairsDataset):
     """TOSCA pairs dataset with identity ground-truth correspondence.
 
     All TOSCA shapes share the same mesh connectivity (10 008 vertices), so
@@ -85,8 +84,6 @@ class ToscaPairsDataset(Dataset):
     device : torch.device or str, optional
     """
 
-    _is_pairs_dataset = True
-
     def __init__(
         self,
         dataset_dir,
@@ -95,10 +92,8 @@ class ToscaPairsDataset(Dataset):
         k=200,
         device=None,
     ):
+        super().__init__(dataset=None, device=device)
         self.dataset_dir = dataset_dir
-        self.device = device if device is not None else torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
 
         # Load all matching shapes and group by category
         by_cat = {}  # category → list of (name, Shape)
@@ -137,15 +132,26 @@ class ToscaPairsDataset(Dataset):
 
         n = shape_i.n_vertices  # same for all TOSCA shapes
         # Corr tensors stay on CPU for numpy indexing in normalized_euclidean_error.
+        src_corr = torch.arange(n, dtype=torch.long)
+        tgt_corr = torch.arange(n, dtype=torch.long)
         return {
             "source": {
                 "shape": shape_i,
-                "corr": torch.arange(n, dtype=torch.long),
+                "corr": src_corr,
                 "name": name_i,
             },
             "target": {
                 "shape": shape_j,
-                "corr": torch.arange(n, dtype=torch.long),
+                "corr": tgt_corr,
                 "name": name_j,
+            },
+            "source_id": name_i,
+            "target_id": name_j,
+            "source_corr": src_corr,
+            "target_corr": tgt_corr,
+            "corr": None,
+            "meta": {
+                "dataset": type(self).__name__,
+                "corr_type": "identity",
             },
         }
