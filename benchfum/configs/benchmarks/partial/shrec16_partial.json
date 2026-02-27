@@ -3,7 +3,7 @@
   "_description": "Full-to-partial shape matching benchmark on SHREC16 cuts split. Evaluates filtered geodesic error and overlap IoU.",
 
   "dataset": {
-    "root": "../../../datasets/shrec16",
+    "root": "../../../../../../datasets/partial_meshes/SHREC16",
     "format": "shrec16",
     "partial_split": "cuts",
     "spectral": true,

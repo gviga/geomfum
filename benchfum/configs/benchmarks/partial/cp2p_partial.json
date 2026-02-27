@@ -3,9 +3,9 @@
   "_description": "Partial-to-partial shape matching on CP2P24 dataset (cat, centaur, david, dog, horse, michael, victoria, wolf). Uses .map files with embedded correspondences and partiality masks.",
 
   "dataset": {
-    "root": "../../../datasets/cp2p/test",
-    "train_root": "../../../datasets/cp2p/train",
-    "val_root": "../../../datasets/cp2p/test",
+    "root": "../../../../../../datasets/partial_meshes/CP2P24/test",
+    "train_root": "../../../../../../datasets/partial_meshes/CP2P24/train",
+    "val_root": "../../../../../../datasets/partial_meshes/CP2P24/test",
     "format": "cp2p",
     "spectral": true,
     "k": 128

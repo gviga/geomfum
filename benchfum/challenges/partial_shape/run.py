@@ -39,7 +39,11 @@ if __package__ is None or __package__ == "":
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from benchfum import build_matcher_from_json, build_model_from_json, build_trainer_from_json
+from benchfum import (
+    build_matcher_from_json,
+    build_model_from_json,
+    build_trainer_from_json,
+)
 from benchfum._build import _build_component_registry
 from benchfum.challenges._common import load_config, resolve_path, seed_random
 from benchfum.datasets.partial import (
@@ -47,9 +51,12 @@ from benchfum.datasets.partial import (
     PartialSmalPairsDataset,
     Shrec16PairsDataset,
 )
-from geomfum.learning.losses import LossManager
+from geomfum.learning.losses import (
+    OverlapIoU,
+    PartialGeodesicError,
+    PCKMetric,
+)
 from geomfum.learning.wrappers import TrainedModelWrapper
-from geomfum.learning.losses import OverlapIoU, PCKMetric, PartialGeodesicError
 
 # ============================================================================
 # DEFAULT CONFIG
@@ -66,6 +73,7 @@ _DEFAULT_CONFIG_PATH = (
 # ============================================================================
 # DATASET BUILDER
 # ============================================================================
+
 
 def _build_partial_dataset(dataset_dir, config, device, split_override=None):
     """Build a partial shape dataset from config.
@@ -93,6 +101,7 @@ def _build_partial_dataset(dataset_dir, config, device, split_override=None):
     if isinstance(ds_cfg.get("augmentation"), dict):
         registry = _build_component_registry()
         from benchfum._build import _build_component
+
         ds_cfg["augmentation"] = _build_component(ds_cfg["augmentation"], registry)
 
     if fmt == "shrec16":
@@ -114,6 +123,7 @@ def _build_partial_dataset(dataset_dir, config, device, split_override=None):
 # EVALUATION
 # ============================================================================
 
+
 def _evaluate_model(model, dataset, device, n_pairs=None, seed=None):
     """Evaluate *model* on *dataset* and return a metrics dict.
 
@@ -133,6 +143,7 @@ def _evaluate_model(model, dataset, device, n_pairs=None, seed=None):
     dict {metric_name: float}
     """
     import random
+
     import numpy as np
 
     if seed is not None:
@@ -214,6 +225,7 @@ def _evaluate_model(model, dataset, device, n_pairs=None, seed=None):
 # METHOD LOADING
 # ============================================================================
 
+
 def _maybe_train(method_name, method_cfg, model, config_path, train_pairs, val_pairs):
     trainer_config = method_cfg.get("trainer_config")
     if trainer_config is None:
@@ -237,6 +249,7 @@ def _maybe_train(method_name, method_cfg, model, config_path, train_pairs, val_p
 # ============================================================================
 # MAIN RUNNER
 # ============================================================================
+
 
 def run_benchmark(
     dataset_dir=None,
@@ -350,7 +363,9 @@ def run_benchmark(
             matcher_path = resolve_path(resolved_config_path, matcher_config)
             matcher = build_matcher_from_json(str(matcher_path))
             if train:
-                print(f"  [skip-train] {method_name}: matcher_config does not use trainer")
+                print(
+                    f"  [skip-train] {method_name}: matcher_config does not use trainer"
+                )
             methods[method_name] = matcher
             continue
 
@@ -358,17 +373,28 @@ def run_benchmark(
         model = build_model_from_json(str(model_config_path), device=device)
 
         if train:
-            _maybe_train(method_name, method_cfg, model, resolved_config_path,
-                         train_pairs, val_pairs)
+            _maybe_train(
+                method_name,
+                method_cfg,
+                model,
+                resolved_config_path,
+                train_pairs,
+                val_pairs,
+            )
 
-        checkpoint_path = resolve_path(resolved_config_path, method_cfg.get("checkpoint"))
+        checkpoint_path = resolve_path(
+            resolved_config_path, method_cfg.get("checkpoint")
+        )
         if checkpoint_path is not None and checkpoint_path.exists():
             print(f"  [load] {method_name}: checkpoint={checkpoint_path}")
-            matcher = TrainedModelWrapper(model=model, device=device,
-                                          checkpoint_path=str(checkpoint_path))
+            matcher = TrainedModelWrapper(
+                model=model, device=device, checkpoint_path=str(checkpoint_path)
+            )
         else:
             if checkpoint_path is not None:
-                print(f"  [warn] {method_name}: checkpoint not found — using untrained model")
+                print(
+                    f"  [warn] {method_name}: checkpoint not found — using untrained model"
+                )
             matcher = model
 
         methods[method_name] = matcher
@@ -383,7 +409,9 @@ def run_benchmark(
     all_results = {}
     for method_name, matcher in methods.items():
         print(f"Evaluating {method_name} on {len(test_dataset)} pairs...")
-        results = _evaluate_model(matcher, test_dataset, device, n_pairs=n_pairs, seed=seed)
+        results = _evaluate_model(
+            matcher, test_dataset, device, n_pairs=n_pairs, seed=seed
+        )
         all_results[method_name] = results
         for metric, val in results.items():
             print(f"  {metric}: {val:.4f}")
@@ -403,6 +431,7 @@ def run_benchmark(
 
     if save_dir:
         import json
+
         os.makedirs(save_dir, exist_ok=True)
         out_path = os.path.join(save_dir, "results.json")
         with open(out_path, "w") as fh:
