@@ -1,0 +1,33 @@
+{
+  "_name": "SCAPE_r benchmark",
+  "_description": "Full-shape matching on SCAPE remeshed (71 human body meshes).",
+
+  "dataset": {
+    "type": "ScapeDataset",
+    "root": null,
+    "spectral": true,
+    "k": 200,
+    "distances": true
+  },
+
+  "metrics": ["geodesic_error"],
+
+  "methods": [
+    {
+      "name": "WKS",
+      "matcher_config": "../../matchers/features_only/wks.json"
+    },
+    {
+      "name": "HKS",
+      "matcher_config": "../../matchers/features_only/hks.json"
+    },
+    {
+      "name": "FMap+WKS",
+      "matcher_config": "../../matchers/functional_maps/fmap_wks.json"
+    },
+    {
+      "name": "FMap+WKS+ZO",
+      "matcher_config": "../../matchers/functional_maps/fmap_zo.json"
+    }
+  ]
+}

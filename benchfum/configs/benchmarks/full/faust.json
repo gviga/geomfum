@@ -1,0 +1,34 @@
+{
+  "_name": "FAUST benchmark",
+  "_description": "Standard full-shape matching on FAUST (100 registered human body meshes).",
+
+  "dataset": {
+    "type": "FaustDataset",
+    "root": null,
+    "_note": "Set root to your FAUST directory, or pass --dataset on the CLI.",
+    "spectral": true,
+    "k": 200,
+    "distances": true
+  },
+
+  "metrics": ["geodesic_error"],
+
+  "methods": [
+    {
+      "name": "WKS",
+      "matcher_config": "../../matchers/features_only/wks.json"
+    },
+    {
+      "name": "HKS",
+      "matcher_config": "../../matchers/features_only/hks.json"
+    },
+    {
+      "name": "FMap+WKS",
+      "matcher_config": "../../matchers/functional_maps/fmap_wks.json"
+    },
+    {
+      "name": "FMap+WKS+ZO",
+      "matcher_config": "../../matchers/functional_maps/fmap_zo.json"
+    }
+  ]
+}

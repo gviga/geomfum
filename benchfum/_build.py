@@ -190,10 +190,23 @@ def _build_component_registry():
     # Learning classes — only when torch is available
     try:
         from geomfum.dataset.augmentation import RandomAugmentation
-        from geomfum.dataset.partial import (
+        from benchfum.datasets.partial import (
             CP2PPairsDataset,
             PartialSmalPairsDataset,
             Shrec16PairsDataset,
+        )
+        from benchfum.datasets.full import (
+            DT4DDataset,
+            DT4DPairsDataset,
+            FaustDataset,
+            ScapeDataset,
+            Shrec19Dataset,
+            Shrec19rDataset,
+            Shrec20Dataset,
+            SmalDataset,
+            TopKidsDataset,
+            ToscaDataset,
+            ToscaPairsDataset,
         )
         from geomfum.descriptor.learned import FeatureExtractor
         from geomfum.forward_functional_map import ForwardFunctionalMap
@@ -259,6 +272,18 @@ def _build_component_registry():
                 "Shrec16PairsDataset": Shrec16PairsDataset,
                 "CP2PPairsDataset": CP2PPairsDataset,
                 "PartialSmalPairsDataset": PartialSmalPairsDataset,
+                # --- Full-shape benchmark datasets ---
+                "FaustDataset": FaustDataset,
+                "SmalDataset": SmalDataset,
+                "ScapeDataset": ScapeDataset,
+                "TopKidsDataset": TopKidsDataset,
+                "Shrec20Dataset": Shrec20Dataset,
+                "Shrec19rDataset": Shrec19rDataset,
+                "ToscaDataset": ToscaDataset,
+                "ToscaPairsDataset": ToscaPairsDataset,
+                "Shrec19Dataset": Shrec19Dataset,
+                "DT4DDataset": DT4DDataset,
+                "DT4DPairsDataset": DT4DPairsDataset,
                 # --- Misc ---
                 "LossManager": LossManager,
                 "TestTimeRefiner": TestTimeRefiner,

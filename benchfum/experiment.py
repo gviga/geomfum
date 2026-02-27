@@ -221,10 +221,16 @@ class Experiment:
         pair_indices = []
         correspondences = [] if self.save_correspondences else None
 
-        has_correspondences = get_dataset_attr(
-            self.dataset.shape_data, "correspondences"
-        )
-        has_distances = get_dataset_attr(self.dataset.shape_data, "distances")
+        if hasattr(self.dataset, "shape_data"):
+            has_correspondences = get_dataset_attr(
+                self.dataset.shape_data, "correspondences"
+            )
+            has_distances = get_dataset_attr(self.dataset.shape_data, "distances")
+        else:
+            # Pairs-style dataset: items already contain corr/dist_matrix; always
+            # attempt to read them from the pair dict (None if absent).
+            has_correspondences = True
+            has_distances = True
 
         iterator = self.dataset
         if self.progress_bar:
@@ -256,7 +262,9 @@ class Experiment:
                 result, shape_a, shape_b, corr_a, corr_b, dist_a
             )
             per_pair_metrics.append(metrics)
-            pair_indices.append(self.dataset.pairs[idx])
+            pair_indices.append(
+                self.dataset.pairs[idx] if hasattr(self.dataset, "pairs") else idx
+            )
 
             for key, value in metrics.items():
                 if isinstance(value, numbers.Number):

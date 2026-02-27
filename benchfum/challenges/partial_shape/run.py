@@ -42,7 +42,7 @@ if __package__ is None or __package__ == "":
 from benchfum import build_model_from_json, build_trainer_from_json
 from benchfum._build import _build_component_registry
 from benchfum.challenges._common import load_config, resolve_path, seed_random
-from geomfum.dataset.partial import (
+from benchfum.datasets.partial import (
     CP2PPairsDataset,
     PartialSmalPairsDataset,
     Shrec16PairsDataset,

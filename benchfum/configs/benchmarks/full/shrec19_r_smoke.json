@@ -1,0 +1,23 @@
+{
+  "_name": "SHREC19_r smoke test",
+  "_description": "Fast sanity check on SHREC19_r: WKS+NN only, k=30, no geodesic distances.",
+
+  "dataset": {
+    "type": "Shrec19rDataset",
+    "root": null,
+    "spectral": true,
+    "k": 30,
+    "dist_dir": null
+  },
+
+  "n_pairs": 5,
+
+  "metrics": ["euclidean_error"],
+
+  "methods": [
+    {
+      "name": "WKS+NN (k=30)",
+      "matcher_config": "../../matchers/features_only/wks_k30.json"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "_name": "SHREC19_r benchmark",
+  "_description": "Full-shape matching on SHREC19 remeshed (44 shapes, 430 pairs with per-pair GT).",
+
+  "dataset": {
+    "type": "Shrec19rDataset",
+    "root": null,
+    "spectral": true,
+    "k": 200
+  },
+
+  "metrics": ["geodesic_error"],
+
+  "methods": [
+    {
+      "name": "WKS",
+      "matcher_config": "../../matchers/features_only/wks.json"
+    },
+    {
+      "name": "FMap+WKS",
+      "matcher_config": "../../matchers/functional_maps/fmap_wks.json"
+    },
+    {
+      "name": "FMap+WKS+ZO",
+      "matcher_config": "../../matchers/functional_maps/fmap_zo.json"
+    }
+  ]
+}

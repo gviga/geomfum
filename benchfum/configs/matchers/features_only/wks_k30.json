@@ -1,0 +1,11 @@
+{
+  "_description": "WKS+NN with k=30 eigenfunctions — fast smoke-test variant.",
+  "type": "FeatureMatcher",
+  "descriptor_pipeline": {
+    "type": "DescriptorPipeline",
+    "steps": [
+      {"type": "WaveKernelSignature", "n_domain": 30, "k": 30},
+      {"type": "L2InnerNormalizer"}
+    ]
+  }
+}

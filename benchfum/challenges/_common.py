@@ -84,11 +84,12 @@ def resolve_dataset_dir(
 
 
 # Keys in config["dataset"] consumed by the runner infrastructure (path resolution).
-# Everything else is forwarded verbatim to ShapeDataset.
-_DATASET_RUNNER_KEYS = {"root", "train_root", "val_root"}
+# Everything else is forwarded verbatim to the dataset class.
+_DATASET_RUNNER_KEYS = {"root", "train_root", "val_root", "type"}
 
 # Sensible defaults for ShapeDataset when not specified in config or CLI.
 # Any of these can be overridden by adding the key to config["dataset"].
+# Only applied when no "type" is specified (i.e. the generic ShapeDataset path).
 _SHAPE_DATASET_DEFAULTS = {
     "shape_type": "mesh",
     "spectral": True,
@@ -98,20 +99,29 @@ _SHAPE_DATASET_DEFAULTS = {
 }
 
 
+def _build_augmentation(aug_cfg):
+    from benchfum._build import _build_component, _build_component_registry
+
+    return _build_component(aug_cfg, _build_component_registry())
+
+
 def build_dataset(dataset_dir, config, n_pairs=None, seed=None, **extra_kwargs):
     """Build a PairsDataset from a benchmark config and a dataset path.
 
-    ``ShapeDataset`` kwargs are resolved with this priority (highest wins):
+    When ``config["dataset"]["type"]`` is set, the named dataset class from the
+    benchfum registry is used (e.g. ``"FaustDataset"``, ``"ScapeDataset"``).
+    In this case no default kwargs are injected — the class uses its own defaults
+    and the JSON config is forwarded verbatim.
+
+    When ``"type"`` is absent, :class:`~geomfum.dataset.torch.ShapeDataset` is
+    used and kwargs are resolved with this priority (highest wins):
 
         CLI / call-site kwargs  >  config["dataset"]  >  _SHAPE_DATASET_DEFAULTS
-
-    This means adding or changing any ``ShapeDataset`` parameter only requires
-    editing the JSON config — no Python changes needed.
 
     Parameters
     ----------
     dataset_dir : str
-        Path to the dataset root (must contain a ``shapes/`` subdirectory).
+        Path to the dataset root.
     config : dict
         Benchmark config dict.
     n_pairs : int or None
@@ -119,8 +129,7 @@ def build_dataset(dataset_dir, config, n_pairs=None, seed=None, **extra_kwargs):
     seed : int or None
         Random seed for reproducible pair selection.
     **extra_kwargs
-        Override or supplement ``ShapeDataset`` kwargs at call time
-        (e.g. ``device`` from the CLI).
+        Override or supplement dataset kwargs at call time (e.g. ``device``).
 
     Returns
     -------
@@ -129,26 +138,58 @@ def build_dataset(dataset_dir, config, n_pairs=None, seed=None, **extra_kwargs):
     from geomfum.dataset.torch import PairsDataset, ShapeDataset
 
     ds_cfg = config.get("dataset", {})
-    shape_kwargs = {
-        **_SHAPE_DATASET_DEFAULTS,
-        **{k: v for k, v in ds_cfg.items() if k not in _DATASET_RUNNER_KEYS},
-        **extra_kwargs,
-    }
 
     if n_pairs is None:
         n_pairs = config.get("n_pairs", None)
 
     seed_random(seed)
 
-    # If augmentation is specified as a JSON sub-object, build it via the registry.
-    if isinstance(shape_kwargs.get("augmentation"), dict):
-        from benchfum._build import _build_component, _build_component_registry
+    dataset_type = ds_cfg.get("type")
 
-        shape_kwargs["augmentation"] = _build_component(
-            shape_kwargs["augmentation"], _build_component_registry()
-        )
+    if dataset_type is not None:
+        # --- Named dataset class path ---
+        from benchfum._build import _build_component_registry
 
-    shape_data = ShapeDataset(dataset_dir=dataset_dir, **shape_kwargs)
+        registry = _build_component_registry()
+        cls = registry.get(dataset_type)
+        if cls is None:
+            raise ValueError(
+                f"Unknown dataset type {dataset_type!r}. "
+                f"Available: {sorted(registry)}"
+            )
+        cls_kwargs = {
+            k: v for k, v in ds_cfg.items()
+            if k not in _DATASET_RUNNER_KEYS and not k.startswith("_")
+        }
+        cls_kwargs.update(extra_kwargs)
+        if isinstance(cls_kwargs.get("augmentation"), dict):
+            cls_kwargs["augmentation"] = _build_augmentation(cls_kwargs["augmentation"])
+        shape_data = cls(dataset_dir=dataset_dir, **cls_kwargs)
+        pair_device = cls_kwargs.get("device")
+    else:
+        # --- Generic ShapeDataset path ---
+        shape_kwargs = {
+            **_SHAPE_DATASET_DEFAULTS,
+            **{k: v for k, v in ds_cfg.items()
+               if k not in _DATASET_RUNNER_KEYS and not k.startswith("_")},
+            **extra_kwargs,
+        }
+        if isinstance(shape_kwargs.get("augmentation"), dict):
+            shape_kwargs["augmentation"] = _build_augmentation(
+                shape_kwargs["augmentation"]
+            )
+        shape_data = ShapeDataset(dataset_dir=dataset_dir, **shape_kwargs)
+        pair_device = shape_kwargs.get("device")
+
+    # Datasets that already yield (source, target) pairs are returned as-is,
+    # but optionally subsampled to n_pairs via a Subset wrapper.
+    if getattr(shape_data, "_is_pairs_dataset", False):
+        if n_pairs is not None and n_pairs < len(shape_data):
+            import random
+            from torch.utils.data import Subset
+            indices = random.sample(range(len(shape_data)), n_pairs)
+            return Subset(shape_data, indices)
+        return shape_data
 
     if n_pairs is not None:
         pair_mode = "random"
@@ -160,7 +201,7 @@ def build_dataset(dataset_dir, config, n_pairs=None, seed=None, **extra_kwargs):
         shape_data,
         pair_mode=pair_mode,
         pairs_ratio=pairs_ratio,
-        device=shape_kwargs.get("device"),
+        device=pair_device,
     )
 
 

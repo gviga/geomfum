@@ -1,0 +1,22 @@
+{
+  "_name": "TOSCA smoke test",
+  "_description": "Fast sanity check on TOSCA: WKS+NN only, k=30, within-category pairs with identity GT.",
+
+  "dataset": {
+    "type": "ToscaPairsDataset",
+    "root": null,
+    "spectral": true,
+    "k": 30
+  },
+
+  "n_pairs": 5,
+
+  "metrics": ["euclidean_error"],
+
+  "methods": [
+    {
+      "name": "WKS+NN (k=30)",
+      "matcher_config": "../../matchers/features_only/wks_k30.json"
+    }
+  ]
+}

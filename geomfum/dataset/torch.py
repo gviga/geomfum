@@ -24,25 +24,44 @@ class ShapeDataset(Dataset):
     Parameters
     ----------
     dataset_dir : str
-        Path to the directory containing the dataset. We assume the dataset directory to have a subfolder shapes, for shapes, corr, for correspondences and dist, for cached distance matrices.
+        Root path of the dataset.
     shape_type : str
-        Type of shape to load. Either 'mesh' or 'pointcloud'.
+        Type of shape to load. Either ``'mesh'`` or ``'pointcloud'``.
     spectral : bool
-        Whether to compute the spectral features.
+        Whether to compute the LBO spectral basis.
     distances : bool
-        Whether to compute geodesic distance matrices. For computational reasons, these are not computed on the fly, but rather loaded from a precomputed .mat file.
+        Whether to compute/load geodesic distance matrices.
     correspondences : bool
-        Whether to load correspondences.
+        Whether to load per-shape correspondence arrays.  If no ``.vts`` file
+        is found for a shape, identity correspondence is used as a fallback.
     landmarks_indices : array-like, optional
-        Indices of landmarks to use. If None, no landmarks are used.
+        Indices of landmarks to use.
     k : int
-        Number of eigenvectors to use for the spectral features.
+        Number of eigenvectors for the spectral basis.
     device : torch.device, optional
-        Device to move the data to.
+        Target device.
+    corr_offset : int
+        Value subtracted from loaded correspondence indices (use 1 for
+        1-indexed ``.vts`` files).  Default 0.
     augmentation : callable or None, optional
         Augmentation callable applied to vertex coordinates at ``__getitem__``
-        time (e.g. ``RandomAugmentation()``).  When set, a shallow copy of the
-        cached shape is made so the cached vertices are never mutated.
+        time.  A shallow copy of the cached shape is made so cached vertices
+        are never mutated.
+    shapes_subdir : str
+        Subdirectory inside *dataset_dir* that contains the mesh files.
+        Pass ``""`` or ``None`` to use *dataset_dir* directly (for datasets
+        with a flat layout).  Default ``"shapes"``.
+    corr_subdir : str or None
+        Subdirectory inside *dataset_dir* that contains ``.vts`` correspondence
+        files.  Pass ``None`` to skip file-based correspondence loading entirely
+        (all shapes get identity correspondence).  Default ``"corr"``.
+    dist_subdir : str or None
+        Subdirectory inside *dataset_dir* used as a cache for precomputed
+        geodesic distance ``.mat`` files.  Pass ``None`` to compute distances
+        without caching.  Default ``"dist"``.
+    file_extensions : tuple of str or None
+        Mesh file extensions to include (e.g. ``(".off", ".ply")``).
+        Default ``None`` → ``(".off", ".ply", ".obj")``.
     """
 
     def __init__(
@@ -57,18 +76,27 @@ class ShapeDataset(Dataset):
         device=None,
         corr_offset=0,
         augmentation=None,
+        shapes_subdir="shapes",
+        corr_subdir="corr",
+        dist_subdir="dist",
+        file_extensions=None,
     ):
         if shape_type not in ["mesh", "pointcloud"]:
             raise ValueError("shape_type must be either 'mesh' or 'pointcloud'")
 
         self.dataset_dir = dataset_dir
         self.shape_type = shape_type
-        self.shape_dir = os.path.join(dataset_dir, "shapes")
+        self.corr_subdir = corr_subdir
+        self.dist_subdir = dist_subdir
+        self.shape_dir = (
+            os.path.join(dataset_dir, shapes_subdir) if shapes_subdir else dataset_dir
+        )
+        _exts = tuple(file_extensions) if file_extensions else (".off", ".ply", ".obj")
         all_shape_files = sorted(
             [
                 f
                 for f in os.listdir(self.shape_dir)
-                if f.lower().endswith((".off", ".ply", ".obj"))
+                if f.lower().endswith(_exts)
             ]
         )
         self.shape_files = all_shape_files
@@ -115,15 +143,15 @@ class ShapeDataset(Dataset):
 
             corr_filename = base_name + ".vts"
             if self.correspondences:
-                if os.path.exists(
-                    os.path.join(self.dataset_dir, "corr", corr_filename)
-                ):
-                    # Load correspondences from file, subtract 1 to convert to zero-based indexing.
+                _corr_path = (
+                    os.path.join(self.dataset_dir, corr_subdir, corr_filename)
+                    if corr_subdir
+                    else None
+                )
+                if _corr_path and os.path.exists(_corr_path):
+                    # Load correspondences from file, subtract corr_offset for 0-based indexing.
                     self.corrs[filename] = (
-                        np.loadtxt(
-                            os.path.join(self.dataset_dir, "corr", corr_filename)
-                        ).astype(np.int32)
-                        - corr_offset
+                        np.loadtxt(_corr_path).astype(np.int32) - corr_offset
                     )
                 else:
                     self.corrs[filename] = np.arange(shape.vertices.shape[0])
@@ -154,12 +182,18 @@ class ShapeDataset(Dataset):
                 )
 
         if self.distances:
-            mat_subfolder = os.path.join(self.dataset_dir, "dist")
             base_name, _ = os.path.splitext(filename)
             mat_filename = base_name + ".mat"
-            dist_path = os.path.join(mat_subfolder, mat_filename)
+            mat_subfolder = (
+                os.path.join(self.dataset_dir, self.dist_subdir)
+                if self.dist_subdir
+                else None
+            )
+            dist_path = (
+                os.path.join(mat_subfolder, mat_filename) if mat_subfolder else None
+            )
             geod_distance_matrix = None
-            if os.path.exists(dist_path):
+            if dist_path and os.path.exists(dist_path):
                 mat_contents = scipy.io.loadmat(dist_path)
                 if "D" in mat_contents:
                     geod_distance_matrix = mat_contents["D"]
@@ -169,11 +203,12 @@ class ShapeDataset(Dataset):
                 else:  # pointcloud
                     metric = VertexEuclideanMetric(shape)
                 geod_distance_matrix = metric.dist_matrix()
-                os.makedirs(os.path.dirname(dist_path), exist_ok=True)
-                scipy.io.savemat(
-                    dist_path,
-                    {"D": gs.to_numpy(geod_distance_matrix)},
-                )
+                if dist_path is not None:
+                    os.makedirs(mat_subfolder, exist_ok=True)
+                    scipy.io.savemat(
+                        dist_path,
+                        {"D": gs.to_numpy(geod_distance_matrix)},
+                    )
 
             shape_data.update({"dist_matrix": gs.array(geod_distance_matrix)})
 

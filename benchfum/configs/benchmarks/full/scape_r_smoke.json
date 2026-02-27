@@ -1,0 +1,23 @@
+{
+  "_name": "SCAPE_r smoke test",
+  "_description": "Fast sanity check on SCAPE_r: WKS+NN only, k=30, no geodesic distances.",
+
+  "dataset": {
+    "type": "ScapeDataset",
+    "root": null,
+    "spectral": true,
+    "k": 30,
+    "distances": false
+  },
+
+  "n_pairs": 5,
+
+  "metrics": ["euclidean_error"],
+
+  "methods": [
+    {
+      "name": "WKS+NN (k=30)",
+      "matcher_config": "../../matchers/features_only/wks_k30.json"
+    }
+  ]
+}
