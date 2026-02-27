@@ -15,6 +15,7 @@ from geomfum._registry import (
     register_neighbor_finder,
     register_point_cloud_plotter,
     register_poisson_sampler,
+    register_vision_model_descriptor,
     register_wave_kernel_signature,
 )
 from geomfum._utils import has_package
@@ -128,5 +129,12 @@ register_heat_distance_metric(
     "pp3d",
     "Pp3dPointSetHeatDistanceMetric",
     requires="potpourri3d",
+    as_default=True,
+)
+
+register_vision_model_descriptor(
+    "diff3f",
+    "Diff3FDescriptor",
+    requires=("torch", "pytorch3d", "diffusers"),
     as_default=True,
 )

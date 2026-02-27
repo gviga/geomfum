@@ -348,6 +348,10 @@ class FeatureExtractorRegistry(Registry):
     MAP = {}
 
 
+class VisionModelDescriptorRegistry(Registry):
+    MAP = {}
+
+
 class NeighborFinderRegistry(Registry):
     has_internal = True
 

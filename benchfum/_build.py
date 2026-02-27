@@ -110,6 +110,7 @@ def _build_component_registry():
         SoftmaxNeighborFinder,
     )
     from geomfum.descriptor import DistanceFromLandmarksDescriptor
+    from geomfum.descriptor.vision import VisionModelDescriptor
     from geomfum.descriptor.pipeline import (
         ArangeSubsampler,
         DescriptorPipeline,
@@ -155,6 +156,8 @@ def _build_component_registry():
         "LandmarkHeatKernelSignature": LandmarkHeatKernelSignature,
         "DistanceFromLandmarksDescriptor": DistanceFromLandmarksDescriptor,
         "ShotDescriptor": ShotDescriptor,
+        # VisionModelDescriptor uses from_registry(which=...) not __init__
+        "VisionModelDescriptor": lambda **kw: VisionModelDescriptor.from_registry(**kw),
         # --- URRSM-compatible domain generators ---
         "UrrsmWksDomain": UrrsmWksDomain,
         "UrrsmHksDomain": UrrsmHksDomain,

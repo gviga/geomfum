@@ -1,0 +1,21 @@
+{
+  "_description": "Feature-based matcher using Diff3F (Stable Diffusion + DINOv2) multi-view descriptors.",
+  "_note": "Requires pytorch3d, diffusers, transformers, safetensors, opencv-python. Set DIFF3F_PATH env var if vision/Diffusion-3D-Features is not at the default location.",
+  "type": "FeatureMatcher",
+  "descriptor_pipeline": {
+    "type": "DescriptorPipeline",
+    "steps": [
+      {
+        "type": "VisionModelDescriptor",
+        "which": "diff3f",
+        "prompt": "a 3D shape",
+        "num_views": 100,
+        "H": 512,
+        "W": 512,
+        "tolerance": 0.004,
+        "use_normal_map": true,
+        "device": "cuda"
+      }
+    ]
+  }
+}
