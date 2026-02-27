@@ -152,12 +152,12 @@ class OverlapRefiner(nn.Module):
             Refined overlap probabilities in [0, 1].
         """
         fe = self.feature_extractor
-        frames, mass, L, evals, evecs, gradX, gradY = fe._get_operators(
-            shape, k=fe.k
-        )
+        frames, mass, L, evals, evecs, gradX, gradY = fe._get_operators(shape, k=fe.k)
 
         feat = scores.float().unsqueeze(0)  # [1, V, k]
-        verts = gs.to_torch(shape.vertices).float().to(fe.device).unsqueeze(0)  # [1, V, 3]
+        verts = (
+            gs.to_torch(shape.vertices).float().to(fe.device).unsqueeze(0)
+        )  # [1, V, 3]
 
         out = fe.model(
             verts,

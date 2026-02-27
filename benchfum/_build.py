@@ -205,6 +205,9 @@ def _build_component_registry():
             LaplacianCommutativityLoss,
             LossManager,
             OrthonormalityLoss,
+            OverlapIoU,
+            PartialGeodesicError,
+            PCKMetric,
             SelfNCELoss,
             WeightedBCELoss,
         )
@@ -216,7 +219,6 @@ def _build_component_registry():
             RobustFMNet,
         )
         from geomfum.learning.wrappers import TestTimeRefiner
-        from geomfum.learning.losses import OverlapIoU, PCKMetric, PartialGeodesicError
 
         def _feature_extractor_builder(**kwargs):
             return FeatureExtractor.from_registry(**kwargs)
