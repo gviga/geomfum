@@ -1,0 +1,7 @@
+{
+  "_name": "ZoomOut smoke",
+  "_description": "Lightweight ZoomOut refiner for smoke tests.",
+  "type": "ZoomOut",
+  "nit": 3,
+  "step": 1
+}

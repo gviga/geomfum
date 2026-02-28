@@ -1,27 +1,37 @@
 r"""Landmark-based method benchmark.
 
-This runner compares multiple matcher methods on FAUST landmark pairs.
+This runner compares matcher methods on landmark-aware shape pairs.
 Methods are declared in a benchmark config JSON and instantiated through
 ``benchfum.build_matcher_from_json``.
+
+Landmark handling supports two modes:
+
+1) ``dataset.landmark_indices`` provided:
+    keep legacy behavior (dataset-level landmarks, typically template-driven).
+2) ``dataset.landmark_indices`` absent:
+    generate landmarks per pair by farthest-point sampling on the source shape,
+    then transfer them to target using that pair's ground-truth correspondence.
 
 Usage
 -----
 Run benchmark declared in config:
 
     python -m benchfum.challenges.landmark_based.run \
-        --dataset datasets/faust/train_set
+        --dataset datasets/full_meshes/FAUST
 
 Use a custom benchmark config and save results:
 
     python -m benchfum.challenges.landmark_based.run \
-        --dataset datasets/faust/train_set \
-        --config benchfum/configs/challenges/landmark_faust_benchmark.json \
+        --dataset datasets/full_meshes/FAUST \
+        --config benchfum/configs/benchmarks/ldmk/landmark_faust.json \
         --save results/landmark_faust
 """
 
 import argparse
 import os
 from pathlib import Path
+
+import numpy as np
 
 if __package__ is None or __package__ == "":
     import sys
@@ -34,8 +44,10 @@ from benchfum.challenges._common import (
     load_config,
     resolve_dataset_dir,
     resolve_path,
-    seed_random,
 )
+from geomfum.metric import VertexEuclideanMetric
+from geomfum.metric.mesh import ScipyGraphShortestPathMetric
+from geomfum.sample import FarthestPointSampler
 
 # ============================================================================
 # BENCHMARK CONFIG
@@ -43,9 +55,138 @@ from benchfum.challenges._common import (
 _DEFAULT_BENCHMARK_CONFIG_PATH = (
     Path(__file__).parent.parent.parent
     / "configs"
-    / "challenges"
+    / "benchmarks"
+    / "ldmk"
     / "landmark_faust.json"
 )
+
+
+def _to_numpy_int(arr) -> np.ndarray | None:
+    if arr is None:
+        return None
+    if hasattr(arr, "detach"):
+        arr = arr.detach().cpu().numpy()
+    return np.asarray(arr, dtype=np.int64).reshape(-1)
+
+
+def _map_landmarks_from_pair_corr(
+    source_corr: np.ndarray,
+    target_corr: np.ndarray,
+    source_landmarks: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    if source_corr.size == 0 or target_corr.size == 0 or source_landmarks.size == 0:
+        return np.array([], dtype=np.int64), np.array([], dtype=np.int64)
+
+    n_corr = min(len(source_corr), len(target_corr))
+    if n_corr == 0:
+        return np.array([], dtype=np.int64), np.array([], dtype=np.int64)
+
+    source_corr = source_corr[:n_corr]
+    target_corr = target_corr[:n_corr]
+
+    src = source_landmarks[source_landmarks >= 0]
+    if src.size == 0:
+        return np.array([], dtype=np.int64), np.array([], dtype=np.int64)
+
+    src_to_pos = {}
+    for pos, src_vertex in enumerate(source_corr):
+        src_vertex = int(src_vertex)
+        if src_vertex >= 0 and src_vertex not in src_to_pos:
+            src_to_pos[src_vertex] = pos
+
+    src_mapped = []
+    tgt_mapped = []
+    for src_vertex in src:
+        pos = src_to_pos.get(int(src_vertex))
+        if pos is None:
+            continue
+        tgt_vertex = int(target_corr[pos])
+        if tgt_vertex < 0:
+            continue
+        src_mapped.append(int(src_vertex))
+        tgt_mapped.append(tgt_vertex)
+
+    if not src_mapped:
+        return np.array([], dtype=np.int64), np.array([], dtype=np.int64)
+
+    return np.asarray(src_mapped, dtype=np.int64), np.asarray(
+        tgt_mapped, dtype=np.int64
+    )
+
+
+def _get_pair_corr(pair: dict, key: str):
+    corr = pair.get(key)
+    if corr is not None:
+        return corr
+    side = "source" if key == "source_corr" else "target"
+    return pair[side].get("corr")
+
+
+class PairwiseFpsLandmarkDataset:
+    """Pair dataset wrapper generating landmarks per pair via FPS + GT transfer."""
+
+    def __init__(self, base_dataset, n_landmarks=20, metric="euclidean"):
+        self.base = base_dataset
+        self.n_landmarks = int(n_landmarks)
+        self.metric = metric
+        pairs = getattr(base_dataset, "pairs", None)
+        if pairs is not None:
+            self.pairs = pairs
+        shape_data = getattr(base_dataset, "shape_data", None)
+        if shape_data is not None:
+            self.shape_data = shape_data
+
+    def __len__(self):
+        """Return number of available pairs."""
+        return len(self.base)
+
+    def _ensure_metric(self, shape):
+        if getattr(shape, "metric", None) is not None:
+            return
+        if self.metric == "geodesic" and getattr(shape, "is_mesh", False):
+            shape.equip_with_metric(ScipyGraphShortestPathMetric)
+        else:
+            shape.equip_with_metric(VertexEuclideanMetric)
+
+    def __getitem__(self, idx):
+        """Return pair ``idx`` with pairwise-generated source/target landmarks."""
+        pair = self.base[idx]
+        source_shape = pair["source"]["shape"]
+        target_shape = pair["target"]["shape"]
+
+        source_corr = _to_numpy_int(_get_pair_corr(pair, "source_corr"))
+        target_corr = _to_numpy_int(_get_pair_corr(pair, "target_corr"))
+
+        if source_corr is None or target_corr is None:
+            raise ValueError(
+                "Pairwise landmark mode requires source/target correspondences in each pair."
+            )
+
+        self._ensure_metric(source_shape)
+        sampler = FarthestPointSampler(min_n_samples=self.n_landmarks + 1)
+        source_pool = np.unique(source_corr[source_corr >= 0]).astype(np.int64)
+        if source_pool.size > 0:
+            source_landmarks = _to_numpy_int(
+                sampler.sample(source_shape, points_pool=source_pool)
+            )[1:]
+        else:
+            source_landmarks = _to_numpy_int(sampler.sample(source_shape))[1:]
+
+        source_lm, target_lm = _map_landmarks_from_pair_corr(
+            source_corr=source_corr,
+            target_corr=target_corr,
+            source_landmarks=source_landmarks,
+        )
+
+        if source_lm.size == 0:
+            raise ValueError(
+                "Could not map sampled source landmarks to target via ground-truth correspondences."
+            )
+
+        source_shape.landmark_indices = source_lm
+        target_shape.landmark_indices = target_lm
+
+        return pair
 
 
 # ============================================================================
@@ -121,22 +262,37 @@ def run_benchmark(
     -------
     suite : ExperimentSuite
     """
-    config, resolved_config_path = load_config(config_path, _DEFAULT_BENCHMARK_CONFIG_PATH)
-    dataset_dir = resolve_dataset_dir(
-        dataset_dir, config, resolved_config_path, default="datasets/faust/train_set"
+    config, resolved_config_path = load_config(
+        config_path, _DEFAULT_BENCHMARK_CONFIG_PATH
     )
+    dataset_dir = resolve_dataset_dir(dataset_dir, config, resolved_config_path)
 
     print(f"Benchmark : {config.get('_name', 'Landmark-Based')}")
     print(f"Dataset   : {dataset_dir}")
     ds_cfg = config.get("dataset", {})
+    ldmk_cfg = config.get("landmarks", {})
     k = ds_cfg.get("k", 200)
     lm = ds_cfg.get("landmark_indices", [])
-    print(f"Spectrum  : k={k}  |  Landmarks: {len(lm)}")
+    pairwise_n_landmarks = ldmk_cfg.get("n_landmarks", ds_cfg.get("_n_landmarks", 20))
+    pairwise_metric = ldmk_cfg.get(
+        "metric", ds_cfg.get("_landmark_metric", "euclidean")
+    )
+    if lm:
+        print(f"Spectrum  : k={k}  |  Landmarks: {len(lm)} (provided)")
+    else:
+        print(f"Spectrum  : k={k}  |  Landmarks: pairwise FPS ({pairwise_n_landmarks})")
     if n_pairs:
         print(f"Pairs     : {n_pairs} (random, seed={seed})")
     print()
 
     pairs = build_dataset(dataset_dir, config, n_pairs, seed=seed)
+    if not lm:
+        pairs = PairwiseFpsLandmarkDataset(
+            pairs,
+            n_landmarks=pairwise_n_landmarks,
+            metric=pairwise_metric,
+        )
+
     methods = load_methods(config, resolved_config_path)
 
     print(f"Methods   : {list(methods.keys())}")
@@ -165,7 +321,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         default=None,
-        help="Path to dataset root directory (must contain shapes/). Overrides dataset.root in config.",
+        help="Path to dataset root directory. Overrides dataset.root in config.",
     )
     parser.add_argument(
         "--config",

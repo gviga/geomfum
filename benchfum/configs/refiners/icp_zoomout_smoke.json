@@ -1,0 +1,9 @@
+{
+  "_name": "ICP+ZoomOut smoke",
+  "_description": "Lightweight ICP+ZoomOut pipeline for smoke tests.",
+  "type": "RefinementPipeline",
+  "refiners": [
+    {"type": "IcpRefiner", "nit": 3},
+    {"type": "ZoomOut", "nit": 3, "step": 1}
+  ]
+}

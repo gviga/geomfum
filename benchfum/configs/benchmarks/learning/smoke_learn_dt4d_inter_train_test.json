@@ -1,0 +1,29 @@
+{
+  "_name": "Learning DT4D inter train smoke",
+  "_description": "Deep functional-map smoke on DT4D inter mode with 1-epoch training.",
+  "train": true,
+  "dataset": {
+    "type": "DT4DPairsDataset",
+    "root": null,
+    "spectral": true,
+    "k": 30,
+    "phase": "test",
+    "inter_class": true
+  },
+  "methods": [
+    {
+      "name": "FMNet-smoke",
+      "model_config": "../../models/fmnet_smoke.json",
+      "trainer_config": "../../training/unsupervised_smoke_1epoch.json"
+    },
+    {
+      "name": "RobustFMNet-smoke",
+      "model_config": "../../models/robust_fmnet_smoke.json",
+      "trainer_config": "../../training/unsupervised_smoke_1epoch.json"
+    }
+  ],
+  "metrics": [
+    "euclidean_error"
+  ],
+  "n_pairs": 1
+}

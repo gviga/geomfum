@@ -1,0 +1,24 @@
+{
+  "_name": "CP2P24 partial deep smoke test",
+  "_description": "Fast sanity check on CP2P partial-to-partial pairs with EchoMatch (forward only).",
+  "device": "cuda:0",
+
+  "dataset": {
+    "root": "../../../datasets/CP2P24/test",
+    "format": "cp2p",
+    "spectral": true,
+    "k": 30
+  },
+
+  "train": false,
+  "n_pairs": 1,
+
+  "methods": [
+    {
+      "name": "EchoMatch-smoke",
+      "model_config": "../../models/echo_match_smoke.json"
+    }
+  ],
+
+  "metrics": ["OverlapIoU", "PCKMetric"]
+}

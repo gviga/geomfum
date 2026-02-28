@@ -3,7 +3,7 @@
   "_description": "Minimal trainer config for quick pipeline sanity checks.",
   "optimizer": {"type": "Adam", "lr": 0.001, "weight_decay": 1e-5},
   "epochs": 1,
-  "monitor_metric": "GeodesicError",
+  "monitor_metric": "BijectivityLoss",
   "mode": "min",
   "train_loss_manager": {
     "type": "LossManager",
@@ -15,7 +15,8 @@
   "val_loss_manager": {
     "type": "LossManager",
     "losses": [
-      {"type": "GeodesicError"}
+      {"type": "OrthonormalityLoss", "weight": 1.0},
+      {"type": "BijectivityLoss", "weight": 1.0}
     ]
   }
 }

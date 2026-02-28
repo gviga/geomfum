@@ -1,0 +1,23 @@
+{
+  "_name": "Landmark SHREC19_r pairwise-FPS smoke",
+  "_description": "Pairwise landmark smoke on SHREC19_r using FPS + GT landmark transfer.",
+  "dataset": {
+    "type": "Shrec19rDataset",
+    "root": null,
+    "spectral": true,
+    "k": 30,
+    "dist_dir": null
+  },
+  "landmarks": {
+    "n_landmarks": 7,
+    "metric": "euclidean"
+  },
+  "n_pairs": 1,
+  "metrics": ["euclidean_error"],
+  "methods": [
+    {
+      "name": "WKS+LDMK+NN (k=30)",
+      "matcher_config": "../../matchers/features_only/wks_ldmk_k30.json"
+    }
+  ]
+}

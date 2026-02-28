@@ -1,0 +1,26 @@
+{
+  "_name": "Learning SHREC19_r smoke",
+  "_description": "Deep functional-map smoke on SHREC19_r (no training, model forward only).",
+  "train": false,
+  "dataset": {
+    "type": "Shrec19rDataset",
+    "root": null,
+    "spectral": true,
+    "k": 30,
+    "dist_dir": null
+  },
+  "methods": [
+    {
+      "name": "FMNet-smoke",
+      "model_config": "../../models/fmnet_smoke.json"
+    },
+    {
+      "name": "RobustFMNet-smoke",
+      "model_config": "../../models/robust_fmnet_smoke.json"
+    }
+  ],
+  "metrics": [
+    "euclidean_error"
+  ],
+  "n_pairs": 1
+}

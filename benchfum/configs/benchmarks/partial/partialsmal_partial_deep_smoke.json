@@ -1,0 +1,25 @@
+{
+  "_name": "PARTIALSMAL partial deep smoke test",
+  "_description": "Fast sanity check on PARTIALSMAL test split with EchoMatch smoke model (forward only).",
+  "device": "cuda:0",
+
+  "dataset": {
+    "root": "../../../../datasets/PARTIALSMAL",
+    "format": "partialsmal",
+    "split": "test",
+    "spectral": true,
+    "k": 30
+  },
+
+  "train": false,
+  "n_pairs": 1,
+
+  "methods": [
+    {
+      "name": "EchoMatch-smoke",
+      "model_config": "../../models/echo_match_smoke.json"
+    }
+  ],
+
+  "metrics": ["OverlapIoU", "PCKMetric"]
+}

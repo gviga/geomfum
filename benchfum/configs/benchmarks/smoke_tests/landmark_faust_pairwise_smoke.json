@@ -1,0 +1,22 @@
+{
+  "_name": "Landmark FAUST Pairwise-FPS Smoke Benchmark",
+  "_description": "Fast smoke benchmark to validate pairwise landmark generation (FPS + GT transfer).",
+  "dataset": {
+    "root": "../../../../../datasets/dummy_datasets/dummy_faust/test_set",
+    "k": 64,
+    "corr_offset": 1
+  },
+  "landmarks": {
+    "n_landmarks": 7,
+    "metric": "euclidean"
+  },
+  "methods": [
+    {
+      "name": "WKS+LDMK+NN",
+      "matcher_config": "../../matchers/features_only/wks_ldmk.json"
+    }
+  ],
+  "metrics": ["geodesic_error"],
+  "bidirectional": false,
+  "n_pairs": 1
+}

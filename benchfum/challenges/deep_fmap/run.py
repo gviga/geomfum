@@ -37,7 +37,6 @@ from benchfum.challenges._common import (
     load_config,
     resolve_dataset_dir,
     resolve_path,
-    seed_random,
 )
 from geomfum.learning.wrappers import TrainedModelWrapper
 
@@ -47,10 +46,10 @@ from geomfum.learning.wrappers import TrainedModelWrapper
 _DEFAULT_BENCHMARK_CONFIG_PATH = (
     Path(__file__).parent.parent.parent
     / "configs"
-    / "challenges"
+    / "benchmarks"
+    / "learning"
     / "deep_fmap_faust.json"
 )
-
 
 
 # ============================================================================
@@ -136,7 +135,9 @@ def run_benchmark(
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    config, resolved_config_path = load_config(config_path, _DEFAULT_BENCHMARK_CONFIG_PATH)
+    config, resolved_config_path = load_config(
+        config_path, _DEFAULT_BENCHMARK_CONFIG_PATH
+    )
 
     methods_cfg = config.get("methods")
     if not methods_cfg:
@@ -264,7 +265,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         default=None,
-        help="Path to dataset root directory (must contain shapes/). Overrides dataset.root in config.",
+        help="Path to dataset root directory. Overrides dataset.root in config.",
     )
     parser.add_argument(
         "--config",

@@ -3,14 +3,11 @@
   "_description": "Fast sanity check on SMAL_r: WKS+NN only, k=30, no geodesic distances.",
 
   "dataset": {
+    "type": "SmalrDataset",
     "root": null,
     "spectral": true,
     "k": 30,
-    "distances": false,
-    "correspondences": true,
-    "shapes_subdir": "off",
-    "corr_subdir": "corres",
-    "corr_offset": 1
+    "distances": false
   },
 
   "n_pairs": 5,

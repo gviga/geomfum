@@ -1,0 +1,24 @@
+{
+  "_name": "FMap WKS k30 Base",
+  "_description": "Functional map base matcher for refinement smokes (WKS only, k=30, identity refiner).",
+  "type": "FunctionalMapMatcher",
+  "fmap_size": 20,
+  "descriptor_pipeline": {
+    "type": "DescriptorPipeline",
+    "steps": [
+      {"type": "WaveKernelSignature", "n_domain": 30, "k": 30},
+      {"type": "L2InnerNormalizer"}
+    ]
+  },
+  "fmap_optimizer": {
+    "type": "FunctionalMapOptimizer",
+    "factor_builders": [
+      {"type": "SDPFactorBuilder", "weight": 1.0},
+      {"type": "LBFactorBuilder", "weight": 0.01},
+      {"type": "MultFactorBuilder", "weight": 0.1}
+    ]
+  },
+  "refiner": {
+    "type": "IdentityRefiner"
+  }
+}

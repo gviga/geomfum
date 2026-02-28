@@ -39,3 +39,36 @@ class FaustDataset(ShapeDataset):
             self.shape_files = self.shape_files[80:]
         elif split is not None:
             raise ValueError(f"Unknown split {split!r}. Use 'train', 'test', or None.")
+
+
+class FaustrDataset(ShapeDataset):
+    """FAUST remeshed registered human body dataset (100 meshes).
+
+    All shapes are in the dataset root (no ``shapes/`` subdirectory).
+    Correspondences default to identity (vertex i ↔ vertex i).
+
+    Parameters
+    ----------
+    dataset_dir : str
+        Root directory containing the ``.off`` files.
+    split : str or None
+        ``"train"`` (shapes 0–79), ``"test"`` (shapes 80–99), or ``None``
+        (all 100).  Default ``None``.
+    **kwargs
+        Forwarded to :class:`~geomfum.dataset.torch.ShapeDataset`.
+    """
+
+    def __init__(self, dataset_dir, split=None, **kwargs):
+        kwargs.setdefault("shape_type", "mesh")
+        kwargs.setdefault("shapes_subdir", "off")
+        kwargs.setdefault("corr_subdir", "corres")
+        kwargs.setdefault("correspondences", True)
+        kwargs.setdefault("corr_offset", 1)
+        kwargs.setdefault("file_extensions", (".off",))
+        super().__init__(dataset_dir, **kwargs)
+        if split == "train":
+            self.shape_files = self.shape_files[:80]
+        elif split == "test":
+            self.shape_files = self.shape_files[80:]
+        elif split is not None:
+            raise ValueError(f"Unknown split {split!r}. Use 'train', 'test', or None.")

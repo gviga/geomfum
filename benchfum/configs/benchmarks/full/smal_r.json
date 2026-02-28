@@ -3,15 +3,11 @@
   "_description": "Full-shape matching on SMAL remeshed (standard shapes/ layout).",
 
   "dataset": {
+    "type": "SmalrDataset",
     "root": null,
-    "_note": "SMAL_r: shapes in off/, correspondences in corres/ (1-indexed .vts).",
     "spectral": true,
     "k": 200,
-    "distances": true,
-    "correspondences": true,
-    "shapes_subdir": "off",
-    "corr_subdir": "corres",
-    "corr_offset": 1
+    "distances": true
   },
 
   "metrics": ["geodesic_error"],

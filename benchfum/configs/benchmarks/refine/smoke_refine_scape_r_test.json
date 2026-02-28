@@ -1,0 +1,34 @@
+{
+  "_name": "Refinement SCAPE_r smoke",
+  "_description": "Refinement smoke benchmark on SCAPE_r (shared k30 base map).",
+  "dataset": {
+    "type": "ScapeDataset",
+    "root": null,
+    "spectral": true,
+    "k": 30,
+    "distances": false
+  },
+  "base_matcher_config": "../../matchers/functional_maps/fmap_wks_k30_base.json",
+  "methods": [
+    {
+      "name": "No Refinement",
+      "refiner_config": "../../refiners/identity.json"
+    },
+    {
+      "name": "ICP",
+      "refiner_config": "../../refiners/icp_smoke.json"
+    },
+    {
+      "name": "ZoomOut",
+      "refiner_config": "../../refiners/zoomout_smoke.json"
+    },
+    {
+      "name": "ICP+ZoomOut",
+      "refiner_config": "../../refiners/icp_zoomout_smoke.json"
+    }
+  ],
+  "metrics": [
+    "euclidean_error"
+  ],
+  "n_pairs": 1
+}

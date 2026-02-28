@@ -37,6 +37,10 @@ Quick start — models (requires torch)
 >>> trainer.train()
 """
 
+import os
+
+os.environ.setdefault("GEOMSTATS_BACKEND", "pytorch")
+
 from benchfum._build import (
     build_converter,
     build_converter_from_json,

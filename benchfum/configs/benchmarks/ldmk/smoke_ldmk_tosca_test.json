@@ -1,0 +1,22 @@
+{
+  "_name": "Landmark TOSCA pairwise-FPS smoke",
+  "_description": "Pairwise landmark smoke on TOSCA using FPS + GT landmark transfer.",
+  "dataset": {
+    "type": "ToscaPairsDataset",
+    "root": null,
+    "spectral": true,
+    "k": 30
+  },
+  "landmarks": {
+    "n_landmarks": 7,
+    "metric": "euclidean"
+  },
+  "n_pairs": 1,
+  "metrics": ["euclidean_error"],
+  "methods": [
+    {
+      "name": "WKS+LDMK+NN (k=30)",
+      "matcher_config": "../../matchers/features_only/wks_ldmk_k30.json"
+    }
+  ]
+}

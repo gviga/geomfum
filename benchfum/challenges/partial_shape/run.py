@@ -289,6 +289,9 @@ def run_benchmark(
     """
     config, resolved_config_path = load_config(config_path, _DEFAULT_CONFIG_PATH)
 
+    if n_pairs is None:
+        n_pairs = config.get("n_pairs", None)
+
     if device is None:
         device = config.get("device")
     if device is None:
@@ -407,8 +410,11 @@ def run_benchmark(
 
     # Evaluate
     all_results = {}
+    n_eval_pairs = (
+        len(test_dataset) if n_pairs is None else min(int(n_pairs), len(test_dataset))
+    )
     for method_name, matcher in methods.items():
-        print(f"Evaluating {method_name} on {len(test_dataset)} pairs...")
+        print(f"Evaluating {method_name} on {n_eval_pairs} pairs...")
         results = _evaluate_model(
             matcher, test_dataset, device, n_pairs=n_pairs, seed=seed
         )

@@ -1,0 +1,26 @@
+{
+  "_name": "Learning SMAL_r smoke",
+  "_description": "Deep functional-map smoke on SMAL_r (no training, model forward only).",
+  "train": false,
+  "dataset": {
+    "type": "SmalrDataset",
+    "root": null,
+    "spectral": true,
+    "k": 30,
+    "distances": false
+  },
+  "methods": [
+    {
+      "name": "FMNet-smoke",
+      "model_config": "../../models/fmnet_smoke.json"
+    },
+    {
+      "name": "RobustFMNet-smoke",
+      "model_config": "../../models/robust_fmnet_smoke.json"
+    }
+  ],
+  "metrics": [
+    "euclidean_error"
+  ],
+  "n_pairs": 1
+}

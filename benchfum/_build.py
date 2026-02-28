@@ -110,7 +110,6 @@ def _build_component_registry():
         SoftmaxNeighborFinder,
     )
     from geomfum.descriptor import DistanceFromLandmarksDescriptor
-    from geomfum.descriptor.vision import VisionModelDescriptor
     from geomfum.descriptor.pipeline import (
         ArangeSubsampler,
         DescriptorPipeline,
@@ -126,6 +125,7 @@ def _build_component_registry():
         UrrsmWksDomain,
         WaveKernelSignature,
     )
+    from geomfum.descriptor.vision import VisionModelDescriptor
     from geomfum.functional_map import (
         FunctionalMapOptimizer,
         LBFactorBuilder,
@@ -189,25 +189,27 @@ def _build_component_registry():
 
     # Learning classes — only when torch is available
     try:
-        from geomfum.dataset.augmentation import RandomAugmentation
-        from benchfum.datasets.partial import (
-            CP2PPairsDataset,
-            PartialSmalPairsDataset,
-            Shrec16PairsDataset,
-        )
         from benchfum.datasets.full import (
             DT4DDataset,
             DT4DPairsDataset,
             FaustDataset,
+            FaustrDataset,
             ScapeDataset,
             Shrec19Dataset,
             Shrec19rDataset,
             Shrec20Dataset,
             SmalDataset,
+            SmalrDataset,
             TopKidsDataset,
             ToscaDataset,
             ToscaPairsDataset,
         )
+        from benchfum.datasets.partial import (
+            CP2PPairsDataset,
+            PartialSmalPairsDataset,
+            Shrec16PairsDataset,
+        )
+        from geomfum.dataset.augmentation import RandomAugmentation
         from geomfum.descriptor.learned import FeatureExtractor
         from geomfum.forward_functional_map import ForwardFunctionalMap
         from geomfum.learning.losses import (
@@ -274,7 +276,9 @@ def _build_component_registry():
                 "PartialSmalPairsDataset": PartialSmalPairsDataset,
                 # --- Full-shape benchmark datasets ---
                 "FaustDataset": FaustDataset,
+                "FaustrDataset": FaustrDataset,
                 "SmalDataset": SmalDataset,
+                "SmalrDataset": SmalrDataset,
                 "ScapeDataset": ScapeDataset,
                 "TopKidsDataset": TopKidsDataset,
                 "Shrec20Dataset": Shrec20Dataset,

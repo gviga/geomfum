@@ -1,0 +1,24 @@
+{
+  "_name": "Landmark DT4D intra pairwise-FPS smoke",
+  "_description": "Pairwise landmark smoke on DT4D intra mode using FPS + GT landmark transfer.",
+  "dataset": {
+    "type": "DT4DPairsDataset",
+    "root": null,
+    "spectral": true,
+    "k": 30,
+    "phase": "test",
+    "inter_class": false
+  },
+  "landmarks": {
+    "n_landmarks": 7,
+    "metric": "euclidean"
+  },
+  "n_pairs": 1,
+  "metrics": ["euclidean_error"],
+  "methods": [
+    {
+      "name": "WKS+LDMK+NN (k=30)",
+      "matcher_config": "../../matchers/features_only/wks_ldmk_k30.json"
+    }
+  ]
+}

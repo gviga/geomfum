@@ -1,0 +1,12 @@
+{
+  "_description": "WKS+LandmarkWKS+NN with k=30 eigenfunctions — fast landmark smoke-test variant.",
+  "type": "FeatureMatcher",
+  "descriptor_pipeline": {
+    "type": "DescriptorPipeline",
+    "steps": [
+      {"type": "WaveKernelSignature", "n_domain": 30, "k": 30},
+      {"type": "LandmarkWaveKernelSignature", "n_domain": 10, "k": 30},
+      {"type": "L2InnerNormalizer"}
+    ]
+  }
+}

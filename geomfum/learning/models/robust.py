@@ -77,8 +77,12 @@ class RobustFMNet(BaseModel):
         desc_a_norm = desc_a / gs.linalg.norm(desc_a, axis=0, keepdims=True)
         desc_b_norm = desc_b / gs.linalg.norm(desc_b, axis=0, keepdims=True)
 
-        P12 = self.neighbor_finder.softmax_matrix(desc_a_norm.T, desc_b_norm.T)
-        P21 = self.neighbor_finder.softmax_matrix(desc_b_norm.T, desc_a_norm.T)
+        P12 = gs.array(
+            self.neighbor_finder.softmax_matrix(desc_a_norm.T, desc_b_norm.T)
+        )
+        P21 = gs.array(
+            self.neighbor_finder.softmax_matrix(desc_b_norm.T, desc_a_norm.T)
+        )
 
         # Descriptor-based fmaps (used as "refined" fmaps)
         fmap21_desc = mesh_a.basis.pinv @ (P12 @ mesh_b.basis.vecs)

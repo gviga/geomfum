@@ -32,7 +32,6 @@ from benchfum.challenges._common import (
     load_config,
     resolve_dataset_dir,
     resolve_path,
-    seed_random,
 )
 from benchfum.refinement import RefinementMatcher
 
@@ -42,7 +41,8 @@ from benchfum.refinement import RefinementMatcher
 _DEFAULT_BENCHMARK_CONFIG_PATH = (
     Path(__file__).parent.parent.parent
     / "configs"
-    / "challenges"
+    / "benchmarks"
+    / "refine"
     / "refinement_faust.json"
 )
 
@@ -90,7 +90,9 @@ def build_methods(config: dict, config_path: Path, base_matcher) -> dict:
 
         p2p_converter = None
         if "p2p_converter_config" in method_cfg:
-            converter_path = resolve_path(config_path, method_cfg["p2p_converter_config"])
+            converter_path = resolve_path(
+                config_path, method_cfg["p2p_converter_config"]
+            )
             p2p_converter = build_converter_from_json(str(converter_path))
 
         methods[method_name] = RefinementMatcher(base_matcher, refiner, p2p_converter)
@@ -132,9 +134,7 @@ def run_benchmark(
     config, resolved_config_path = load_config(
         config_path, _DEFAULT_BENCHMARK_CONFIG_PATH
     )
-    dataset_dir = resolve_dataset_dir(
-        dataset_dir, config, resolved_config_path, default="datasets/faust/train_set"
-    )
+    dataset_dir = resolve_dataset_dir(dataset_dir, config, resolved_config_path)
 
     base_matcher_cfg = config.get("base_matcher_config")
     if base_matcher_cfg is None:
@@ -184,7 +184,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         default=None,
-        help="Path to dataset root directory (must contain shapes/). Overrides dataset.root in config.",
+        help="Path to dataset root directory. Overrides dataset.root in config.",
     )
     parser.add_argument(
         "--config",

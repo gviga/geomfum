@@ -1,0 +1,35 @@
+{
+  "_name": "Refinement DT4D inter smoke",
+  "_description": "Refinement smoke benchmark on DT4D inter mode (shared k30 base map).",
+  "dataset": {
+    "type": "DT4DPairsDataset",
+    "root": null,
+    "spectral": true,
+    "k": 30,
+    "phase": "test",
+    "inter_class": true
+  },
+  "base_matcher_config": "../../matchers/functional_maps/fmap_wks_k30_base.json",
+  "methods": [
+    {
+      "name": "No Refinement",
+      "refiner_config": "../../refiners/identity.json"
+    },
+    {
+      "name": "ICP",
+      "refiner_config": "../../refiners/icp_smoke.json"
+    },
+    {
+      "name": "ZoomOut",
+      "refiner_config": "../../refiners/zoomout_smoke.json"
+    },
+    {
+      "name": "ICP+ZoomOut",
+      "refiner_config": "../../refiners/icp_zoomout_smoke.json"
+    }
+  ],
+  "metrics": [
+    "euclidean_error"
+  ],
+  "n_pairs": 1
+}

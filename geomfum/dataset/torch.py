@@ -94,11 +94,7 @@ class ShapeDataset(Dataset):
         )
         _exts = tuple(file_extensions) if file_extensions else (".off", ".ply", ".obj")
         all_shape_files = sorted(
-            [
-                f
-                for f in os.listdir(self.shape_dir)
-                if f.lower().endswith(_exts)
-            ]
+            [f for f in os.listdir(self.shape_dir) if f.lower().endswith(_exts)]
         )
         self.shape_files = all_shape_files
 
@@ -217,6 +213,8 @@ class ShapeDataset(Dataset):
         shape.vertices = gs.to_device(shape.vertices, self.device)
         shape.basis.full_vals = gs.to_device(shape.basis.full_vals, self.device)
         shape.basis.full_vecs = gs.to_device(shape.basis.full_vecs, self.device)
+        if hasattr(shape.basis, "_pinv"):
+            shape.basis._pinv = None
         shape.laplacian._mass_matrix = gs.to_device(
             shape.laplacian._mass_matrix, self.device
         )
@@ -356,10 +354,18 @@ class PairsDataset(BasePairsDataset):
             Ratio of pairs to generate compared to the total number of possible pairs.
             Default is 0.5, meaning half of the possible pairs will be generated.
         """
-        return random.sample(
-            list(itertools.combinations(range(self.shape_data.__len__()), 2)),
-            int(self.shape_data.__len__() * pairs_ratio),
-        )
+        all_pairs = list(itertools.combinations(range(self.shape_data.__len__()), 2))
+        if len(all_pairs) == 0:
+            return []
+
+        sample_size = int(round(self.shape_data.__len__() * pairs_ratio))
+        if pairs_ratio > 0 and sample_size == 0:
+            sample_size = 1
+        sample_size = min(max(sample_size, 0), len(all_pairs))
+
+        if sample_size == len(all_pairs):
+            return all_pairs
+        return random.sample(all_pairs, sample_size)
 
     def __getitem__(self, idx):
         """Get item by index.
@@ -407,4 +413,3 @@ class AllPairsDataset(PairsDataset):
     """Backward-compatible alias for :class:`PairsDataset`."""
 
     pass
-

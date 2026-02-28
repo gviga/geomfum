@@ -221,10 +221,24 @@ class DeepFunctionalMapTrainer:
                     if pair["target"].get("mask") is not None:
                         outputs["mask_b"] = pair["target"]["mask"]
                     loss, loss_dict = self.val_loss_manager.compute_loss(outputs)
-                    val_loss += loss.item()
+
+                    if not loss_dict:
+                        configured = [
+                            loss_fn.__class__.__name__
+                            for loss_fn in getattr(self.val_loss_manager, "losses", [])
+                        ]
+                        output_keys = sorted(outputs.keys())
+                        raise ValueError(
+                            "Validation loss manager produced no active losses. "
+                            f"Configured losses: {configured}. "
+                            f"Available output keys: {output_keys}."
+                        )
+
+                    loss_value = loss.item() if torch.is_tensor(loss) else float(loss)
+                    val_loss += loss_value
                     for k, v in loss_dict.items():
                         metrics_sum[k] = metrics_sum.get(k, 0.0) + v
-                    pbar.set_postfix({"Loss": f"{loss.item():.4f}"})
+                    pbar.set_postfix({"Loss": f"{loss_value:.4f}"})
                     pbar.update(1)
         avg_val_loss = val_loss / len(self.val_set)
         avg_metrics = {k: v / len(self.val_set) for k, v in metrics_sum.items()}

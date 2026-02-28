@@ -209,6 +209,17 @@ class SoftmaxNeighborFinder(BaseNeighborFinder, nn.Module):
         P : array-like, shape=[n_points_x, n_points_y]
             Permutation matrix, where each row sums to 1.
         """
+        if not isinstance(X, torch.Tensor):
+            if isinstance(Y, torch.Tensor):
+                X = torch.as_tensor(X, device=Y.device, dtype=Y.dtype)
+            else:
+                X = torch.as_tensor(X, dtype=torch.float32)
+
+        if not isinstance(Y, torch.Tensor):
+            Y = torch.as_tensor(Y, device=X.device, dtype=X.dtype)
+        else:
+            Y = Y.to(device=X.device, dtype=X.dtype)
+
         similarity = torch.mm(X, Y.T)
 
         P = torch.exp(

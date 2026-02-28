@@ -1,0 +1,25 @@
+{
+  "_name": "SHREC16 partial deep smoke test",
+  "_description": "Fast sanity check on SHREC16 cuts split with EchoMatch (forward only).",
+  "device": "cuda:0",
+
+  "dataset": {
+    "root": "../../../../datasets/shrec16",
+    "format": "shrec16",
+    "partial_split": "cuts",
+    "spectral": true,
+    "k": 30
+  },
+
+  "train": false,
+  "n_pairs": 1,
+
+  "methods": [
+    {
+      "name": "EchoMatch-smoke",
+      "model_config": "../../models/echo_match_smoke.json"
+    }
+  ],
+
+  "metrics": ["OverlapIoU", "PCKMetric"]
+}

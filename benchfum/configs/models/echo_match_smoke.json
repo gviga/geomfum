@@ -1,0 +1,49 @@
+{
+  "_name": "EchoMatch Smoke",
+  "_description": "EchoMatch with lighter feature sizes for fast partial smoke checks.",
+  "type": "EchoMatchNet",
+  "feature_extractor": {
+    "type": "FeatureExtractor",
+    "which": "diffusionnet",
+    "k": 30,
+    "in_channels": 3,
+    "out_channels": 64
+  },
+  "fmap_module": {
+    "type": "ForwardFunctionalMap",
+    "lmbda": 100.0,
+    "resolvent_gamma": 0.5,
+    "bijective": true
+  },
+  "converter": {
+    "type": "P2pFromFmConverter",
+    "neighbor_finder": {
+      "type": "SoftmaxNeighborFinder",
+      "n_neighbors": 1,
+      "tau": 0.07
+    }
+  },
+  "neighbor_finder": {
+    "type": "SoftmaxNeighborFinder",
+    "n_neighbors": 1,
+    "tau": 0.10
+  },
+  "echo_scorer": {
+    "type": "EchoScorer",
+    "neighbor_size": 32
+  },
+  "overlap_refiner": {
+    "type": "OverlapRefiner",
+    "neighbor_size": 32,
+    "feature_extractor": {
+      "type": "FeatureExtractor",
+      "which": "diffusionnet",
+      "in_channels": 32,
+      "out_channels": 1,
+      "hidden_channels": 16,
+      "n_block": 2,
+      "k": 30,
+      "dropout": false
+    }
+  }
+}

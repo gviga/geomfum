@@ -1,0 +1,28 @@
+{
+  "_name": "Learning SHREC20 train smoke",
+  "_description": "Deep functional-map smoke on SHREC20 with 1-epoch training.",
+  "train": true,
+  "dataset": {
+    "type": "Shrec20Dataset",
+    "root": null,
+    "spectral": true,
+    "k": 30,
+    "distances": false
+  },
+  "methods": [
+    {
+      "name": "FMNet-smoke",
+      "model_config": "../../models/fmnet_smoke.json",
+      "trainer_config": "../../training/unsupervised_smoke_1epoch.json"
+    },
+    {
+      "name": "RobustFMNet-smoke",
+      "model_config": "../../models/robust_fmnet_smoke.json",
+      "trainer_config": "../../training/unsupervised_smoke_1epoch.json"
+    }
+  ],
+  "metrics": [
+    "euclidean_error"
+  ],
+  "n_pairs": 1
+}

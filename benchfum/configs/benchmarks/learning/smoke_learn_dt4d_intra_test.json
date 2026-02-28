@@ -1,0 +1,27 @@
+{
+  "_name": "Learning DT4D intra smoke",
+  "_description": "Deep functional-map smoke on DT4D intra mode (no training, model forward only).",
+  "train": false,
+  "dataset": {
+    "type": "DT4DPairsDataset",
+    "root": null,
+    "spectral": true,
+    "k": 30,
+    "phase": "test",
+    "inter_class": false
+  },
+  "methods": [
+    {
+      "name": "FMNet-smoke",
+      "model_config": "../../models/fmnet_smoke.json"
+    },
+    {
+      "name": "RobustFMNet-smoke",
+      "model_config": "../../models/robust_fmnet_smoke.json"
+    }
+  ],
+  "metrics": [
+    "euclidean_error"
+  ],
+  "n_pairs": 1
+}
