@@ -137,6 +137,11 @@ def build_dataset(dataset_dir, config, n_pairs=None, seed=None, **extra_kwargs):
     """
     from geomfum.dataset.torch import BasePairsDataset, PairsDataset, ShapeDataset
 
+    if dataset_dir is None:
+        raise ValueError(
+            "Dataset directory is missing. Provide --dataset or set dataset.root in config."
+        )
+
     ds_cfg = config.get("dataset", {})
 
     if n_pairs is None:
@@ -183,6 +188,13 @@ def build_dataset(dataset_dir, config, n_pairs=None, seed=None, **extra_kwargs):
             )
         shape_data = ShapeDataset(dataset_dir=dataset_dir, **shape_kwargs)
         pair_device = shape_kwargs.get("device")
+
+    if len(shape_data) == 0:
+        dataset_type_name = dataset_type if dataset_type is not None else "ShapeDataset"
+        raise ValueError(
+            f"Dataset '{dataset_dir}' produced zero samples for {dataset_type_name}. "
+            "Check dataset path and expected folder layout."
+        )
 
     # Datasets that already yield (source, target) pairs are returned as-is,
     # but optionally subsampled to n_pairs via a Subset wrapper.

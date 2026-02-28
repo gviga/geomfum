@@ -73,10 +73,12 @@ class TrainedModelWrapper(BaseMatcher):
 
         # Handle different checkpoint formats
         if "model_state_dict" in checkpoint:
-            self.model.load_state_dict(checkpoint["model_state_dict"])
+            self.model.feature_extractor.model.load_state_dict(
+                checkpoint["model_state_dict"]
+            )
         else:
             # Assume checkpoint is just the state dict
-            self.model.load_state_dict(checkpoint)
+            self.model.feature_extractor.model.load_state_dict(checkpoint)
 
     def __call__(self, shape_a, shape_b, bidirectional=False):
         """Compute correspondence between two shapes.

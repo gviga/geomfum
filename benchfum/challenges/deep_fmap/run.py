@@ -147,6 +147,10 @@ def run_benchmark(
         )
 
     dataset_dir = resolve_dataset_dir(dataset_dir, config, resolved_config_path)
+    if dataset_dir is None:
+        raise ValueError(
+            "Dataset root is missing. Provide --dataset or set dataset.root in config."
+        )
     if train is None:
         train = bool(config.get("train", False))
 

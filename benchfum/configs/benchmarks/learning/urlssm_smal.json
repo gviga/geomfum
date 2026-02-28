@@ -1,0 +1,23 @@
+{
+  "_name": "Deep Functional Maps FAUST Benchmark",
+  "_description": "Benchmark suite for deep functional-map methods on FAUST. Methods are defined by model and trainer JSON configs; users can add methods by appending entries in the methods list.",
+  "train": false,
+  "dataset": {
+    "type": "SmalrDataset",
+    "root": "C:\\Users\\giuli\\OneDrive\\Research\\datasets\\full_meshes\\SMAL_r\\",
+    "spectral": true,
+    "k": 200,
+    "distances": false
+  },
+  "methods": [
+    {
+      "name": "RobustFMNet",
+      "model_config": "../../models/robust_fmnet_reply/robust_fmnet_xyz.json",
+      "trainer_config": "../../training/unsupervised_standard.json",
+      "checkpoint": "../../checkpoints/Robust_FMNet/ulrssm_smal.pth"
+    }
+  ],
+  "metrics": ["euclidean_error"],
+  "bidirectional": false,
+  "n_pairs": 10
+}

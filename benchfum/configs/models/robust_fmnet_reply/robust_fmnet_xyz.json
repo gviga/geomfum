@@ -7,17 +7,7 @@
     "which": "diffusionnet",
     "k": 200,
     "out_channels": 256,
-    "in_channels": 128,
-    "descriptor": {
-      "type": "NormalizedDescriptor",
-      "descriptor": {
-        "type": "WaveKernelSignature",
-        "k": 200,
-        "domain": {"type": "UrrsmWksDomain", "n_domain": 128},
-        "scale": true
-      },
-      "normalizer": {"type": "L2InnerNormalizer"}
-    }
+    "in_channels": 3
   },
   "fmap_module": {
     "type": "ForwardFunctionalMap",
