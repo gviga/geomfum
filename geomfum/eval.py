@@ -178,7 +178,7 @@ def dirichlet_energy(shape_a, shape_b, p2p21):
 
     total_energy = energy_x + energy_y + energy_z
 
-    return total_energy
+    return total_energy / shape_b.n_vertices
 
 
 def coverage(shape_a, shape_b, p2p21):

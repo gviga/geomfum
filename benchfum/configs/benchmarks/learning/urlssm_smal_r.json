@@ -7,7 +7,8 @@
     "root": "C:\\Users\\giuli\\OneDrive\\Research\\datasets\\full_meshes\\SMAL_r\\",
     "spectral": true,
     "k": 200,
-    "distances": false
+    "distances": true,
+    "split": "test"
   },
   "methods": [
     {
@@ -17,7 +18,7 @@
       "checkpoint": "../../checkpoints/Robust_FMNet/ulrssm_smal.pth"
     }
   ],
-  "metrics": ["euclidean_error"],
+  "metrics": ["geodesic_error","euclidean_error", "coverage", "dirichlet_energy"],
   "bidirectional": false,
   "pair_mode": "all"
 }
