@@ -159,10 +159,13 @@ def dirichlet_energy(shape_a, shape_b, p2p21):
     """
     # Get target vertex positions mapped by correspondence
     # For each vertex in B, we get the position of the corresponding vertex in A
-    mapping = gs.array(shape_a.vertices[p2p21])
+    mapping = gs.to_device(gs.array(shape_a.vertices[p2p21]), "cpu")
 
     # Get Laplacian of source mesh (B)
-    L, _ = shape_b.laplacian.find()
+    if shape_b.laplacian.stiffness_matrix is None:
+        L, _ = shape_b.laplacian.find()
+    else:
+        L = shape_b.laplacian.stiffness_matrix
 
     # Convert to proper format for matrix operations
     if hasattr(L, "tocsr"):
@@ -175,7 +178,7 @@ def dirichlet_energy(shape_a, shape_b, p2p21):
 
     total_energy = energy_x + energy_y + energy_z
 
-    return total_energy / shape_b.n_vertices
+    return total_energy
 
 
 def coverage(shape_a, shape_b, p2p21):

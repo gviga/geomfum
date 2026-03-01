@@ -7,18 +7,17 @@
     "root": "C:\\Users\\giuli\\OneDrive\\Research\\datasets\\full_meshes\\FAUST\\",
     "spectral": true,
     "k": 200,
-    "distances": true,
-    "split" : "test"
+    "distances": false
   },
   "methods": [
     {
       "name": "RobustFMNet",
       "model_config": "../../models/robust_fmnet_reply/robust_fmnet_wks.json",
-      "trainer_config": "../../training/urrsm.json",
+      "trainer_config": "../../training/urrsm_test_time.json",
       "checkpoint": "../../checkpoints/Robust_FMNet/ulrssm_faust.pth"
     }
   ],
-  "metrics": ["geodesic_error", "euclidean_error","coverage","dirichlet_energy"],
+  "metrics": ["euclidean_error"],
   "bidirectional": false,
   "pair_mode": "all"
 }

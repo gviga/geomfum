@@ -3,22 +3,21 @@
   "_description": "Benchmark suite for deep functional-map methods on FAUST. Methods are defined by model and trainer JSON configs; users can add methods by appending entries in the methods list.",
   "train": false,
   "dataset": {
-    "type": "FaustDataset",
-    "root": "C:\\Users\\giuli\\OneDrive\\Research\\datasets\\full_meshes\\FAUST\\",
+    "type": "SmalrDataset",
+    "root": "C:\\Users\\giuli\\OneDrive\\Research\\datasets\\full_meshes\\SMAL_r\\",
     "spectral": true,
     "k": 200,
-    "distances": true,
-    "split" : "test"
+    "distances": false
   },
   "methods": [
     {
       "name": "RobustFMNet",
-      "model_config": "../../models/robust_fmnet_reply/robust_fmnet_wks.json",
+      "model_config": "../../models/robust_fmnet_reply/robust_fmnet_xyz.json",
       "trainer_config": "../../training/urrsm.json",
-      "checkpoint": "../../checkpoints/Robust_FMNet/ulrssm_faust.pth"
+      "checkpoint": "../../checkpoints/Robust_FMNet/ulrssm_smal.pth"
     }
   ],
-  "metrics": ["geodesic_error", "euclidean_error","coverage","dirichlet_energy"],
+  "metrics": ["euclidean_error"],
   "bidirectional": false,
   "pair_mode": "all"
 }
