@@ -132,6 +132,10 @@ class ShapeDataset(Dataset):
 
             base_name, _ = os.path.splitext(filename)
 
+            # Attach a human-readable name (stem without extension) so that
+            # matchers like PrecomputedP2pMatcher can identify shapes.
+            shape.name = base_name
+
             # preprocess
             if spectral:
                 shape.laplacian.find_spectrum(spectrum_size=k, set_as_basis=True)
@@ -168,8 +172,9 @@ class ShapeDataset(Dataset):
         """
         filename = self.shape_files[idx]
         shape = self.shapes[filename]
+        base_name, _ = os.path.splitext(filename)
 
-        shape_data = {}
+        shape_data = {"name": base_name}
 
         if self.correspondences:
             shape_data.update({"corr": gs.array(self.corrs[filename])})

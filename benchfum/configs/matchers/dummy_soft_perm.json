@@ -1,0 +1,5 @@
+{
+  "_description": "Dummy matcher that outputs a random soft permutation matrix. For testing the soft-perm evaluation pipeline only.",
+  "type": "DummySoftPermMatcher",
+  "seed": 42
+}

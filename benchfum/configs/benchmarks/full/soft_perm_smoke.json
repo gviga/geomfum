@@ -1,0 +1,27 @@
+{
+  "_name": "Soft-perm smoke test",
+  "_description": "Sanity check that DummySoftPermMatcher runs end-to-end and produces both geodesic_error (from argmax p2p) and soft_geodesic_error metrics.",
+
+  "dataset": {
+    "type": "FaustDataset",
+    "root": null,
+    "spectral": true,
+    "k": 30,
+    "distances": true
+  },
+
+  "n_pairs": 4,
+
+  "metrics": ["geodesic_error", "soft_geodesic_error", "euclidean_error"],
+
+  "methods": [
+    {
+      "name": "DummySoftPerm",
+      "matcher_config": "../../matchers/dummy_soft_perm.json"
+    },
+    {
+      "name": "WKS+NN (baseline)",
+      "matcher_config": "../../matchers/features_only/wks_k30.json"
+    }
+  ]
+}

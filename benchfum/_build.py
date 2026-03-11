@@ -133,7 +133,12 @@ def _build_component_registry():
         OrientFactorBuilder,
         SDPFactorBuilder,
     )
-    from geomfum.matchers import FeatureMatcher, FunctionalMapMatcher
+    from geomfum.matchers import (
+        DummySoftPermMatcher,
+        FeatureMatcher,
+        FunctionalMapMatcher,
+        PrecomputedP2pMatcher,
+    )
     from geomfum.refine import (
         AdjointBijectiveZoomOut,
         CorrespondenceRefinementPipeline,
@@ -149,6 +154,8 @@ def _build_component_registry():
         # --- Matchers ---
         "FunctionalMapMatcher": FunctionalMapMatcher,
         "FeatureMatcher": FeatureMatcher,
+        "DummySoftPermMatcher": DummySoftPermMatcher,
+        "PrecomputedP2pMatcher": PrecomputedP2pMatcher,
         # --- Descriptors ---
         "WaveKernelSignature": WaveKernelSignature,
         "HeatKernelSignature": HeatKernelSignature,

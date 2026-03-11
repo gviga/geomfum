@@ -350,14 +350,60 @@ def coverage_count(shape_a, shape_b, p2p21):
     return len(unique_targets) / shape_a.n_vertices
 
 
+def soft_geodesic_error(dist_a, soft_perm_ba, corr_a=None, corr_b=None):
+    """Expected geodesic error under a soft permutation matrix.
+
+    For each source vertex (or ground-truth pair), computes the expected
+    geodesic distance to the ground-truth target vertex under the soft
+    assignment distribution, then averages and normalises by the geodesic
+    diameter.
+
+    Parameters
+    ----------
+    dist_a : array-like, shape=[n_vertices_a, n_vertices_a]
+        Geodesic distance matrix on shape A.
+    soft_perm_ba : array-like, shape=[n_vertices_b, n_vertices_a]
+        Row-stochastic soft permutation.  ``soft_perm_ba[j, i]`` is the
+        probability that vertex *j* in B maps to vertex *i* in A.
+    corr_a : array-like, shape=[n_corr], optional
+        Ground-truth correspondence indices in A.
+    corr_b : array-like, shape=[n_corr], optional
+        Ground-truth correspondence indices in B.
+
+    Returns
+    -------
+    error : float
+        Normalised mean expected geodesic error in [0, 1].
+    """
+    P = np.asarray(soft_perm_ba)  # [n_b, n_a]
+    D = np.asarray(dist_a)  # [n_a, n_a]
+    diam = D.max()
+
+    if corr_a is None or corr_b is None:
+        # Identity: vertex k in B should map to vertex k in A
+        # expected error for k = sum_i P[k, i] * D[i, k]
+        expected = (P * D.T).sum(axis=1)  # [n_b]
+    else:
+        corr_a = np.asarray(corr_a)
+        corr_b = np.asarray(corr_b)
+        # P_rows[k] = distribution over A for source vertex corr_b[k]
+        P_rows = P[corr_b, :]  # [n_corr, n_a]
+        # gt_dists[k, i] = dist_a[i, corr_a[k]]
+        gt_dists = D[:, corr_a].T  # [n_corr, n_a]
+        expected = (P_rows * gt_dists).sum(axis=1)  # [n_corr]
+
+    return float(np.mean(expected) / diam) if diam > 0 else 0.0
+
+
 def evaluate_correspondence(
     shape_a,
     shape_b,
-    p2p21,
+    p2p21=None,
     corr_a=None,
     corr_b=None,
     dist_a=None,
     metrics=None,
+    soft_perm_ba=None,
 ):
     """Compute all evaluation metrics for a correspondence.
 
@@ -370,8 +416,9 @@ def evaluate_correspondence(
         Target shape (where correspondences land).
     shape_b : TriangleMesh or PointCloud
         Source shape (where correspondences originate).
-    p2p21 : array-like, shape=[n_vertices_b]
-        Point-to-point map from shape_b to shape_a.
+    p2p21 : array-like, shape=[n_vertices_b], optional
+        Point-to-point map from shape_b to shape_a.  If ``None`` and
+        ``soft_perm_ba`` is provided, it is derived via ``argmax``.
     corr_a : array-like, shape=[n_correspondences], optional
         Indices of ground truth correspondences on target shape (A).
     corr_b : array-like, shape=[n_correspondences], optional
@@ -381,13 +428,18 @@ def evaluate_correspondence(
         is requested, it will be computed from shape_a.
     metrics : list[str], optional
         Subset of metrics to compute. If None, computes all available metrics.
+    soft_perm_ba : array-like, shape=[n_vertices_b, n_vertices_a], optional
+        Soft permutation matrix (row-stochastic).  Enables
+        ``soft_geodesic_error`` and serves as a fallback source for
+        ``p2p21`` when the latter is ``None``.
 
     Returns
     -------
     metrics : dict
-        Dictionary containing:
-        - 'geodesic_error': Normalized geodesic error (if dist_a provided)
-        - 'euclidean_error': Normalized Euclidean error (if corr available)
+        Dictionary containing (depending on available inputs):
+        - 'geodesic_error': Normalized geodesic error
+        - 'soft_geodesic_error': Expected geodesic error under soft perm
+        - 'euclidean_error': Normalized Euclidean error
         - 'dirichlet_energy': Dirichlet energy of the mapping
         - 'coverage': Area-weighted coverage
         - 'coverage_count': Count-based coverage
@@ -395,12 +447,31 @@ def evaluate_correspondence(
     requested_metrics = set(metrics) if metrics is not None else None
     output_metrics = {}
 
+    # Derive hard p2p from soft perm if not provided
+    _p2p21 = p2p21
+    if _p2p21 is None and soft_perm_ba is not None:
+        _p2p21 = np.argmax(np.asarray(soft_perm_ba), axis=1)
+
+    # --- Soft-permutation metric (expected geodesic error) ---
+    if (
+        (requested_metrics is None or "soft_geodesic_error" in requested_metrics)
+        and soft_perm_ba is not None
+        and dist_a is not None
+    ):
+        output_metrics["soft_geodesic_error"] = float(
+            soft_geodesic_error(dist_a, soft_perm_ba, corr_a, corr_b)
+        )
+
+    # All remaining metrics require at least a hard p2p map
+    if _p2p21 is None:
+        return output_metrics
+
     # Geodesic error requires distance matrix
     if (
         requested_metrics is None or "geodesic_error" in requested_metrics
     ) and dist_a is not None:
         output_metrics["geodesic_error"] = float(
-            normalized_geodesic_error(dist_a, p2p21, corr_a, corr_b)
+            normalized_geodesic_error(dist_a, _p2p21, corr_a, corr_b)
         )
 
     # Euclidean error requires ground truth correspondences
@@ -410,19 +481,19 @@ def evaluate_correspondence(
         and corr_b is not None
     ):
         output_metrics["euclidean_error"] = float(
-            normalized_euclidean_error(shape_a, p2p21, corr_a, corr_b)
+            normalized_euclidean_error(shape_a, _p2p21, corr_a, corr_b)
         )
 
     # Metrics that don't require ground truth
     if requested_metrics is None or "dirichlet_energy" in requested_metrics:
         output_metrics["dirichlet_energy"] = float(
-            dirichlet_energy(shape_a, shape_b, p2p21)
+            dirichlet_energy(shape_a, shape_b, _p2p21)
         )
     if requested_metrics is None or "coverage" in requested_metrics:
-        output_metrics["coverage"] = float(coverage(shape_a, shape_b, p2p21))
+        output_metrics["coverage"] = float(coverage(shape_a, shape_b, _p2p21))
     if requested_metrics is None or "coverage_count" in requested_metrics:
         output_metrics["coverage_count"] = float(
-            coverage_count(shape_a, shape_b, p2p21)
+            coverage_count(shape_a, shape_b, _p2p21)
         )
 
     return output_metrics

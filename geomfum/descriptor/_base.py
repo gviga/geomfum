@@ -48,7 +48,7 @@ class DistanceFromLandmarksDescriptor(Descriptor):
         distances = gs.stack(distances_list)
 
         if self.diameter_normalized:
-            diameter = shape.dist_matrix().max()
+            diameter = shape.dist_matrix.max()
             distances /= diameter
 
         return distances

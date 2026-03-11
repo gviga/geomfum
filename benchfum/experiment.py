@@ -199,6 +199,7 @@ class Experiment:
             shape_a=shape_a,
             shape_b=shape_b,
             p2p21=result.p2p21,
+            soft_perm_ba=result.soft_perm_ba,
             corr_a=corr_a,
             corr_b=corr_b,
             dist_a=dist_a,
@@ -284,9 +285,12 @@ class Experiment:
 
             if self.save_correspondences:
                 p2p = result.p2p21
-                if hasattr(p2p, "cpu"):
-                    p2p = p2p.detach().cpu().numpy()
-                correspondences.append({"p2p21": np.asarray(p2p).tolist()})
+                if p2p is None and result.soft_perm_ba is not None:
+                    p2p = np.argmax(np.asarray(result.soft_perm_ba), axis=1)
+                if p2p is not None:
+                    if hasattr(p2p, "cpu"):
+                        p2p = p2p.detach().cpu().numpy()
+                    correspondences.append({"p2p21": np.asarray(p2p).tolist()})
 
             if self.progress_bar:
                 postfix = {}

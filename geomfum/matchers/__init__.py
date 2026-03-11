@@ -18,12 +18,16 @@ Adding a new matcher
 """
 
 from geomfum.matchers.base import BaseMatcher, CorrespondenceResult
+from geomfum.matchers.dummy import DummySoftPermMatcher
 from geomfum.matchers.feature import FeatureMatcher
 from geomfum.matchers.functional_map import FunctionalMapMatcher
+from geomfum.matchers.precomputed import PrecomputedP2pMatcher
 
 __all__ = [
     "BaseMatcher",
     "CorrespondenceResult",
-    "FunctionalMapMatcher",
+    "DummySoftPermMatcher",
     "FeatureMatcher",
+    "FunctionalMapMatcher",
+    "PrecomputedP2pMatcher",
 ]
