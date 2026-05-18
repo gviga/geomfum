@@ -22,6 +22,7 @@ def show_mesh(
     smooth=True,
     show_edges=False,
 ):
+    """Visualize a single mesh with optional scalar coloring."""
     mesh = pv.PolyData(np.asarray(vertices), pv_faces(faces))
     if scalars is not None:
         mesh.point_data[scalar_name] = np.asarray(scalars)
@@ -47,6 +48,7 @@ def show_multiple_meshes(
     smooth=True,
     n_cols=3,
 ):
+    """Visualize multiple meshes in a grid layout, each with optional scalar coloring."""
     n = len(vertices_list)
     n_rows = (n + n_cols - 1) // n_cols
     plotter = pv.Plotter(shape=(n_rows, n_cols), notebook=True, border=False)
@@ -79,6 +81,7 @@ def show_point_cloud(
     cmap="viridis",
     point_size=8,
 ):
+    """Visualize a point cloud with optional scalar coloring."""
     cloud = pv.PolyData(np.asarray(points))
     if scalars is not None:
         cloud.point_data[scalar_name] = np.asarray(scalars)
@@ -104,6 +107,7 @@ def show_multiple_scalars(
     smooth=True,
     n_cols=3,
 ):
+    """Visualize multiple scalar fields on the same mesh in a grid layout."""
     names = list(scalar_dict.keys())
     n = len(names)
     n_rows = (n + n_cols - 1) // n_cols
@@ -135,6 +139,7 @@ def show_mesh_with_vectors(
     vector_color="orangered",
     smooth=True,
 ):
+    """Visualize a mesh with optional scalar coloring and overlaid vector field."""
     mesh = pv.PolyData(np.asarray(vertices), pv_faces(faces))
     if scalar is not None:
         mesh.point_data[scalar_name] = np.asarray(scalar)
