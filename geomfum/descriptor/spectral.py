@@ -327,7 +327,7 @@ class ScaleInvariantHeatKernelSignature(HeatKernelSignature):
     """
 
     def __init__(self, scale=True, n_domain=3, domain=None, k=None):
-        super.init(scale=scale, n_domain=n_domain, domain=domain, k=k)
+        super().__init__(scale=scale, n_domain=n_domain, domain=domain, k=k)
 
     def __call__(self, shape):
         """Compute descriptor.
@@ -360,7 +360,7 @@ class LandmarkScaleInvariantHeatKernelSignature(LandmarkHeatKernelSignature):
     """
 
     def __init__(self, scale=True, n_domain=3, domain=None, k=None):
-        super.init(scale=scale, n_domain=n_domain, domain=domain, k=k)
+        super().__init__(scale=scale, n_domain=n_domain, domain=domain, k=k)
 
     def __call__(self, shape):
         """Compute descriptor.
