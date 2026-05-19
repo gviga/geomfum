@@ -114,7 +114,12 @@ def show_mesh_with_highlights(
 
     plotter = pv.Plotter(notebook=True)
     plotter.add_mesh(mesh, color=mesh_color, smooth_shading=smooth)
-    plotter.add_mesh(pts, color=highlight_color, point_size=highlight_size, render_points_as_spheres=True)
+    plotter.add_mesh(
+        pts,
+        color=highlight_color,
+        point_size=highlight_size,
+        render_points_as_spheres=True,
+    )
     plotter.add_axes()
     plotter.show(jupyter_backend="static")
 
