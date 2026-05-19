@@ -5,9 +5,9 @@ from polpo.testing import DataBasedParametrizer
 
 from geomfum.descriptor.spectral import (
     HeatKernelSignature,
-    WaveKernelSignature,
     LandmarkHeatKernelSignature,
     LandmarkWaveKernelSignature,
+    WaveKernelSignature,
 )
 from tests.cases.cmp import SpectralDescriptorCmpCase
 from tests.utils import landmark_randomly
