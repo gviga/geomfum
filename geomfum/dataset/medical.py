@@ -200,6 +200,7 @@ class AcdcPatient:
         }
 
     def __repr__(self):
+        """Return a string representation of the AcdcPatient."""
         return (
             f"AcdcPatient(id={self.patient_id!r}, group={self.group!r}, "
             f"structure={self.structure!r})"
@@ -309,6 +310,7 @@ class AcdcDataset:
     # ------------------------------------------------------------------
 
     def __len__(self):
+        """Return the number of patients in the dataset."""
         return len(self.patients)
 
     def __getitem__(self, idx):
@@ -318,6 +320,7 @@ class AcdcDataset:
         return mesh_ed, mesh_es, patient.metadata
 
     def __iter__(self):
+        """Iterate over patients, yielding ``(mesh_ed, mesh_es, metadata)``."""
         for patient in self.patients:
             mesh_ed, mesh_es = patient.load_pair()
             yield mesh_ed, mesh_es, patient.metadata
@@ -346,6 +349,7 @@ class AcdcDataset:
         raise KeyError(f"Patient '{patient_id}' not found in dataset.")
 
     def __repr__(self):
+        """Return a string representation of the AcdcDataset."""
         return (
             f"AcdcDataset(root={self.root!r}, n_patients={len(self)}, "
             f"groups={self.group_counts}, structure={self.structure!r})"
