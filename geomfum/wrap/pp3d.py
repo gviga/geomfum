@@ -7,7 +7,6 @@ by Nicholas Sharp.
 import gsops.backend as gs
 import potpourri3d as pp3d
 
-
 from geomfum.metric import FinitePointSetMetric
 from geomfum.metric._base import _SingleDispatchMixins
 
