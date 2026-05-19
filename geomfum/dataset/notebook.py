@@ -2,8 +2,6 @@
 
 import os
 
-import requests
-
 from ._defaults import DATA_DIR
 from ._utils import DownloadableFile
 
