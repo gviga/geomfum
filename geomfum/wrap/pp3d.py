@@ -4,10 +4,7 @@ https://github.com/nmwsharp/potpourri3d
 by Nicholas Sharp.
 """
 
-import geomstats.backend as gs
-from torch import dist
-import geomfum.backend as xgs
-
+import gsops.backend as gs
 import potpourri3d as pp3d
 
 from geomfum.metric import FinitePointSetMetric
@@ -35,8 +32,8 @@ class Pp3dHeatDistanceMetric(_SingleDispatchMixins, FinitePointSetMetric):
         super().__init__(shape)
         if solver is None:
             solver = pp3d.MeshHeatMethodDistanceSolver(
-                gs.to_numpy(xgs.to_device(shape.vertices, "cpu")),
-                gs.to_numpy(xgs.to_device(shape.faces, "cpu")),
+                gs.to_numpy(gs.to_device(shape.vertices, "cpu")),
+                gs.to_numpy(gs.to_device(shape.faces, "cpu")),
             )
 
         self.solver = solver
@@ -116,8 +113,8 @@ class Pp3dMeshHeatDistanceMetric(Pp3dHeatDistanceMetric):
 
     def __init__(self, shape):
         solver = pp3d.MeshHeatMethodDistanceSolver(
-            gs.to_numpy(xgs.to_device(shape.vertices, "cpu")),
-            gs.to_numpy(xgs.to_device(shape.faces, "cpu")),
+            gs.to_numpy(gs.to_device(shape.vertices, "cpu")),
+            gs.to_numpy(gs.to_device(shape.faces, "cpu")),
         )
         super().__init__(shape, solver=solver)
 
@@ -137,10 +134,9 @@ class Pp3dPointSetHeatDistanceMetric(Pp3dHeatDistanceMetric):
 
     def __init__(self, shape):
         solver = pp3d.PointCloudHeatSolver(
-            gs.to_numpy(xgs.to_device(shape.vertices, "cpu"))
+            gs.to_numpy(gs.to_device(shape.vertices, "cpu"))
         )
         super().__init__(shape, solver=solver)
-
 
 
 class Pp3dEdgeFlipGeodesicMetric(_SingleDispatchMixins, FinitePointSetMetric):
@@ -155,11 +151,12 @@ class Pp3dEdgeFlipGeodesicMetric(_SingleDispatchMixins, FinitePointSetMetric):
 
     References
     ----------
-    .. [SC2020] Sharp, N., Crane, K., 2020. 
+    .. [SC2020] Sharp, N., Crane, K., 2020.
         You Can Find Geodesic Paths in Triangle Meshes by Just Flipping Edges.
         ACM Trans. Graph.
-        
+
     """
+
     def __init__(self, shape, solver=None):
         super().__init__(shape)
         if solver is None:
@@ -169,7 +166,7 @@ class Pp3dEdgeFlipGeodesicMetric(_SingleDispatchMixins, FinitePointSetMetric):
             )
 
         self.solver = solver
-    
+
     def _dist_from_source_single(self, source_point):
         """Distance between mesh vertices.
 
@@ -214,11 +211,10 @@ class Pp3dEdgeFlipGeodesicMetric(_SingleDispatchMixins, FinitePointSetMetric):
             Distance.
         """
 
-        path_points = self.solver.find_geodesic_path(
-            v_start=point_a, v_end=point_b
-        )
+        path_points = self.solver.find_geodesic_path(v_start=point_a, v_end=point_b)
         dist = gs.sum(gs.linalg.norm(path_points[1:] - path_points[:-1], axis=-1))
         return gs.asarray(dist)
+
     def dist_matrix(self):
         """Distance between mesh vertices.
 

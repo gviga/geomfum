@@ -31,7 +31,7 @@ dependencies = [
     "meshio",
     "pyfmaps",
     "torch",
-    "geomstats@git+https://github.com/geomstats/geomstats.git@main",
+    "gsops",
 ]
 
 [project.optional-dependencies]
@@ -42,10 +42,11 @@ rematching = [
     "Rematching@git+https://github.com/filthynobleman/rematching.git@python-binding",
 ]
 sinkhorn = ["POT"]
-opt = ["geomfum[lapl,metric,sampling,rematching,sinkhorn]"]
+opt = ["geomfum[lapl,metric,sampling,sinkhorn]"]
 test-scripts = ["nbformat", "nbconvert", "ipykernel", "ipython", "pyvista", "plotly"]
 test = [
     "pytest",
+    "geomstats@git+https://github.com/geomstats/geomstats.git@main",
     "polpo@git+https://github.com/geometric-intelligence/polpo.git@main",
     "geomfum[opt,test-scripts,plotting-all]",
 ]

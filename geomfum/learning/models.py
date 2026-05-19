@@ -8,8 +8,7 @@ References
 
 import abc
 
-import geomfum.backend as xgs
-import geomstats.backend as gs
+import gsops.backend as gs
 import torch.nn as nn
 
 from geomfum.convert import (
@@ -174,10 +173,10 @@ class RobustFMNet(BaseModel):
         fmap12_desc = mesh_b.basis.pinv @ (P21 @ mesh_a.basis.vecs)
 
         if not self.training:
-            p2p21 = xgs.to_device(
+            p2p21 = gs.to_device(
                 self.converter(fmap12, mesh_a.basis, mesh_b.basis), "cpu"
             )
-            p2p12 = xgs.to_device(
+            p2p12 = gs.to_device(
                 self.converter(fmap21, mesh_b.basis, mesh_a.basis), "cpu"
             )
 

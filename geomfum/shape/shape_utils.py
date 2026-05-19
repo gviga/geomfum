@@ -1,12 +1,10 @@
 """Utility functions for shape computations."""
 
-import geomstats.backend as gs
-
-import geomfum.backend as xgs
+import gsops.backend as gs
 
 
 def compute_tangent_frames(vertices, normals):
-    """Compute tangent frames for vertices.
+    """Construct local orthonormal frames at each vertex from normal vectors.
 
     Parameters
     ----------
@@ -23,11 +21,11 @@ def compute_tangent_frames(vertices, normals):
     device = getattr(normals, "device", None)
     n_vertices = vertices.shape[0]
 
-    tangent_frame = xgs.to_device(gs.zeros((n_vertices, 3, 3)), device=device)
+    tangent_frame = gs.to_device(gs.zeros((n_vertices, 3, 3)), device=device)
     tangent_frame[:, 2, :] = normals
 
-    basis_cand1 = xgs.to_device(gs.tile([1, 0, 0], (n_vertices, 1)), device=device)
-    basis_cand2 = xgs.to_device(gs.tile([0, 1, 0], (n_vertices, 1)), device=device)
+    basis_cand1 = gs.to_device(gs.tile([1, 0, 0], (n_vertices, 1)), device=device)
+    basis_cand2 = gs.to_device(gs.tile([0, 1, 0], (n_vertices, 1)), device=device)
 
     dot_products = gs.sum(normals * basis_cand1, axis=1, keepdims=True)
     basis_x = gs.where(gs.abs(dot_products) < 0.9, basis_cand1, basis_cand2)
@@ -47,7 +45,7 @@ def compute_tangent_frames(vertices, normals):
 
 
 def compute_edge_tangent_vectors(vertices, edges, tangent_frames):
-    """Compute edge tangent vectors.
+    """Project edge vectors onto local tangent plane coordinates.
 
     Parameters
     ----------
@@ -74,9 +72,8 @@ def compute_edge_tangent_vectors(vertices, edges, tangent_frames):
     return gs.stack((comp_x, comp_y), axis=-1)
 
 
-# TODO: implement this as a gradient finder?
 def compute_gradient_matrix_fem(vertices, edges, edge_tangent_vectors):
-    """Compute gradient matrix for finite element method.
+    """Construct gradient operator using local least-squares approximation.
 
     Parameters
     ----------
@@ -151,8 +148,8 @@ def compute_gradient_matrix_fem(vertices, edges, edge_tangent_vectors):
     col_inds = gs.asarray(col_inds)
     data_vals = gs.asarray(data_vals)
 
-    gradient_matrix = xgs.sparse.to_csc(
-        xgs.sparse.coo_matrix(
+    gradient_matrix = gs.sparse.to_csc(
+        gs.sparse.coo_matrix(
             gs.stack([row_inds, col_inds]),
             data_vals,
             shape=(n_vertices, n_vertices),

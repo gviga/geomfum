@@ -15,14 +15,7 @@ Or
 
 ::
     
-    pip install geomfum
-
-followed by 
-
-::
-    
-    pip install geomstats@git+https://github.com/geomstats/geomstats.git@main
-
+    pip install geomfum 
 
 
 Or the classic pipeline: ``clone + pip install``.
@@ -48,7 +41,7 @@ Choose the backend
 GeomFuM can run seamlessly with ``numpy`` and ``pytorch``. 
 By default, the ``numpy`` backend is used. The visualizations are only available with this backend.
 
-The backend is based on the `Geomstats <https://github.com/geomstats/geomstats>`_ backend, which is installed automatically. The GeomFuM backend add functionality, especially regarding sparse matrices and device handling.
+The backend is based on the `Geomstats <https://github.com/geomstats/geomstats>`_ backend, which is installed via its standalone package `gsops <https://github.com/luisfpereira/gsops>`_ .
 
 You can choose your backend by setting the environment variable
 ``GEOMSTATS_BACKEND`` to ``numpy``, or ``pytorch``, and
@@ -62,8 +55,7 @@ and in the Python3 code:
 
 ::
 
-    import geomstats.backend as gs
-    import geomfum.backend as xgs
+    import gsops.backend as gs
 
 Contributions
 -------------
@@ -75,7 +67,7 @@ If you have suggestions, bug reports, or want to improve the code or documentati
 - Submit a pull request
 - Improve or add new examples/notebooks
 
-Please follow our `contribution guidelines <https://dig-air.github.io/geomfum.github.io/contributing.html>`_ and adhere to best practices for clean, modular, and well-documented code.
+Please follow our `contribution guidelines <https://3diglab.github.io/geomfum.github.io/contributing.html>`_ and adhere to best practices for clean, modular, and well-documented code.
 
 Community
 ---------

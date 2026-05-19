@@ -1,8 +1,7 @@
 """Definition of triangle mesh."""
 
-import geomstats.backend as gs
+import gsops.backend as gs
 
-import geomfum.backend as xgs
 from geomfum.io import load_mesh
 from geomfum.metric import HeatDistanceMetric
 from geomfum.operator import (
@@ -19,7 +18,7 @@ from ._base import Shape
 
 
 class TriangleMesh(Shape):
-    """Triangle mesh.
+    """Triangulated surface mesh with vertices, faces, and differential operators.
 
     Parameters
     ----------
@@ -68,7 +67,7 @@ class TriangleMesh(Shape):
         cls,
         filename,
     ):
-        """Instantiate given a file.
+        """Load mesh from file.
 
         Parameters
         ----------
@@ -150,7 +149,7 @@ class TriangleMesh(Shape):
 
     @property
     def face_area_vectors(self):
-        """Compute face area vectors of a triangular mesh. The face area vector is the vector normal to the face, with a length equal to the area of the face.
+        """Face area vectors (unnormalized normals with magnitude equal to face area).
 
         Returns
         -------
@@ -168,7 +167,7 @@ class TriangleMesh(Shape):
 
     @property
     def face_normals(self):
-        """Compute face normals of a triangular mesh.
+        """Unit normal vectors for each face.
 
         Returns
         -------
@@ -189,7 +188,7 @@ class TriangleMesh(Shape):
 
     @property
     def vertex_normals(self):
-        """Compute vertex normals of a triangular mesh.
+        """Unit normal vectors at vertices (area-weighted average of adjacent face normals).
 
         Returns
         -------
@@ -202,16 +201,16 @@ class TriangleMesh(Shape):
             vind012 = gs.concatenate(
                 [self.faces[:, 0], self.faces[:, 1], self.faces[:, 2]]
             )
-            zeros = xgs.to_device(gs.zeros(len(vind012)), device)
+            zeros = gs.to_device(gs.zeros(len(vind012)), device)
 
             normals_repeated = gs.vstack([self.face_normals] * 3)
-            vertex_normals = xgs.to_device(gs.zeros_like(self.vertices), device)
+            vertex_normals = gs.to_device(gs.zeros_like(self.vertices), device)
             for c in range(3):
                 normals = normals_repeated[:, c]
 
                 vertex_normals[:, c] = gs.asarray(
-                    xgs.sparse.to_dense(
-                        xgs.sparse.coo_matrix(
+                    gs.sparse.to_dense(
+                        gs.sparse.coo_matrix(
                             gs.stack((vind012, zeros)),
                             normals,
                             shape=(self.n_vertices, 1),
@@ -229,7 +228,7 @@ class TriangleMesh(Shape):
 
     @property
     def face_areas(self):
-        """Compute per-face areas.
+        """Area of each triangular face.
 
         Returns
         -------
@@ -243,9 +242,7 @@ class TriangleMesh(Shape):
 
     @property
     def vertex_areas(self):
-        """Compute per-vertex areas.
-
-        Area of a vertex, approximated as one third of the sum of the area of its adjacent triangles.
+        """Area associated with each vertex (one-third of adjacent triangle areas).
 
         Returns
         -------
@@ -259,7 +256,7 @@ class TriangleMesh(Shape):
             gs.broadcast_to(gs.expand_dims(area, axis=-1), (self.n_faces, 3)),
             (-1,),
         )
-        incident_areas = xgs.scatter_sum_1d(
+        incident_areas = gs.scatter_sum_1d(
             index=id_vertices,
             src=val,
         )
@@ -267,7 +264,7 @@ class TriangleMesh(Shape):
 
     @property
     def vertex_tangent_frames(self):
-        """Compute vertex tangent frame.
+        """Local orthonormal coordinate frames at each vertex.
 
         Returns
         -------
@@ -286,7 +283,7 @@ class TriangleMesh(Shape):
 
     @property
     def edge_tangent_vectors(self):
-        """Compute edge tangent vectors.
+        """Edge vectors projected onto local tangent planes.
 
         Returns
         -------
@@ -304,7 +301,7 @@ class TriangleMesh(Shape):
 
     @property  # ToDo
     def dist_matrix(self):
-        """Compute metric distance matrix.
+        """Pairwise distances between all vertices using the equipped metric.
 
         Returns
         -------
@@ -318,7 +315,7 @@ class TriangleMesh(Shape):
         return self._dist_matrix
 
     def equip_with_metric(self, metric):
-        """Set the metric for the mesh.
+        """Equip mesh with a distance metric.
 
         Parameters
         ----------

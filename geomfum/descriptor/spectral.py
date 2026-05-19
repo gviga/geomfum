@@ -2,9 +2,9 @@
 
 import abc
 
-import geomstats.backend as gs
+import gsops.backend as gs
+import scipy.fft as fft
 
-import geomfum.backend as xgs
 import geomfum.linalg as la
 from geomfum._registry import (
     HeatKernelSignatureRegistry,
@@ -34,8 +34,8 @@ def hks_default_domain(shape, n_domain):
     """
     nonzero_vals = shape.basis.nonzero_vals
     device = getattr(nonzero_vals, "device", None)
-    return xgs.to_device(
-        xgs.geomspace(
+    return gs.to_device(
+        gs.geomspace(
             4 * gs.log(10) / nonzero_vals[-1],
             4 * gs.log(10) / nonzero_vals[0],
             n_domain,
@@ -45,7 +45,7 @@ def hks_default_domain(shape, n_domain):
 
 
 class WksDefaultDomain:
-    """Compute WKS domain. The domain is a set of sampled energy points.
+    """Default domain generator for Wave Kernel Signature using logarithmic energy sampling.
 
     Parameters
     ----------
@@ -93,18 +93,13 @@ class WksDefaultDomain:
         e_min += self.n_trans * sigma
         e_max -= self.n_trans * sigma
 
-        energy = xgs.to_device(gs.linspace(e_min, e_max, self.n_domain), device)
+        energy = gs.to_device(gs.linspace(e_min, e_max, self.n_domain), device)
 
         return energy, sigma
 
 
 class SpectralFilter(abc.ABC):
-    """
-    Abstract base class for spectral filters used in spectral descriptors.
-
-    A spectral filter computes the coefficients for the spectral sum given eigenvalues, a domain (e.g., time or energy), and optional parameters (such as sigma).
-    Subclasses should implement the __call__ method.
-    """
+    """Abstract base class for computing spectral filter coefficients from eigenvalues."""
 
     @abc.abstractmethod
     def __call__(self, vals, domain, sigma):
@@ -128,11 +123,7 @@ class SpectralFilter(abc.ABC):
 
 
 class HeatKernelFilter(SpectralFilter):
-    """
-    Heat kernel filter for spectral descriptors (HKS).
-
-    Computes coefficients as exp(-t * lambda), where t is the domain (time) and lambda are the eigenvalues.
-    """
+    """Heat kernel filter computing exp(-t * λ) coefficients for HKS."""
 
     def __call__(self, vals, domain, sigma):
         """
@@ -157,11 +148,7 @@ class HeatKernelFilter(SpectralFilter):
 
 
 class WaveKernelFilter(SpectralFilter):
-    """
-    Wave kernel filter for spectral descriptors (WKS).
-
-    Computes coefficients as a Gaussian in log-eigenvalue space, centered at each domain point (energy), with standard deviation sigma.
-    """
+    """Wave kernel filter using Gaussian weighting in log-eigenvalue space for WKS."""
 
     def __call__(self, vals, domain, sigma):
         """
@@ -181,13 +168,13 @@ class WaveKernelFilter(SpectralFilter):
         coefs : array-like, shape=[n_domain, n_eigen]
             Filter coefficients.
         """
-        nonzero_vals = vals[gs.sum(gs.isclose(vals, 0.0)) :]
-        zeros = xgs.to_device(
+        nonzero_vals = vals[gs.sum(gs.isclose(vals, 0.0, atol=1e-3)) :]
+        zeros = gs.to_device(
             gs.zeros((domain.shape[0], vals.shape[0] - nonzero_vals.shape[0])),
             device=getattr(nonzero_vals, "device", None),
         )
-        exp_arg = -xgs.square(gs.log(nonzero_vals) - domain[:, None]) / (
-            2 * xgs.square(sigma)
+        exp_arg = -gs.square(gs.log(nonzero_vals) - domain[:, None]) / (
+            2 * gs.square(sigma)
         )
         coefs = gs.exp(exp_arg)
 
@@ -198,10 +185,7 @@ class WaveKernelFilter(SpectralFilter):
 
 
 class HeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
-    """
-    Heat kernel signature (HKS) descriptor.
-
-    Computes the heat kernel signature using the heat kernel filter. The descriptor is evaluated globally (all points) at a set of domain time points.
+    """Heat Kernel Signature descriptor using heat diffusion over time.
 
     Parameters
     ----------
@@ -230,10 +214,7 @@ class HeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
 
 
 class WaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
-    """
-    Wave kernel signature (WKS) descriptor.
-
-    Computes the wave kernel signature using the wave kernel filter. The descriptor is evaluated globally (all points) at a set of domain energy points.
+    """Wave Kernel Signature descriptor using quantum mechanical wave propagation.
 
     Parameters
     ----------
@@ -264,10 +245,7 @@ class WaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
 
 
 class LandmarkHeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
-    """
-    Landmark-based Heat Kernel Signature (HKS) descriptor.
-
-    Computes the heat kernel signature at a set of landmark points using the heat kernel filter. The descriptor is evaluated at a set of domain time points.
+    """Heat Kernel Signature computed from landmark points.
 
     Parameters
     ----------
@@ -296,10 +274,7 @@ class LandmarkHeatKernelSignature(WhichRegistryMixins, SpectralDescriptor):
 
 
 class LandmarkWaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
-    """
-    Landmark-based Wave Kernel Signature (WKS) descriptor.
-
-    Computes the wave kernel signature at a set of landmark points using the wave kernel filter. The descriptor is evaluated at a set of domain energy points.
+    """Wave Kernel Signature computed from landmark points.
 
     Parameters
     ----------
@@ -326,3 +301,77 @@ class LandmarkWaveKernelSignature(WhichRegistryMixins, SpectralDescriptor):
             k=k,
             landmarks=True,
         )
+
+
+class ScaleInvariantHeatKernelSignature(HeatKernelSignature):
+    """Scale-Invariant Heat Kernel Signature descriptor.
+
+    Parameters
+    ----------
+    scale : bool, optional
+        Whether to make the descriptor scale-invariant, by default True.
+    n_domain : int, optional
+        Number of frequency domains, by default 3.
+    domain : list, optional
+        List of frequency domain limits, by default None.
+    k : int, optional
+        Number of eigenvalues and eigenfunctions to use, by default None.
+
+    References
+    ----------
+    .. [BK2010] M. M. Bronstein and I. Kokkinos.
+        "Scale-invariant heat kernel signatures for non-rigid shape recognition."
+        2010 IEEE Computer Society Conference on Computer Vision and Pattern Recognition,
+        San Francisco, CA, USA, 2010, pp. 1704-1711.
+        https://doi.org/10.1109/CVPR.2010.5539838.
+    """
+
+    def __init__(self, scale=True, n_domain=3, domain=None, k=None):
+        super().__init__(scale=scale, n_domain=n_domain, domain=domain, k=k)
+
+    def __call__(self, shape):
+        """Compute descriptor.
+
+        Parameters
+        ----------
+        shape : Shape.
+            Shape.
+        """
+        hks = super().__call__(shape)
+
+        hks_diff = gs.log(hks[1:, :] + 1e-2) - gs.log(hks[:-1, :] + 1e-2)
+        hks_diff_spectrum = fft.fft(hks_diff, axis=-2)  ## TODO: substitute with gs
+        return gs.abs(hks_diff_spectrum)
+
+
+class LandmarkScaleInvariantHeatKernelSignature(LandmarkHeatKernelSignature):
+    """Scale-Invariant Heat Kernel Signature descriptor on landmarks.
+
+    Parameters
+    ----------
+    scale : bool, optional
+        Whether to make the descriptor scale-invariant, by default True.
+    n_domain : int, optional
+        Number of frequency domains, by default 3.
+    domain : list, optional
+        List of frequency domain limits, by default None.
+    k : int, optional
+        Number of eigenvalues and eigenfunctions to use, by default None.
+    """
+
+    def __init__(self, scale=True, n_domain=3, domain=None, k=None):
+        super().__init__(scale=scale, n_domain=n_domain, domain=domain, k=k)
+
+    def __call__(self, shape):
+        """Compute descriptor.
+
+        Parameters
+        ----------
+        shape : Shape.
+            Shape.
+        """
+        hks = super().__call__(shape)
+
+        hks_diff = gs.log(hks[1:, :] + 1e-2) - gs.log(hks[:-1, :] + 1e-2)
+        hks_diff_spectrum = fft.fft(hks_diff, axis=-2)  ## TODO: substitute with gs
+        return gs.abs(hks_diff_spectrum)
