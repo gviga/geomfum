@@ -4,10 +4,11 @@ import gsops.backend as gs
 import networkx as nx
 from scipy.sparse.csgraph import shortest_path
 
+from geomfum._registry import PreciseGeodesicDistanceMetricRegistry, WhichRegistryMixins
 from geomfum.numerics.graph import single_source_partial_dijkstra_path_length
 
 from ._base import FinitePointSetMetric, VertexEuclideanMetric, _SingleDispatchMixins
-from geomfum._registry import PreciseGeodesicDistanceMetricRegistry, WhichRegistryMixins
+
 
 def to_nx_edge_graph(shape):
     """Convert a shape to a networkx graph.

@@ -13,8 +13,8 @@ from geomfum._registry import (
     register_laplacian_finder,
     register_neighbor_finder,
     register_poisson_sampler,
-    register_wave_kernel_signature,
     register_precise_geodesic_distance_metric,
+    register_wave_kernel_signature,
 )
 from geomfum._utils import has_package
 
