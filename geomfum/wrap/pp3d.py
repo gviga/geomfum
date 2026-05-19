@@ -161,8 +161,8 @@ class Pp3dEdgeFlipGeodesicMetric(_SingleDispatchMixins, FinitePointSetMetric):
         super().__init__(shape)
         if solver is None:
             solver = pp3d.EdgeFlipGeodesicSolver(
-                gs.to_numpy(xgs.to_device(shape.vertices, "cpu")),
-                gs.to_numpy(xgs.to_device(shape.faces, "cpu")),
+                gs.to_numpy(gs.to_device(shape.vertices, "cpu")),
+                gs.to_numpy(gs.to_device(shape.faces, "cpu")),
             )
 
         self.solver = solver
@@ -210,7 +210,6 @@ class Pp3dEdgeFlipGeodesicMetric(_SingleDispatchMixins, FinitePointSetMetric):
         dist : numeric
             Distance.
         """
-
         path_points = self.solver.find_geodesic_path(v_start=point_a, v_end=point_b)
         dist = gs.sum(gs.linalg.norm(path_points[1:] - path_points[:-1], axis=-1))
         return gs.asarray(dist)
