@@ -354,14 +354,6 @@ class NeighborFinderRegistry(Registry):
     MAP = {}
 
 
-class MeshPlotterRegistry(Registry):
-    MAP = {}
-
-
-class PointCloudPlotterRegistry(Registry):
-    MAP = {}
-
-
 class _MeshHeatDistanceMetricRegistry(Registry):
     has_internal = False
     MAP = {}
