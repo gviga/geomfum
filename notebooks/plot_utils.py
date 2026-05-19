@@ -1,3 +1,5 @@
+"""Utility functions for visualizing meshes and point clouds in Jupyter notebooks using PyVista."""
+
 import numpy as np
 import pyvista as pv
 
