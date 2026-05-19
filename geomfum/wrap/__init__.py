@@ -19,7 +19,7 @@ from geomfum._registry import (
 from geomfum._utils import has_package
 
 register_laplacian_finder(
-    True,
+    "mesh",
     "pyfm",
     "PyfmMeshLaplacianFinder",
     requires="pyFM",
@@ -27,18 +27,18 @@ register_laplacian_finder(
 )
 
 register_laplacian_finder(
-    True,
+    "mesh",
     "robust",
     "RobustMeshLaplacianFinder",
     requires="robust_laplacian",
     as_default=has_package("robust_laplacian"),
 )
 
-register_laplacian_finder(True, "igl", "IglMeshLaplacianFinder", requires="igl")
+register_laplacian_finder("mesh", "igl", "IglMeshLaplacianFinder", requires="igl")
 
 
 register_laplacian_finder(
-    False, "robust", "RobustPointCloudLaplacianFinder", requires="robust_laplacian"
+    "pointcloud", "robust", "RobustPointCloudLaplacianFinder", requires="robust_laplacian"
 )
 
 register_heat_kernel_signature(
@@ -98,11 +98,11 @@ register_neighbor_finder(
 
 
 register_heat_distance_metric(
-    True, "pp3d", "Pp3dMeshHeatDistanceMetric", requires="potpourri3d", as_default=True
+    "mesh", "pp3d", "Pp3dMeshHeatDistanceMetric", requires="potpourri3d", as_default=True
 )
 
 register_heat_distance_metric(
-    False,
+    "pointcloud",
     "pp3d",
     "Pp3dPointSetHeatDistanceMetric",
     requires="potpourri3d",
