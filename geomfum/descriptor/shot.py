@@ -7,6 +7,11 @@ Tombari, Salti and Di Stefano:
 
 Only the shape channel (normal-alignment cosines) is implemented here;
 the color channel is omitted since geomfum meshes do not carry per-vertex RGB.
+
+References
+----------
+.. [1] Tombari, Salti, Di Stefano. "Unique Signatures of Histograms for
+   Local Surface Description." ECCV 2010.
 """
 
 import gsops.backend as gs
@@ -19,7 +24,12 @@ from ._base import Descriptor
 _DEG_45 = np.pi / 4  # 0.785...
 _DEG_90 = np.pi / 2  # 1.570...
 _DEG_135 = 3.0 * np.pi / 4  # 2.356...
-_DEG_168 = 2.7488935718910690836548129603696  # DEG_168_TO_RAD
+_DEG_168 = (
+    2.7488935718910690836548129603696  # 168° in radians (azimuth sector boundary)
+)
+
+# Standard SHOT spatial decomposition: 8 azimuth × 2 inclination × 2 radial = 32 volumes
+_N_SECTORS = 32
 
 
 def _compute_lrf(center, neighbors, radius):
@@ -88,7 +98,6 @@ def _shot_single_point(
     z_axis,
     radius,
     n_bins,
-    n_sectors=32,
 ):
     """Compute the SHOT histogram for a single central point (vectorised).
 
@@ -109,15 +118,13 @@ def _shot_single_point(
     radius : float
     n_bins : int
         Number of shape bins (default 10 → 11 bins including boundary).
-    n_sectors : int
-        Number of spatial volumes (always 32 for standard SHOT).
 
     Returns
     -------
-    desc : ndarray, shape=[n_sectors * (n_bins + 1)]
+    desc : ndarray, shape=[_N_SECTORS * (n_bins + 1)]
         L2-normalised descriptor.
     """
-    desc = np.zeros(n_sectors * (n_bins + 1), dtype=np.float64)
+    desc = np.zeros(_N_SECTORS * (n_bins + 1), dtype=np.float64)
 
     # --- filter degenerate neighbours ---
     dists = np.sqrt(sq_distances)
@@ -253,8 +260,8 @@ def _shot_single_point(
     az_pos = has_az & (az_dist > 0)
     az_neg = has_az & ~az_pos
 
-    interp_pos = (desc_idx + 4) % n_sectors
-    interp_neg = (desc_idx - 4 + n_sectors) % n_sectors
+    interp_pos = (desc_idx + 4) % _N_SECTORS
+    interp_neg = (desc_idx - 4 + _N_SECTORS) % _N_SECTORS
 
     int_weight[az_pos] += 1.0 - az_dist[az_pos]
     np.add.at(
@@ -301,9 +308,12 @@ class ShotDescriptor(Descriptor):
     min_neighbors : int
         Minimum number of neighbours required to compute a descriptor for a
         vertex.  Vertices with fewer neighbours receive an all-zero row.
-    """
 
-    _N_SECTORS = 32  # 8 azimuth × 2 inclination × 2 radial = 32 volumes
+    References
+    ----------
+    .. [1] Tombari, Salti, Di Stefano. "Unique Signatures of Histograms for
+       Local Surface Description." ECCV 2010.
+    """
 
     def __init__(self, radius=None, n_bins=10, min_neighbors=5):
         super().__init__()
@@ -314,7 +324,7 @@ class ShotDescriptor(Descriptor):
     @property
     def descriptor_size(self):
         """Dimensionality of the descriptor vector per vertex."""
-        return self._N_SECTORS * (self.n_bins + 1)
+        return _N_SECTORS * (self.n_bins + 1)
 
     def _resolve_radius(self, vertices):
         if self.radius is not None:
@@ -336,17 +346,33 @@ class ShotDescriptor(Descriptor):
         descriptors : array-like, shape=[descriptor_size, n_vertices]
             L2-normalised per-vertex SHOT descriptors.
         """
+        device = getattr(shape.vertices, "device", None)
         vertices = np.asarray(
             gs.to_numpy(gs.to_device(shape.vertices, "cpu")), dtype=np.float64
         )
         normals = np.asarray(
             gs.to_numpy(gs.to_device(shape.vertex_normals, "cpu")), dtype=np.float64
         )
-        n_vertices = vertices.shape[0]
-
         radius = self._resolve_radius(vertices)
+        return gs.to_device(
+            gs.array(self._compute_descriptors(vertices, normals, radius)), device
+        )
+
+    def _compute_descriptors(self, vertices, normals, radius):
+        """Compute per-vertex SHOT histograms on CPU numpy arrays.
+
+        Parameters
+        ----------
+        vertices : ndarray, shape=[n_vertices, 3]
+        normals : ndarray, shape=[n_vertices, 3]
+        radius : float
+
+        Returns
+        -------
+        out : ndarray, shape=[descriptor_size, n_vertices]
+        """
+        n_vertices = vertices.shape[0]
         n_bins = self.n_bins
-        n_sectors = self._N_SECTORS
         desc_size = self.descriptor_size
 
         tree = cKDTree(vertices)
@@ -375,7 +401,6 @@ class ShotDescriptor(Descriptor):
                 z_axis,
                 radius,
                 n_bins,
-                n_sectors,
             )
 
-        return gs.array(out.T)
+        return out.T
