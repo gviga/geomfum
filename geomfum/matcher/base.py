@@ -200,3 +200,56 @@ class DescriptorMatcher(BaseMatcher):
             descr_a=descr_a,
             descr_b=descr_b,
         )
+
+
+class SpatialNearestNeighborMatcher(BaseMatcher):
+    """Matcher based on spatial nearest neighbors.
+
+    This matcher computes correspondences by finding the nearest vertex in
+    Euclidean space. It does not use any descriptors or functional maps.
+
+    Parameters
+    ----------
+    neighbor_finder : BaseNeighborFinder, optional
+        Nearest neighbor finder. If None, uses default.
+    """ 
+    def __init__(
+        self,
+        neighbor_finder: BaseNeighborFinder = None,
+    ):
+        self.neighbor_finder = neighbor_finder or NeighborFinder(n_neighbors=1)
+
+
+    def __call__(self, shape_a, shape_b, bidirectional=False):
+        """Compute correspondence between two shapes.
+
+        Parameters
+        ----------
+        shape_a : Shape
+            First shape (target for p2p21).
+        shape_b : Shape
+            Second shape (source for p2p21).
+        bidirectional : bool
+            If True, compute correspondences in both directions.
+
+        Returns
+        -------
+        result : CorrespondenceResult
+            Matching result containing:
+            - p2p21: point-to-point correspondence from B to A
+            - p2p12: (if bidirectional=True) correspondence from A to B
+        """
+        # Find for each vertex in B, the nearest vertex in A (p2p21: B -> A)
+        p2p21 = self.neighbor_finder(shape_b.vertices, shape_a.vertices).flatten()
+
+        # Compute reverse direction if bidirectional
+        p2p12 = None
+        if bidirectional:
+            p2p12 = self.neighbor_finder(shape_a.vertices, shape_b.vertices).flatten()
+
+        return CorrespondenceResult(
+            p2p21=p2p21,
+            p2p12=p2p12,
+            descr_a=None,
+            descr_b=None,
+        )
