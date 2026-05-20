@@ -11,6 +11,7 @@ from geomfum.functional_map import FunctionalMap
 from geomfum.matcher.base import BaseMatcher, CorrespondenceResult
 from geomfum.refine import Refiner, ZoomOut
 
+
 class FunctionalMapMatcher(BaseMatcher):
     """Functional map based matcher with configurable pipeline.
 

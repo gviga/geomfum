@@ -212,13 +212,13 @@ class SpatialNearestNeighborMatcher(BaseMatcher):
     ----------
     neighbor_finder : BaseNeighborFinder, optional
         Nearest neighbor finder. If None, uses default.
-    """ 
+    """
+
     def __init__(
         self,
         neighbor_finder: BaseNeighborFinder = None,
     ):
         self.neighbor_finder = neighbor_finder or NeighborFinder(n_neighbors=1)
-
 
     def __call__(self, shape_a, shape_b, bidirectional=False):
         """Compute correspondence between two shapes.
