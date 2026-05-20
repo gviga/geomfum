@@ -153,6 +153,106 @@ def show_multiple_scalars(
     plotter.show(jupyter_backend="static")
 
 
+def show_fmap(fmap, title="Functional map", cmap="bwr", figsize=(4, 4)):
+    """Visualize a functional map matrix as a heatmap."""
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=figsize)
+    im = ax.imshow(np.asarray(fmap), cmap=cmap, origin="upper")
+    ax.set_title(title)
+    plt.colorbar(im, ax=ax)
+    plt.tight_layout()
+    plt.show()
+
+
+def show_segmentation(
+    vertices_list,
+    faces_list,
+    labels_list,
+    titles=None,
+    cmap="Set1",
+    camera_position="yz",
+    n_cols=2,
+):
+    """Visualize meshes with categorical segmentation labels using face-level coloring."""
+    import matplotlib.pyplot as plt
+
+    all_labels = np.unique(np.concatenate([np.asarray(lbl) for lbl in labels_list]))
+    n_labels = len(all_labels)
+    remap = {v: i for i, v in enumerate(all_labels)}
+    mpl_cmap = plt.get_cmap(cmap, n_labels)
+
+    n = len(vertices_list)
+    n_rows = (n + n_cols - 1) // n_cols
+    plotter = pv.Plotter(shape=(n_rows, n_cols), notebook=True, border=False)
+
+    for idx in range(n):
+        row, col = divmod(idx, n_cols)
+        plotter.subplot(row, col)
+        faces = np.asarray(faces_list[idx])
+        mesh = pv.PolyData(np.asarray(vertices_list[idx]), pv_faces(faces))
+        labels = np.vectorize(remap.get)(np.asarray(labels_list[idx]))
+        mesh.cell_data["seg"] = labels[faces[:, 0]].astype(float)
+        plotter.add_mesh(
+            mesh,
+            scalars="seg",
+            cmap=mpl_cmap,
+            clim=(-0.5, n_labels - 0.5),
+            show_scalar_bar=False,
+        )
+        if titles is not None and idx < len(titles):
+            plotter.add_text(titles[idx], font_size=9)
+        if camera_position is not None:
+            plotter.camera_position = camera_position
+
+    plotter.link_views()
+    plotter.show(jupyter_backend="static")
+
+
+def show_meshes_with_landmarks(
+    vertices_list,
+    faces_list,
+    landmark_indices_list,
+    colors=None,
+    landmark_labels=None,
+    titles=None,
+    point_size=18,
+    mesh_color="lightgray",
+    smooth=True,
+    camera_position="xz",
+    n_cols=2,
+):
+    """Visualize meshes with multiple individually-colored landmark points."""
+    _default_colors = ["red", "blue", "green", "orange", "purple", "cyan"]
+    n = len(vertices_list)
+    n_rows = (n + n_cols - 1) // n_cols
+    plotter = pv.Plotter(shape=(n_rows, n_cols), notebook=True, border=False)
+
+    for idx in range(n):
+        row, col = divmod(idx, n_cols)
+        plotter.subplot(row, col)
+        verts = np.asarray(vertices_list[idx])
+        mesh = pv.PolyData(verts, pv_faces(faces_list[idx]))
+        plotter.add_mesh(mesh, color=mesh_color, smooth_shading=smooth, opacity=0.8)
+
+        for lm_i, lm_idx in enumerate(landmark_indices_list[idx]):
+            color = (
+                colors[lm_i] if colors is not None else _default_colors[lm_i % len(_default_colors)]
+            )
+            pt = verts[lm_idx].reshape(1, 3)
+            kwargs = dict(color=color, point_size=point_size, render_points_as_spheres=True)
+            if landmark_labels is not None:
+                kwargs["label"] = landmark_labels[lm_i]
+            plotter.add_points(pt, **kwargs)
+
+        if titles is not None and idx < len(titles):
+            plotter.add_text(titles[idx], font_size=9)
+        if camera_position is not None:
+            plotter.camera_position = camera_position
+
+    plotter.show(jupyter_backend="static")
+
+
 def show_mesh_with_vectors(
     vertices,
     faces,
