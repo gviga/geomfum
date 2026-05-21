@@ -27,7 +27,6 @@ import numpy as np
 
 from geomfum.metric._base import VertexEuclideanMetric
 
-
 # ---------------------------------------------------------------------------
 # Base class
 # ---------------------------------------------------------------------------
@@ -79,6 +78,7 @@ class GeodesicErrorMetric(CorrespondenceMetric):
     required_inputs = ["p2p21", "dist_a"]
 
     def __call__(self, inputs):
+        """Compute the normalised mean geodesic error."""
         dist_a = np.asarray(inputs["dist_a"])
         p2p21 = np.asarray(inputs["p2p21"])
         corr_a = inputs.get("corr_a")
@@ -106,6 +106,7 @@ class EuclideanErrorMetric(CorrespondenceMetric):
     required_inputs = ["p2p21", "shape_a"]
 
     def __call__(self, inputs):
+        """Compute the normalised mean Euclidean error."""
         p2p21 = np.asarray(inputs["p2p21"])
         shape_a = inputs["shape_a"]
         corr_a = inputs.get("corr_a")
@@ -136,6 +137,7 @@ class DirichletEnergyMetric(CorrespondenceMetric):
     required_inputs = ["p2p21", "shape_a", "shape_b"]
 
     def __call__(self, inputs):
+        """Compute the Dirichlet energy."""
         p2p21 = np.asarray(inputs["p2p21"])
         shape_a = inputs["shape_a"]
         shape_b = inputs["shape_b"]
@@ -163,6 +165,7 @@ class CoverageMetric(CorrespondenceMetric):
     required_inputs = ["p2p21", "shape_a"]
 
     def __call__(self, inputs):
+        """Compute the coverage fraction."""
         p2p21 = np.asarray(inputs["p2p21"])
         shape_a = inputs["shape_a"]
         areas = np.asarray(shape_a.vertex_areas)
@@ -179,6 +182,7 @@ class CoverageCountMetric(CorrespondenceMetric):
     required_inputs = ["p2p21", "shape_a"]
 
     def __call__(self, inputs):
+        """Compute the count-based coverage fraction."""
         p2p21 = np.asarray(inputs["p2p21"])
         shape_a = inputs["shape_a"]
         return float(np.unique(p2p21).shape[0] / shape_a.n_vertices)
@@ -194,6 +198,7 @@ class SoftGeodesicErrorMetric(CorrespondenceMetric):
     required_inputs = ["soft_perm_ba", "dist_a"]
 
     def __call__(self, inputs):
+        """Compute the expected geodesic error under a soft permutation."""
         P = np.asarray(inputs["soft_perm_ba"])  # [n_b, n_a]
         D = np.asarray(inputs["dist_a"])  # [n_a, n_a]
         corr_a = inputs.get("corr_a")
@@ -229,6 +234,7 @@ class PartialGeodesicErrorMetric(CorrespondenceMetric):
     required_inputs = ["p2p21", "dist_a", "corr_a", "corr_b", "mask_a"]
 
     def __call__(self, inputs):
+        """Compute the normalised mean geodesic error."""
         dist_a = np.asarray(inputs["dist_a"])
         p2p21 = np.asarray(inputs["p2p21"])
         corr_a = np.asarray(inputs["corr_a"])
@@ -258,6 +264,7 @@ class OverlapIoUMetric(CorrespondenceMetric):
         self.threshold = threshold
 
     def __call__(self, inputs):
+        """Compute the IoU between predicted and GT overlap."""
         pred = np.asarray(inputs["overlap_ab"]) >= self.threshold
         gt = np.asarray(inputs["mask_a"]) >= 0.5
         intersection = (pred & gt).sum()
@@ -285,6 +292,7 @@ class PCKAucMetric(CorrespondenceMetric):
         self.n_steps = n_steps
 
     def __call__(self, inputs):
+        """Compute the AUC of the PCK curve over the GT overlap region."""
         dist_a = np.asarray(inputs["dist_a"])
         p2p21 = np.asarray(inputs["p2p21"])
         corr_a = np.asarray(inputs["corr_a"])
