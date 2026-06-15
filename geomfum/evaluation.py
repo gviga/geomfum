@@ -23,8 +23,9 @@ Metrics whose required inputs are absent are silently skipped.
 
 import abc
 
-import numpy as np
+import gsops.backend as gs
 
+import geomfum.linalg as la
 from geomfum.metric._base import VertexEuclideanMetric
 
 # ---------------------------------------------------------------------------
@@ -36,8 +37,9 @@ class CorrespondenceMetric(abc.ABC):
     """Base class for correspondence evaluation metrics.
 
     Follows the same ``required_inputs`` pattern as
-    ``geomfum.learning.losses`` loss classes, but operates on numpy arrays
-    (no gradients) and receives inputs as a single flat dict.
+    ``geomfum.learning.losses`` loss classes, but operates on backend arrays
+    via ``gsops.backend`` (no gradients) and receives inputs as a single flat
+    dict.
 
     Subclasses must declare ``required_inputs`` and implement ``__call__``.
     """
@@ -79,17 +81,17 @@ class GeodesicErrorMetric(CorrespondenceMetric):
 
     def __call__(self, inputs):
         """Compute the normalised mean geodesic error."""
-        dist_a = np.asarray(inputs["dist_a"])
-        p2p21 = np.asarray(inputs["p2p21"])
+        dist_a = gs.asarray(inputs["dist_a"])
+        p2p21 = gs.asarray(inputs["p2p21"])
         corr_a = inputs.get("corr_a")
         corr_b = inputs.get("corr_b")
 
         if corr_a is None or corr_b is None:
-            error = np.mean(dist_a[p2p21, np.arange(len(p2p21))])
+            error = gs.mean(dist_a[p2p21, gs.arange(p2p21.shape[0])])
         else:
-            error = np.mean(dist_a[p2p21[np.asarray(corr_b)], np.asarray(corr_a)])
+            error = gs.mean(dist_a[p2p21[gs.asarray(corr_b)], gs.asarray(corr_a)])
 
-        diam = dist_a.max()
+        diam = gs.amax(dist_a)
         return float(error / diam) if diam > 0 else 0.0
 
 
@@ -107,29 +109,40 @@ class EuclideanErrorMetric(CorrespondenceMetric):
 
     def __call__(self, inputs):
         """Compute the normalised mean Euclidean error."""
-        p2p21 = np.asarray(inputs["p2p21"])
+        p2p21 = gs.asarray(inputs["p2p21"])
         shape_a = inputs["shape_a"]
         corr_a = inputs.get("corr_a")
         corr_b = inputs.get("corr_b")
 
-        verts = np.asarray(shape_a.vertices)
+        verts = shape_a.vertices
 
         if corr_a is None or corr_b is None:
             pred = verts[p2p21]
-            gt = verts[np.arange(len(p2p21))]
+            gt = verts[gs.arange(p2p21.shape[0])]
         else:
-            pred = verts[p2p21[np.asarray(corr_b)]]
-            gt = verts[np.asarray(corr_a)]
+            pred = verts[p2p21[gs.asarray(corr_b)]]
+            gt = verts[gs.asarray(corr_a)]
 
-        error = np.mean(np.linalg.norm(pred - gt, axis=-1))
-        diam = VertexEuclideanMetric(shape_a).dist_matrix().max()
+        diff = pred - gt
+        error = gs.mean(gs.linalg.norm(diff, axis=diff.ndim - 1))
+        diam = gs.amax(VertexEuclideanMetric(shape_a).dist_matrix())
         return float(error / diam) if diam > 0 else 0.0
 
 
 class DirichletEnergyMetric(CorrespondenceMetric):
-    """Dirichlet energy of ``p2p21`` (smoothness proxy).
+    """Dirichlet energy of the pulled-back embedding (smoothness proxy).
 
-    E = sum_i v_a[p2p21]^T L_b v_a[p2p21] / n_b.
+    Pulls shape A's vertex coordinates onto B through ``p2p21`` and measures
+    their Dirichlet energy on B, normalised to be scale- and resolution-
+    invariant:
+
+        E = tr(Xᵀ W X) / tr(Xᵀ M X),
+
+    where ``X = v_a[p2p21]``, ``W`` is B's stiffness (cotan) matrix and ``M``
+    its mass matrix.  Lower is smoother.
+
+    Note: Dirichlet energy is minimised by *collapsed* maps (all of B sent to
+    one point of A → 0), so read it alongside ``CoverageMetric``.
 
     Required inputs: ``p2p21``, ``shape_a``, ``shape_b``.
     """
@@ -137,23 +150,24 @@ class DirichletEnergyMetric(CorrespondenceMetric):
     required_inputs = ["p2p21", "shape_a", "shape_b"]
 
     def __call__(self, inputs):
-        """Compute the Dirichlet energy."""
-        p2p21 = np.asarray(inputs["p2p21"])
+        """Compute the (mass-normalised) Dirichlet energy."""
+        p2p21 = gs.asarray(inputs["p2p21"])
         shape_a = inputs["shape_a"]
         shape_b = inputs["shape_b"]
 
-        mapping = np.asarray(shape_a.vertices[p2p21])  # [n_b, 3]
+        x = shape_a.vertices[p2p21]  # [n_b, 3] pulled-back coordinates
+        xt = gs.transpose(x)  # [3, n_b]
 
-        if shape_b.laplacian.stiffness_matrix is None:
-            L, _ = shape_b.laplacian.find()
-        else:
-            L = shape_b.laplacian.stiffness_matrix
+        stiffness = shape_b.laplacian.stiffness_matrix
+        mass = shape_b.laplacian.mass_matrix
 
-        if hasattr(L, "tocsr"):
-            L = L.tocsr()
+        # la.matvecmul(A, xt) returns (A X)^T with shape [3, n_b].
+        wx = la.matvecmul(stiffness, xt)
+        mx = la.matvecmul(mass, xt)
 
-        energy = sum(float(mapping[:, i].T @ L @ mapping[:, i]) for i in range(3))
-        return energy / shape_b.n_vertices
+        numerator = gs.sum(wx * xt)  # tr(Xᵀ W X)
+        denominator = gs.sum(mx * xt)  # tr(Xᵀ M X)
+        return float(numerator / denominator)
 
 
 class CoverageMetric(CorrespondenceMetric):
@@ -166,11 +180,11 @@ class CoverageMetric(CorrespondenceMetric):
 
     def __call__(self, inputs):
         """Compute the coverage fraction."""
-        p2p21 = np.asarray(inputs["p2p21"])
+        p2p21 = gs.asarray(inputs["p2p21"])
         shape_a = inputs["shape_a"]
-        areas = np.asarray(shape_a.vertex_areas)
-        unique = np.unique(p2p21)
-        return float(areas[unique].sum() / areas.sum())
+        areas = gs.asarray(shape_a.vertex_areas)
+        unique = gs.unique(p2p21)
+        return float(gs.sum(areas[unique]) / gs.sum(areas))
 
 
 class CoverageCountMetric(CorrespondenceMetric):
@@ -183,9 +197,9 @@ class CoverageCountMetric(CorrespondenceMetric):
 
     def __call__(self, inputs):
         """Compute the count-based coverage fraction."""
-        p2p21 = np.asarray(inputs["p2p21"])
+        p2p21 = gs.asarray(inputs["p2p21"])
         shape_a = inputs["shape_a"]
-        return float(np.unique(p2p21).shape[0] / shape_a.n_vertices)
+        return float(gs.unique(p2p21).shape[0] / shape_a.n_vertices)
 
 
 class SoftGeodesicErrorMetric(CorrespondenceMetric):
@@ -199,23 +213,23 @@ class SoftGeodesicErrorMetric(CorrespondenceMetric):
 
     def __call__(self, inputs):
         """Compute the expected geodesic error under a soft permutation."""
-        P = np.asarray(inputs["soft_perm_ba"])  # [n_b, n_a]
-        D = np.asarray(inputs["dist_a"])  # [n_a, n_a]
+        soft_perm = gs.asarray(inputs["soft_perm_ba"])  # [n_b, n_a]
+        dist_a = gs.asarray(inputs["dist_a"])  # [n_a, n_a]
         corr_a = inputs.get("corr_a")
         corr_b = inputs.get("corr_b")
 
-        diam = D.max()
+        diam = gs.amax(dist_a)
 
         if corr_a is None or corr_b is None:
-            expected = (P * D.T).sum(axis=1)
+            expected = gs.sum(soft_perm * gs.transpose(dist_a), axis=1)
         else:
-            corr_a = np.asarray(corr_a)
-            corr_b = np.asarray(corr_b)
-            P_rows = P[corr_b, :]  # [n_corr, n_a]
-            gt_dists = D[:, corr_a].T  # [n_corr, n_a]
-            expected = (P_rows * gt_dists).sum(axis=1)
+            corr_a = gs.asarray(corr_a)
+            corr_b = gs.asarray(corr_b)
+            perm_rows = soft_perm[corr_b, :]  # [n_corr, n_a]
+            gt_dists = gs.transpose(dist_a[:, corr_a])  # [n_corr, n_a]
+            expected = gs.sum(perm_rows * gt_dists, axis=1)
 
-        return float(np.mean(expected) / diam) if diam > 0 else 0.0
+        return float(gs.mean(expected) / diam) if diam > 0 else 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -235,16 +249,16 @@ class PartialGeodesicErrorMetric(CorrespondenceMetric):
 
     def __call__(self, inputs):
         """Compute the normalised mean geodesic error."""
-        dist_a = np.asarray(inputs["dist_a"])
-        p2p21 = np.asarray(inputs["p2p21"])
-        corr_a = np.asarray(inputs["corr_a"])
-        corr_b = np.asarray(inputs["corr_b"])
-        mask_a = np.asarray(inputs["mask_a"])
+        dist_a = gs.asarray(inputs["dist_a"])
+        p2p21 = gs.asarray(inputs["p2p21"])
+        corr_a = gs.asarray(inputs["corr_a"])
+        corr_b = gs.asarray(inputs["corr_b"])
+        mask_a = gs.asarray(inputs["mask_a"])
 
         valid = mask_a[corr_a] > 0.5
-        if valid.sum() == 0:
+        if int(gs.sum(valid)) == 0:
             return 0.0
-        return float(np.mean(dist_a[corr_a[valid], p2p21[corr_b[valid]]]))
+        return float(gs.mean(dist_a[corr_a[valid], p2p21[corr_b[valid]]]))
 
 
 class OverlapIoUMetric(CorrespondenceMetric):
@@ -265,11 +279,11 @@ class OverlapIoUMetric(CorrespondenceMetric):
 
     def __call__(self, inputs):
         """Compute the IoU between predicted and GT overlap."""
-        pred = np.asarray(inputs["overlap_ab"]) >= self.threshold
-        gt = np.asarray(inputs["mask_a"]) >= 0.5
-        intersection = (pred & gt).sum()
-        union = (pred | gt).sum()
-        return 1.0 if union == 0 else float(intersection / union)
+        pred = gs.asarray(inputs["overlap_ab"]) >= self.threshold
+        gt = gs.asarray(inputs["mask_a"]) >= 0.5
+        intersection = gs.sum(pred & gt)
+        union = gs.sum(pred | gt)
+        return 1.0 if int(union) == 0 else float(intersection) / float(union)
 
 
 class PCKAucMetric(CorrespondenceMetric):
@@ -293,23 +307,25 @@ class PCKAucMetric(CorrespondenceMetric):
 
     def __call__(self, inputs):
         """Compute the AUC of the PCK curve over the GT overlap region."""
-        dist_a = np.asarray(inputs["dist_a"])
-        p2p21 = np.asarray(inputs["p2p21"])
-        corr_a = np.asarray(inputs["corr_a"])
-        corr_b = np.asarray(inputs["corr_b"])
-        mask_a = np.asarray(inputs["mask_a"])
+        dist_a = gs.asarray(inputs["dist_a"])
+        p2p21 = gs.asarray(inputs["p2p21"])
+        corr_a = gs.asarray(inputs["corr_a"])
+        corr_b = gs.asarray(inputs["corr_b"])
+        mask_a = gs.asarray(inputs["mask_a"])
 
         valid = mask_a[corr_a] > 0.5
-        if valid.sum() == 0:
+        if int(gs.sum(valid)) == 0:
             return 0.0
 
         geo_err = dist_a[corr_a[valid], p2p21[corr_b[valid]]]
-        diam = dist_a.max()
+        diam = gs.amax(dist_a)
         geo_err_norm = geo_err / diam if diam > 0 else geo_err
 
-        thresholds = np.linspace(0.0, self.t_max, self.n_steps)
-        pck = np.array([(geo_err_norm <= t).mean() for t in thresholds])
-        return float(np.trapezoid(pck, thresholds) / self.t_max)
+        thresholds = gs.linspace(0.0, self.t_max, self.n_steps)  # [n_steps]
+        # hits[s, i] = geo_err_norm[i] <= thresholds[s]
+        hits = geo_err_norm[None, :] <= thresholds[:, None]
+        pck = gs.sum(1.0 * hits, axis=1) / geo_err_norm.shape[0]  # [n_steps]
+        return float(gs.trapezoid(pck, thresholds) / self.t_max)
 
 
 # ---------------------------------------------------------------------------
