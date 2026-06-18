@@ -3,6 +3,6 @@
 import geomfum.wrap as _wrap  # for register
 
 from ._base import Descriptor, DistanceFromLandmarksDescriptor
-from .shot import ShotDescriptor
 from .spectral import SpectralDescriptor
 from .vision import VisionModelDescriptor
+from .shot import ShotDescriptor

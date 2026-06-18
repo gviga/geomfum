@@ -425,11 +425,6 @@ class FactorSum(WeightedFactor):
         )
 
 
-# =============================================================================
-# Factor Builders - Configure factors independently of shapes
-# =============================================================================
-
-
 class FactorBuilder(abc.ABC):
     """Abstract base class for factor builders."""
 
@@ -494,7 +489,7 @@ class SDPFactorBuilder(FactorBuilder):
         )
 
 
-class LBFactorBuilder(FactorBuilder):
+class LBCFactorBuilder(FactorBuilder):
     """Builder for LBCommutativityEnforcing factor.
 
     Parameters
@@ -504,7 +499,7 @@ class LBFactorBuilder(FactorBuilder):
     """
 
     def __init__(self, weight=1e-2):
-        super(LBFactorBuilder, self).__init__(weight=weight)
+        super(LBCFactorBuilder, self).__init__(weight=weight)
 
     def build(self, basis_a, basis_b, descr_a, descr_b):
         """Build LBCommutativityEnforcing from bases.
@@ -562,67 +557,12 @@ class MultFactorBuilder(FactorBuilder):
         )
 
 
-class OrientFactorBuilder(FactorBuilder):
-    """Builder for orientation OperatorCommutativityEnforcing factor.
-
-    Parameters
-    ----------
-    weight : float
-        Weight of the factor.
-    reversing_a : bool
-        Whether to reverse orientation on shape A.
-    reversing_b : bool
-        Whether to reverse orientation on shape B.
-    normalize : bool
-        Whether to normalize gradients.
-    """
-
-    def __init__(
-        self, weight=1e-1, reversing_a=False, reversing_b=False, normalize=False
-    ):
-        super().__init__(weight=weight)
-        self.reversing_a = reversing_a
-        self.reversing_b = reversing_b
-        self.normalize = normalize
-
-    def build(self, shape_a, shape_b, descr_a, descr_b):
-        """Build OperatorCommutativityEnforcing from orientation operators.
-
-        Note: This builder requires full shapes, not just bases.
-
-        Parameters
-        ----------
-        shape_a : Shape
-            Source shape.
-        shape_b : Shape
-            Target shape.
-        descr_a : array-like, shape=[..., n_vertices_a]
-            Descriptors on source shape.
-        descr_b : array-like, shape=[..., n_vertices_b]
-            Descriptors on target shape.
-
-        Returns
-        -------
-        factor : OperatorCommutativityEnforcing
-        """
-        return OperatorCommutativityEnforcing.from_orientation(
-            shape_a,
-            descr_a,
-            shape_b,
-            descr_b,
-            reversing_a=self.reversing_a,
-            reversing_b=self.reversing_b,
-            normalize=self.normalize,
-            weight=self.weight,
-        )
-
-
 # =============================================================================
 # Functional Map Optimizer - Intermediate abstraction layer
 # =============================================================================
 
 
-class FunctionalMapOptimizer:
+class FunctionalMap:
     """Optimizer for functional maps.
 
     Takes factor_builders as configuration, then optimizes fmap given shapes/descriptors.
@@ -651,7 +591,7 @@ class FunctionalMapOptimizer:
         """
         return [
             SDPFactorBuilder(weight=1.0),
-            LBFactorBuilder(weight=1e-2),
+            LBCFactorBuilder(weight=1e-2),
             MultFactorBuilder(weight=1e-1),
         ]
 
@@ -675,10 +615,10 @@ class FunctionalMapOptimizer:
             Optimized functional map matrix.
         """
         if self.fmap_size is not None:
-            if basis_a.spectrum_size != self.fmap_size:
-                basis_a.use_k = self.fmap_size
-            if basis_b.spectrum_size != self.fmap_size:
-                basis_b.use_k = self.fmap_size
+            if basis_a.spectrum_size != self.fmap_size[1]:
+                basis_a.use_k = self.fmap_size[1]
+            if basis_b.spectrum_size != self.fmap_size[0]:
+                basis_b.use_k = self.fmap_size[0]
 
         # Build factors from builders
         objective = self._build_factor_sum(
