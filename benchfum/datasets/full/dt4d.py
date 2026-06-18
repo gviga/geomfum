@@ -24,7 +24,7 @@ pair (shape_i, shape_j):
     target["corr"][r]  = shape_j vertex for reference vertex r
 
 Both arrays have length ``n_ref``, giving ``n_ref`` GT correspondence pairs
-compatible with :func:`geomfum.eval.normalized_euclidean_error`.
+compatible with :func:`geomfum.evaluation.EuclideanErrorMetric`.
 
 Cross-category correspondences (``cross_category_corres/``) are loaded on
 demand and exposed via :meth:`DT4DDataset.cross_category_corr`.

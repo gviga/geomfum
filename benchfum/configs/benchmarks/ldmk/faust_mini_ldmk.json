@@ -1,0 +1,17 @@
+{
+  "_name": "Landmark FAUST mini (euclidean)",
+  "_description": "Lightweight landmark smoke on FAUST mini-set: WKS+Landmark-WKS, euclidean_error, no geodesic distances.",
+  "dataset": {
+    "k": 100,
+    "distances": false,
+    "landmark_indices": [2959, 2948, 3116, 5130, 1252, 4583, 728]
+  },
+  "methods": [
+    {
+      "name": "WKS+LandmarkWKS+NN",
+      "matcher_config": "../../matchers/features_only/wks_ldmk.json"
+    }
+  ],
+  "metrics": ["euclidean_error"],
+  "n_pairs": 2
+}

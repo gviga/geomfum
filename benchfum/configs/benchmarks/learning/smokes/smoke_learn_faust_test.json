@@ -12,11 +12,11 @@
   "methods": [
     {
       "name": "FMNet-smoke",
-      "model_config": "../../models/fmnet_smoke.json"
+      "model_config": "../../../models/fmnet_smoke.json"
     },
     {
       "name": "RobustFMNet-smoke",
-      "model_config": "../../models/robust_fmnet_smoke.json",
+      "model_config": "../../../models/robust_fmnet_smoke.json"
     }
   ],
   "metrics": [

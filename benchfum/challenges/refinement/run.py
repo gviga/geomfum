@@ -158,7 +158,10 @@ def run_benchmark(
     methods = build_methods(config, resolved_config_path, base_matcher)
     print(f"Methods     : {list(methods.keys())}")
 
-    pairs = build_dataset(dataset_dir, config, n_pairs, seed=seed)
+    # Classical matchers (functional-map optimisation) run on CPU via scipy, so
+    # default the shapes to CPU. A config can still request another device.
+    device = config.get("dataset", {}).get("device") or "cpu"
+    pairs = build_dataset(dataset_dir, config, n_pairs, seed=seed, device=device)
 
     metrics = config.get("metrics", ["geodesic_error"])
 

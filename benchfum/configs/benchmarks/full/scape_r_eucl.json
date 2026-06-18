@@ -1,0 +1,11 @@
+{
+  "_name": "SCAPE_r benchmark (euclidean)",
+  "dataset": {"type": "ScapeDataset", "root": null, "spectral": true, "k": 120, "distances": false},
+  "metrics": ["euclidean_error"],
+  "methods": [
+    {"name": "WKS", "matcher_config": "../../matchers/features_only/wks.json"},
+    {"name": "HKS", "matcher_config": "../../matchers/features_only/hks.json"},
+    {"name": "SHOT", "matcher_config": "../../matchers/features_only/shot.json"},
+    {"name": "FMap (k30)", "matcher_config": "../../matchers/functional_maps/fmap_wks_k30_base.json"}
+  ]
+}

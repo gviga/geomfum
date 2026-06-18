@@ -1,0 +1,10 @@
+{
+  "_name": "Landmark SCAPE_r (FPS, euclidean)",
+  "dataset": {"type": "ScapeDataset", "root": null, "spectral": true, "k": 120, "distances": false},
+  "n_landmarks": 10,
+  "metrics": ["euclidean_error"],
+  "methods": [
+    {"name": "WKS+NN", "matcher_config": "../../matchers/features_only/wks.json"},
+    {"name": "WKS+LandmarkWKS+NN", "matcher_config": "../../matchers/features_only/wks_ldmk.json"}
+  ]
+}

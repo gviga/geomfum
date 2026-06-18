@@ -1,0 +1,23 @@
+{
+  "_name": "EchoMatch Smoke (1 epoch)",
+  "_description": "Minimal EchoMatch trainer for partial-shape pipeline sanity checks.",
+  "optimizer": {"type": "Adam", "lr": 1e-3},
+  "epochs": 1,
+  "grad_clip_norm": 1.0,
+  "monitor_metric": "PartialGeodesicError",
+  "mode": "min",
+  "train_loss_manager": {
+    "type": "LossManager",
+    "losses": [
+      {"type": "OrthonormalityLoss", "weight": 1.0},
+      {"type": "BijectivityLoss", "weight": 1.0},
+      {"type": "WeightedBCELoss", "weight": 1.0},
+      {"type": "CrossNCELoss", "weight": 0.1, "temperature": 0.07},
+      {"type": "SelfNCELoss", "weight": 0.1, "temperature": 0.07}
+    ]
+  },
+  "val_loss_manager": {
+    "type": "LossManager",
+    "losses": [{"type": "OverlapIoU"}]
+  }
+}

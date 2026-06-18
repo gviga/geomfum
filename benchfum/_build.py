@@ -127,17 +127,18 @@ def _build_component_registry():
     )
     from geomfum.descriptor.vision import VisionModelDescriptor
     from geomfum.functional_map import (
-        FunctionalMapOptimizer,
-        LBFactorBuilder,
+        FunctionalMap,
+        LBCFactorBuilder,
         MultFactorBuilder,
-        OrientFactorBuilder,
         SDPFactorBuilder,
     )
-    from geomfum.matchers import (
+    from geomfum.matcher import (
+        DescriptorMatcher,
         DummySoftPermMatcher,
-        FeatureMatcher,
         FunctionalMapMatcher,
         PrecomputedP2pMatcher,
+        SpatialNearestNeighborMatcher,
+        ZoomOutMatcher,
     )
     from geomfum.refine import (
         AdjointBijectiveZoomOut,
@@ -153,7 +154,12 @@ def _build_component_registry():
     registry = {
         # --- Matchers ---
         "FunctionalMapMatcher": FunctionalMapMatcher,
-        "FeatureMatcher": FeatureMatcher,
+        "ZoomOutMatcher": ZoomOutMatcher,
+        "DescriptorMatcher": DescriptorMatcher,
+        # "FeatureMatcher" kept as a backward-compatible alias for the
+        # descriptor/nearest-neighbour matcher (was geomfum.matchers.FeatureMatcher).
+        "FeatureMatcher": DescriptorMatcher,
+        "SpatialNearestNeighborMatcher": SpatialNearestNeighborMatcher,
         "DummySoftPermMatcher": DummySoftPermMatcher,
         "PrecomputedP2pMatcher": PrecomputedP2pMatcher,
         # --- Descriptors ---
@@ -175,10 +181,9 @@ def _build_component_registry():
         "DescriptorPipeline": DescriptorPipeline,
         # --- Functional map factors ---
         "SDPFactorBuilder": SDPFactorBuilder,
-        "LBFactorBuilder": LBFactorBuilder,
+        "LBCFactorBuilder": LBCFactorBuilder,
         "MultFactorBuilder": MultFactorBuilder,
-        "OrientFactorBuilder": OrientFactorBuilder,
-        "FunctionalMapOptimizer": FunctionalMapOptimizer,
+        "FunctionalMap": FunctionalMap,
         # --- Refiners ---
         "IdentityRefiner": IdentityRefiner,
         "OrthogonalRefiner": OrthogonalRefiner,
@@ -243,7 +248,7 @@ def _build_component_registry():
             OverlapRefiner,
             RobustFMNet,
         )
-        from geomfum.learning.wrappers import TestTimeRefiner
+        from geomfum.matcher import DeepFMMatcher
 
         def _feature_extractor_builder(**kwargs):
             return FeatureExtractor.from_registry(**kwargs)
@@ -295,9 +300,12 @@ def _build_component_registry():
                 "Shrec19Dataset": Shrec19Dataset,
                 "DT4DDataset": DT4DDataset,
                 "DT4DPairsDataset": DT4DPairsDataset,
+                # --- Deep matcher (inference + per-pair optimization) ---
+                "DeepFMMatcher": DeepFMMatcher,
+                # "TestTimeRefiner" kept as a back-compat alias -> DeepFMMatcher.
+                "TestTimeRefiner": DeepFMMatcher,
                 # --- Misc ---
                 "LossManager": LossManager,
-                "TestTimeRefiner": TestTimeRefiner,
                 "RandomAugmentation": RandomAugmentation,
             }
         )
@@ -627,7 +635,7 @@ def build_trainer_from_json(path, model, train_set, val_set):
 
 
 def build_test_time_refiner(config, model):
-    """Build a ``TestTimeRefiner`` from a configuration dictionary.
+    """Build a per-pair :class:`~geomfum.matcher.DeepFMMatcher` from a config.
 
     The ``model`` is the trained model to wrap; it is passed at runtime because
     it cannot be serialised to JSON.  All other keys are resolved recursively.
@@ -638,9 +646,9 @@ def build_test_time_refiner(config, model):
         Configuration dict.  Special keys:
 
         - ``loss_manager`` : ``LossManager`` config dict (built recursively).
-        - ``n_steps`` : int (default 5).
+        - ``n_steps`` (alias ``n_iters``) : int — gradient steps per pair.
         - ``optimizer_config`` : optimizer dict (passed as-is, not built via
-          torch.optim — ``TestTimeRefiner`` builds its own optimizer per pair).
+          torch.optim — ``DeepFMMatcher`` builds its own optimizer per pair).
         - ``grad_clip_norm`` : float or null.
         - ``restore_weights`` : bool (default True).
         - ``device`` : str (default auto-detect).
@@ -650,13 +658,13 @@ def build_test_time_refiner(config, model):
 
     Returns
     -------
-    refiner : TestTimeRefiner
+    refiner : DeepFMMatcher
     """
-    from geomfum.learning.wrappers import TestTimeRefiner
+    from geomfum.matcher import DeepFMMatcher
 
     registry = _build_component_registry()
 
-    # ``optimizer_config`` is passed as a raw dict to TestTimeRefiner (which
+    # ``optimizer_config`` is passed as a raw dict to DeepFMMatcher (which
     # builds its own optimizer per pair via torch.optim).  Do NOT recurse into
     # it with the component registry — Adam/SGD etc. are not registered there.
     kwargs = {
@@ -664,7 +672,10 @@ def build_test_time_refiner(config, model):
         for k, v in config.items()
         if k != "type" and not k.startswith("_")
     }
-    return TestTimeRefiner(model=model, **kwargs)
+    # Back-compat: TestTimeRefiner used ``n_steps``; DeepFMMatcher uses ``n_iters``.
+    if "n_steps" in kwargs:
+        kwargs["n_iters"] = kwargs.pop("n_steps")
+    return DeepFMMatcher(model=model, **kwargs)
 
 
 def build_test_time_refiner_from_json(path, model):

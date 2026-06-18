@@ -1,0 +1,16 @@
+{
+  "_name": "SHREC16 partial TRAIN smoke",
+  "_description": "EchoMatch 1-epoch train + eval on SHREC16 cuts subset.",
+  "device": "cuda:0",
+  "train": true,
+  "dataset": {"root": null, "format": "shrec16", "partial_split": "cuts", "spectral": true, "k": 30},
+  "n_pairs": 1,
+  "methods": [
+    {
+      "name": "EchoMatch (1ep)",
+      "model_config": "../../models/echo_match_smoke.json",
+      "trainer_config": "../../training/echo_match_smoke_1epoch.json"
+    }
+  ],
+  "metrics": ["OverlapIoU"]
+}

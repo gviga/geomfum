@@ -38,7 +38,7 @@ from benchfum.challenges._common import (
     resolve_dataset_dir,
     resolve_path,
 )
-from geomfum.learning.wrappers import TrainedModelWrapper
+from geomfum.matcher import DeepFMMatcher
 
 # ============================================================================
 # BENCHMARK CONFIG
@@ -219,10 +219,13 @@ def run_benchmark(
         if checkpoint_path is not None:
             if checkpoint_path.exists():
                 print(f"  [load] {method_name}: checkpoint={checkpoint_path}")
-                methods[method_name] = TrainedModelWrapper(
+                # Inference only (n_iters=0): DeepFMMatcher loads the checkpoint
+                # and runs the model in eval/no-grad, like the old wrapper.
+                methods[method_name] = DeepFMMatcher(
                     model=model,
                     device=device,
-                    checkpoint_path=str(checkpoint_path),
+                    checkpoint=str(checkpoint_path),
+                    n_iters=0,
                 )
                 continue
             else:

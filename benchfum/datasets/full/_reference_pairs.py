@@ -6,7 +6,7 @@ Each target shape ships a ``.vts`` file that maps *target vertices* to the
 reference vertices, giving the ground-truth point-to-point correspondence.
 
 The resulting pair format is compatible with
-:func:`geomfum.eval.normalized_euclidean_error`:
+:func:`geomfum.evaluation.EuclideanErrorMetric`:
 
     source["corr"][k]  = vertex in reference matching target vertex k
     target["corr"]     = identity (0 … n_target − 1)

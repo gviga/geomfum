@@ -11,7 +11,7 @@ using the build functions below.  No preset classes — just files and functions
 Quick start — matchers
 -----------------------
 >>> from benchfum import compare, build_matcher, build_matcher_from_json
->>> from geomfum.matchers import FunctionalMapMatcher
+>>> from geomfum.matcher import FunctionalMapMatcher
 >>>
 >>> # Option A: load from a JSON config file
 >>> matcher = build_matcher_from_json("configs/matchers/standard.json")

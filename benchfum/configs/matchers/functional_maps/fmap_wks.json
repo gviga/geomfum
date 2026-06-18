@@ -12,10 +12,10 @@
     ]
   },
   "fmap_optimizer": {
-    "type": "FunctionalMapOptimizer",
+    "type": "FunctionalMap",
     "factor_builders": [
       {"type": "SDPFactorBuilder", "weight": 1.0},
-      {"type": "LBFactorBuilder",  "weight": 0.01},
+      {"type": "LBCFactorBuilder",  "weight": 0.01},
       {"type": "MultFactorBuilder", "weight": 0.1}
     ]
   },

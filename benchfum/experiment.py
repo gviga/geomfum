@@ -19,7 +19,7 @@ from typing import Dict, List, Optional
 import numpy as np
 from tqdm import tqdm
 
-from geomfum.eval import evaluate_correspondence
+from geomfum.evaluation import EvaluationManager
 from geomfum.matcher import CorrespondenceResult
 
 logger = logging.getLogger(__name__)
@@ -172,6 +172,11 @@ class Experiment:
         self.progress_bar = progress_bar
         self.progress_accuracy_threshold = progress_accuracy_threshold
 
+        # Class-based evaluation (geomfum.evaluation): the manager runs every
+        # requested metric whose required inputs are present and silently skips
+        # the rest.  Keyed by public snake_case names (e.g. "geodesic_error").
+        self._evaluator = EvaluationManager.from_names(metrics)
+
         # Detect models (have .eval()) vs plain matchers
         self._is_model = hasattr(method, "eval") and callable(method.eval)
 
@@ -195,19 +200,14 @@ class Experiment:
         corr_b=None,
         dist_a=None,
     ) -> Dict[str, float]:
-        metrics = evaluate_correspondence(
+        return self._evaluator.compute(
+            result,
             shape_a=shape_a,
             shape_b=shape_b,
-            p2p21=result.p2p21,
-            soft_perm_ba=result.soft_perm_ba,
             corr_a=corr_a,
             corr_b=corr_b,
             dist_a=dist_a,
-            metrics=self.metrics,
         )
-        if self.metrics is not None:
-            metrics = {k: v for k, v in metrics.items() if k in self.metrics}
-        return metrics
 
     def run(self) -> ExperimentResult:
         """Run the experiment on all pairs.
@@ -436,7 +436,18 @@ class ExperimentSuite:
                 progress_bar=self.progress_bar,
                 progress_accuracy_threshold=self.progress_accuracy_threshold,
             )
-            result = experiment.run()
+            try:
+                result = experiment.run()
+            except Exception as exc:
+                # One method failing must not abort the whole benchmark: log it,
+                # skip it, and keep evaluating the remaining methods.
+                logger.error(
+                    "Method '%s' failed and was skipped: %s: %s",
+                    name,
+                    type(exc).__name__,
+                    exc,
+                )
+                continue
             self.results[name] = result
 
             if self.progress_bar:
@@ -461,14 +472,25 @@ class ExperimentSuite:
         Parameters
         ----------
         metrics : list[str], optional
-            Metrics to include. If None, uses geodesic_error.
+            Metrics to include. If None, uses the metrics that were actually
+            computed (the suite's configured ``metrics``, or whatever metrics
+            are present in the results), falling back to ``geodesic_error``.
         """
         if not self.results:
             logger.warning("No results to compare. Run experiments first.")
             return
 
         if metrics is None:
-            metrics = ["geodesic_error"]
+            if self.metrics:
+                metrics = list(self.metrics)
+            else:
+                # Derive from whatever was actually computed (skip *_std keys).
+                seen = []
+                for result in self.results.values():
+                    for key in result.metrics:
+                        if not key.endswith("_std") and key not in seen:
+                            seen.append(key)
+                metrics = seen or ["geodesic_error"]
 
         header = f"{'Method':<22} | {'ms/pair':>8}"
         for metric in metrics:

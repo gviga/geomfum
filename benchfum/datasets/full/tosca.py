@@ -66,7 +66,7 @@ class ToscaPairsDataset(BasePairsDataset):
     This dataset yields within-category ``(source, target)`` pairs where both
     ``source["corr"]`` and ``target["corr"]`` are identity maps
     ``(arange(n_vertices))``, enabling evaluation with
-    :func:`geomfum.eval.normalized_euclidean_error`.
+    :func:`geomfum.evaluation.EuclideanErrorMetric`.
 
     Shapes named with non-standard patterns (e.g. ``cat-00.off``) are silently
     skipped.

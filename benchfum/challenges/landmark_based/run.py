@@ -285,7 +285,10 @@ def run_benchmark(
         print(f"Pairs     : {n_pairs} (random, seed={seed})")
     print()
 
-    pairs = build_dataset(dataset_dir, config, n_pairs, seed=seed)
+    # Classical matchers (functional-map optimisation) run on CPU via scipy, so
+    # default the shapes to CPU. A config can still request another device.
+    device = config.get("dataset", {}).get("device") or "cpu"
+    pairs = build_dataset(dataset_dir, config, n_pairs, seed=seed, device=device)
     if not lm:
         pairs = PairwiseFpsLandmarkDataset(
             pairs,

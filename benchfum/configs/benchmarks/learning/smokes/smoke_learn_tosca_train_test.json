@@ -11,13 +11,13 @@
   "methods": [
     {
       "name": "FMNet-smoke",
-      "model_config": "../../models/fmnet_smoke.json",
-      "trainer_config": "../../training/unsupervised_smoke_1epoch.json"
+      "model_config": "../../../models/fmnet_smoke.json",
+      "trainer_config": "../../../training/unsupervised_smoke_1epoch.json"
     },
     {
       "name": "RobustFMNet-smoke",
-      "model_config": "../../models/robust_fmnet_smoke.json",
-      "trainer_config": "../../training/unsupervised_smoke_1epoch.json"
+      "model_config": "../../../models/robust_fmnet_smoke.json",
+      "trainer_config": "../../../training/unsupervised_smoke_1epoch.json"
     }
   ],
   "metrics": [

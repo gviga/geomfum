@@ -56,7 +56,7 @@ from geomfum.learning.losses import (
     PartialGeodesicError,
     PCKMetric,
 )
-from geomfum.learning.wrappers import TrainedModelWrapper
+from geomfum.matcher import DeepFMMatcher
 
 # ============================================================================
 # DEFAULT CONFIG
@@ -390,8 +390,11 @@ def run_benchmark(
         )
         if checkpoint_path is not None and checkpoint_path.exists():
             print(f"  [load] {method_name}: checkpoint={checkpoint_path}")
-            matcher = TrainedModelWrapper(
-                model=model, device=device, checkpoint_path=str(checkpoint_path)
+            matcher = DeepFMMatcher(
+                model=model,
+                device=device,
+                checkpoint=str(checkpoint_path),
+                n_iters=0,
             )
         else:
             if checkpoint_path is not None:
