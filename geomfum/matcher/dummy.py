@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from geomfum.matchers.base import BaseMatcher, CorrespondenceResult
+from geomfum.matcher.base import BaseMatcher, CorrespondenceResult
 
 
 class DummySoftPermMatcher(BaseMatcher):

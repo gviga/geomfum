@@ -100,12 +100,16 @@ class OrthogonalRefiner(Refiner):
             Refined functional map matrix.
         """
         k2, k1 = fmap_matrix.shape
-        U, _, VT = scipy.linalg.svd(fmap_matrix)
+        # scipy.linalg.svd is numpy-only; bring the factors back to the active
+        # backend so the matmuls below work under the pytorch backend too.
+        U, _, VT = scipy.linalg.svd(gs.to_numpy(fmap_matrix))
+        U = gs.asarray(U)
+        VT = gs.asarray(VT)
 
         if k1 != k2 or not self.flip_neg_det:
-            return gs.asarray(U @ gs.to_numpy(gs.eye(k2, k1)) @ VT)
+            return gs.matmul(U, gs.matmul(gs.eye(k2, k1), VT))
 
-        opt_rot = gs.asarray(gs.matmul(U, VT))
+        opt_rot = gs.matmul(U, VT)
         if gs.linalg.det(opt_rot) < 0.0:
             diag_sign = gs.diag(gs.ones(VT.shape[0]))
             diag_sign[-1, -1] = -1

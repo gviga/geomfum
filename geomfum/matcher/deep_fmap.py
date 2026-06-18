@@ -1,51 +1,63 @@
-"""Deep functional map matcher via per-pair gradient descent."""
+"""Deep functional map matcher: inference + optional per-pair optimization."""
 
 import copy
 
 import torch
 
-from geomfum.learning.losses import (
-    BijectivityLoss,
-    LossManager,
-    OrthonormalityLoss,
-)
-from geomfum.learning.models import FMNet
-from geomfum.matcher.base import BaseMatcher, CorrespondenceResult
+from geomfum.matcher.base import BaseMatcher
 
 
 class DeepFMMatcher(BaseMatcher):
-    """Deep functional map matcher optimized per shape pair.
+    """Run a deep functional-map model, optionally optimizing it per pair.
 
-    Jointly optimizes a deep FM model (feature extractor + functional map solver)
-    for a single shape pair using gradient descent, with no dataset-level training.
-    The model is deep-copied at the start of each call, so every pair is solved
-    independently.  Passing a pretrained model turns this into a per-pair
-    fine-tuning step.
+    A single entry point for evaluating learning-based models (``FMNet``,
+    ``RobustFMNet``, …) inside the matcher / experiment framework. It covers
+    the full spectrum of test-time behaviours:
 
-    The optimization loop is identical to the learning stage:
+    * **Inference** (``n_iters == 0``, the default): a plain forward pass of a
+      (possibly pretrained) model — equivalent to passing the raw model.
+    * **Test-time optimization / refinement** (``n_iters > 0``): runs
+      ``n_iters`` gradient steps on ``loss_manager`` for each pair before
+      extracting the correspondence. With ``restore_weights=True`` (default)
+      the base model is restored after every pair, giving purely transductive
+      refinement; with ``restore_weights=False`` the adaptation accumulates
+      across pairs.
 
-        model.forward() → LossManager.compute_loss() → loss.backward()
-
-    This means any ``BaseModel`` (``FMNet``, ``RobustFMNet``, …) and any
-    combination of losses from ``geomfum.learning.losses`` can be plugged in.
+    The optimization loop mirrors the training stage
+    (``model.forward() -> LossManager.compute_loss() -> loss.backward()``), so
+    any ``BaseModel`` and any combination of ``geomfum.learning.losses`` can be
+    plugged in. The loss is supplied separately via ``loss_manager``, so a
+    single model can be refined with different objectives just by swapping it.
 
     Parameters
     ----------
     model : BaseModel, optional
-        Deep FM model to optimize. Defaults to ``FMNet()`` (random DiffusionNet
-        weights). Pass a pretrained model instance for warm-start fine-tuning.
+        Deep FM model. Defaults to ``FMNet()`` (random DiffusionNet weights).
     loss_manager : LossManager, optional
-        Weighted combination of losses. Defaults to orthonormality + bijectivity
-        + spectral descriptor preservation (all weight 1).
+        Loss used for per-pair optimization. Required when ``n_iters > 0``.
     fmap_size : int or tuple of int
-        Number of LBO eigenfunctions for the functional map.
-        A tuple ``(k_b, k_a)`` allows different sizes per shape.
+        Number of LBO eigenfunctions for the functional map. A tuple
+        ``(k_b, k_a)`` allows different sizes per shape.
     n_iters : int
-        Gradient descent iterations per pair.
+        Gradient steps per pair. ``0`` (default) means inference only.
     lr : float
-        Adam learning rate.
+        Adam learning rate (used when ``optimizer_config`` is not given).
+    optimizer_config : dict, optional
+        Optimizer config with a ``"type"`` key and kwargs, e.g.
+        ``{"type": "Adam", "lr": 1e-3}``. Overrides ``lr``.
+    grad_clip_norm : float, optional
+        If set, clips the gradient L2 norm after each backward pass.
+    restore_weights : bool
+        If True (default), restore the model weights after each pair so the
+        base model is never mutated (transductive refinement).
+    checkpoint : str, optional
+        Path to a checkpoint to load into ``model.feature_extractor.model``
+        at construction time. Accepts a bare state dict or a dict with a
+        ``"model_state_dict"`` key.
+    device : str or torch.device, optional
+        Device for the model. Defaults to the basis device of each pair.
     verbose : bool
-        If True, print each loss component every 100 iterations.
+        If True, print loss components every 100 iterations.
     """
 
     def __init__(
@@ -53,34 +65,90 @@ class DeepFMMatcher(BaseMatcher):
         model=None,
         loss_manager=None,
         fmap_size=30,
-        n_iters=1000,
+        n_iters=0,
         lr=1e-3,
+        optimizer_config=None,
+        grad_clip_norm=None,
+        restore_weights=True,
+        checkpoint=None,
+        device=None,
         verbose=False,
     ):
-        self.model = model or FMNet()
-        self.loss_manager = loss_manager or self._default_loss_manager()
+        if model is None:
+            # Lazy import avoids a circular import: geomfum.learning.models
+            # imports geomfum.matcher.base, which loads this package.
+            from geomfum.learning.models import FMNet
+
+            model = FMNet()
+        self.model = model
+        self.loss_manager = loss_manager
         self.fmap_size = (
             fmap_size if isinstance(fmap_size, tuple) else (fmap_size, fmap_size)
         )
         self.n_iters = n_iters
         self.lr = lr
+        self.optimizer_config = optimizer_config
+        self.grad_clip_norm = grad_clip_norm
+        self.restore_weights = restore_weights
+        self.device = device
         self.verbose = verbose
 
-    @staticmethod
-    def _default_loss_manager():
-        return LossManager(
-            [
-                OrthonormalityLoss(weight=1.0),
-                BijectivityLoss(weight=1.0),
-            ]
-        )
+        if checkpoint is not None:
+            self.load_checkpoint(checkpoint)
 
-    def __call__(self, shape_a, shape_b):
-        """Optimize per-pair and return correspondences.
+    def load_checkpoint(self, checkpoint_path):
+        """Load weights into ``model.feature_extractor.model``.
 
-        Both shapes must have a precomputed spectral basis (``shape.basis``).
-        The basis eigenvectors and mass matrix should already be torch tensors
-        (same requirement as for FMNet inference).
+        Parameters
+        ----------
+        checkpoint_path : str
+            Path to a checkpoint. Accepts a bare state dict or a dict with a
+            ``"model_state_dict"`` key.
+        """
+        state = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        if isinstance(state, dict) and "model_state_dict" in state:
+            state = state["model_state_dict"]
+        self.model.feature_extractor.model.load_state_dict(state)
+
+    def _build_optimizer(self):
+        config = self.optimizer_config or {"type": "Adam", "lr": self.lr}
+        cls = getattr(torch.optim, config.get("type", "Adam"))
+        kwargs = {k: v for k, v in config.items() if k != "type"}
+        return cls(self.model.parameters(), **kwargs)
+
+    def _optimize(self, shape_a, shape_b):
+        """Run ``n_iters`` gradient steps of ``loss_manager`` on the pair."""
+        if self.loss_manager is None:
+            raise ValueError(
+                "loss_manager is required when n_iters > 0 "
+                "(per-pair optimization needs a loss to minimize)."
+            )
+        optimizer = self._build_optimizer()
+        self.model.train()
+        for i in range(self.n_iters):
+            optimizer.zero_grad()
+            # Run bidirectionally so all fmap/soft-perm tensors the loss may
+            # need (e.g. bijectivity) are available.
+            outputs = self.model(shape_a, shape_b, bidirectional=True).to_dict()
+            outputs["shape_a"] = shape_a
+            outputs["shape_b"] = shape_b
+            total_loss, loss_dict = self.loss_manager.compute_loss(outputs)
+            total_loss.backward()
+            if self.grad_clip_norm is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.model.parameters(), self.grad_clip_norm
+                )
+            optimizer.step()
+            if self.verbose and (i % 100 == 0 or i == self.n_iters - 1):
+                parts = "  ".join(f"{k}={v:.4f}" for k, v in loss_dict.items())
+                print(f"  iter {i:4d} | {parts}")
+
+    def __call__(self, shape_a, shape_b, bidirectional=False):
+        """Match a pair, optionally optimizing the model first.
+
+        Both shapes must have a precomputed spectral basis (``shape.basis``)
+        with torch-tensor eigenvectors and mass matrix (same requirement as
+        FMNet inference).
 
         Parameters
         ----------
@@ -88,47 +156,35 @@ class DeepFMMatcher(BaseMatcher):
             First shape (target for p2p21).
         shape_b : Shape
             Second shape (source for p2p21).
+        bidirectional : bool
+            If True, also return the reverse-direction correspondence.
 
         Returns
         -------
         result : CorrespondenceResult
-            Contains ``fmap12``, ``fmap21``, ``p2p21``, ``p2p12``,
-            ``descr_a``, ``descr_b``.
+            Model output (``fmap12``, ``p2p21``, descriptors, and the reverse
+            direction when ``bidirectional``).
         """
         k_b, k_a = self.fmap_size
         shape_a.basis.use_k = k_a
         shape_b.basis.use_k = k_b
 
-        device = shape_a.basis.vals.device
-        model = copy.deepcopy(self.model).to(device)
-        model.train()
+        device = self.device or shape_a.basis.vals.device
+        self.model = self.model.to(device)
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=self.lr)
+        if self.n_iters > 0:
+            saved_state = (
+                copy.deepcopy(self.model.state_dict())
+                if self.restore_weights
+                else None
+            )
+            self._optimize(shape_a, shape_b)
 
-        for i in range(self.n_iters):
-            optimizer.zero_grad()
-
-            outputs = model(shape_a, shape_b, as_dict=True)
-            outputs["shape_a"] = shape_a
-            outputs["shape_b"] = shape_b
-
-            total_loss, loss_dict = self.loss_manager.compute_loss(outputs)
-            total_loss.backward()
-            optimizer.step()
-
-            if self.verbose and (i % 100 == 0 or i == self.n_iters - 1):
-                parts = "  ".join(f"{k}={v:.4f}" for k, v in loss_dict.items())
-                print(f"  iter {i:4d} | {parts}")
-
-        model.eval()
+        self.model.eval()
         with torch.no_grad():
-            outputs = model(shape_a, shape_b, as_dict=True)
+            result = self.model(shape_a, shape_b, bidirectional=bidirectional)
 
-        return CorrespondenceResult(
-            fmap12=outputs["fmap12"],
-            fmap21=outputs.get("fmap21"),
-            p2p21=outputs.get("p2p21"),
-            p2p12=outputs.get("p2p12"),
-            descr_a=outputs.get("desc_a"),
-            descr_b=outputs.get("desc_b"),
-        )
+        if self.n_iters > 0 and self.restore_weights:
+            self.model.load_state_dict(saved_state)
+
+        return result

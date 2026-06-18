@@ -369,6 +369,32 @@ class EvaluationManager:
         else:
             self.metrics = dict(metrics)
 
+    @classmethod
+    def from_names(cls, metric_names=None):
+        """Build a manager from public snake_case metric names.
+
+        Parameters
+        ----------
+        metric_names : list[str] or None
+            Names from :data:`METRIC_REGISTRY` (e.g. ``"geodesic_error"``).
+            If ``None``, all registered metrics are included.  The returned
+            manager is keyed by these names, so ``compute`` returns a dict
+            keyed by the same snake_case names.
+
+        Returns
+        -------
+        EvaluationManager
+        """
+        if metric_names is None:
+            metric_names = list(METRIC_REGISTRY)
+        unknown = [n for n in metric_names if n not in METRIC_REGISTRY]
+        if unknown:
+            raise ValueError(
+                f"Unknown metric name(s): {unknown}. "
+                f"Available: {sorted(METRIC_REGISTRY)}"
+            )
+        return cls({name: METRIC_REGISTRY[name]() for name in metric_names})
+
     def compute(
         self,
         result,
@@ -421,3 +447,23 @@ class EvaluationManager:
             if all(k in inputs for k in metric.required_inputs):
                 results[name] = float(metric(inputs))
         return results
+
+
+# ---------------------------------------------------------------------------
+# Public metric-name registry
+# ---------------------------------------------------------------------------
+
+# Maps the public snake_case metric names (used in configs, CLI, and result
+# dicts) to their metric classes.  Keeping these names stable preserves the
+# vocabulary previously exposed by the (removed) ``geomfum.eval`` module.
+METRIC_REGISTRY = {
+    "geodesic_error": GeodesicErrorMetric,
+    "euclidean_error": EuclideanErrorMetric,
+    "dirichlet_energy": DirichletEnergyMetric,
+    "coverage": CoverageMetric,
+    "coverage_count": CoverageCountMetric,
+    "soft_geodesic_error": SoftGeodesicErrorMetric,
+    "partial_geodesic_error": PartialGeodesicErrorMetric,
+    "overlap_iou": OverlapIoUMetric,
+    "pck_auc": PCKAucMetric,
+}

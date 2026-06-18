@@ -4,7 +4,7 @@ import os
 
 import numpy as np
 
-from geomfum.matchers.base import BaseMatcher, CorrespondenceResult
+from geomfum.matcher.base import BaseMatcher, CorrespondenceResult
 
 _SUPPORTED_EXTENSIONS = (".npy", ".txt", ".map", ".vts")
 
@@ -60,7 +60,7 @@ class PrecomputedP2pMatcher(BaseMatcher):
     Suppose you have already run *SomeExternalMethod* and saved its p2p maps
     as ``results/tr_reg_000_tr_reg_001.txt``, etc.:
 
-    >>> from geomfum.matchers import PrecomputedP2pMatcher
+    >>> from geomfum.matcher import PrecomputedP2pMatcher
     >>> matcher = PrecomputedP2pMatcher(p2p_dir="results/")
     >>> result = matcher(shape_a, shape_b)   # shape_a.name="tr_reg_001", shape_b.name="tr_reg_000"
 

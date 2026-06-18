@@ -136,17 +136,22 @@ class DescriptorMatcher(BaseMatcher):
         Descriptor pipeline to compute descriptors. If None, uses default WKS-based pipeline.
     neighbor_finder : NeighborFinder, optional
         Nearest neighbor finder. If None, uses default.
+    refiner : CorrespondenceRefinementPipeline, optional
+        Correspondence refiner applied to the point-to-point map after matching.
+        If None, no refinement is applied.
     """
 
     def __init__(
         self,
         descriptor_pipeline: DescriptorPipeline = None,
         neighbor_finder: BaseNeighborFinder = None,
+        refiner=None,
     ):
         self.descriptor_pipeline = (
             descriptor_pipeline or self._build_default_descriptor_pipeline()
         )
         self.neighbor_finder = neighbor_finder or NeighborFinder(n_neighbors=1)
+        self.refiner = refiner
 
     def _build_default_descriptor_pipeline(self):
         """Build the default descriptor pipeline.
@@ -193,6 +198,12 @@ class DescriptorMatcher(BaseMatcher):
         p2p12 = None
         if bidirectional:
             p2p12 = self.neighbor_finder(feat_a, feat_b).flatten()
+
+        # Apply correspondence refinement if available
+        if self.refiner is not None:
+            p2p21 = self.refiner(p2p21, shape_a.basis, shape_b.basis)
+            if bidirectional:
+                p2p12 = self.refiner(p2p12, shape_b.basis, shape_a.basis)
 
         return CorrespondenceResult(
             p2p21=p2p21,

@@ -12,7 +12,7 @@ import torch.nn as nn
 from geomfum.convert import P2pFromFmConverter, SoftmaxNeighborFinder
 from geomfum.descriptor.learned import FeatureExtractor, LearnedDescriptor
 from geomfum.forward_functional_map import ForwardFunctionalMap
-from geomfum.matcher import CorrespondenceResult
+from geomfum.matcher.base import CorrespondenceResult
 
 from ._base import BaseModel
 

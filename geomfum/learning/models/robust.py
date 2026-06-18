@@ -9,7 +9,7 @@ from geomfum.convert import (
 )
 from geomfum.descriptor.learned import FeatureExtractor, LearnedDescriptor
 from geomfum.forward_functional_map import ForwardFunctionalMap
-from geomfum.matcher import CorrespondenceResult
+from geomfum.matcher.base import CorrespondenceResult
 
 from ._base import BaseModel
 

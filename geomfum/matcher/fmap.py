@@ -29,6 +29,10 @@ class FunctionalMapMatcher(BaseMatcher):
         Descriptor pipeline to compute descriptors. If None, builds from descriptor.
     fmap_optimizer : FunctionalMap, optional
         Optimizer for functional map. If None, uses default.
+    refiner : Refiner, optional
+        Refiner applied to the optimized functional map before converting to
+        point-to-point (e.g. a ``RefinementPipeline`` of ICP + ZoomOut). If
+        None, no refinement is applied.
     p2p_converter : P2pFromFmConverter, optional
         Converter from functional map to point-to-point. If None, uses default.
     """
@@ -38,6 +42,7 @@ class FunctionalMapMatcher(BaseMatcher):
         fmap_size: int = 30,
         descriptor_pipeline: DescriptorPipeline = None,
         fmap_optimizer: FunctionalMap = None,
+        refiner: Refiner = None,
         p2p_converter: P2pFromFmConverter = None,
     ):
         self.fmap_size = fmap_size
@@ -45,6 +50,7 @@ class FunctionalMapMatcher(BaseMatcher):
             descriptor_pipeline or self._build_default_descriptor_pipeline()
         )
         self.fmap_optimizer = fmap_optimizer or FunctionalMap()
+        self.refiner = refiner
         self.p2p_converter = p2p_converter or P2pFromFmConverter()
 
     def _build_default_descriptor_pipeline(self):
@@ -93,17 +99,32 @@ class FunctionalMapMatcher(BaseMatcher):
         # Step 3: Optimize functional map (fmap12: A -> B)
         fmap12 = self.fmap_optimizer(shape_a.basis, shape_b.basis, descr_a, descr_b)
 
+        # Step 4: Optionally refine the functional map
+        refined_fmap12 = (
+            self.refiner(fmap12, shape_a.basis, shape_b.basis)
+            if self.refiner is not None
+            else None
+        )
+        fmap12_for_p2p = refined_fmap12 if refined_fmap12 is not None else fmap12
+
         # Step 5: Convert to point-to-point correspondence (p2p21: B -> A)
-        p2p21 = self.p2p_converter(fmap12, shape_a.basis, shape_b.basis)
+        p2p21 = self.p2p_converter(fmap12_for_p2p, shape_a.basis, shape_b.basis)
 
         # Initialize reverse direction as None
         fmap21 = None
+        refined_fmap21 = None
         p2p12 = None
 
         # Step 6: Compute reverse direction if bidirectional
         if bidirectional:
             fmap21 = self.fmap_optimizer(shape_b.basis, shape_a.basis, descr_b, descr_a)
-            p2p12 = self.p2p_converter(fmap21, shape_b.basis, shape_a.basis)
+            refined_fmap21 = (
+                self.refiner(fmap21, shape_b.basis, shape_a.basis)
+                if self.refiner is not None
+                else None
+            )
+            fmap21_for_p2p = refined_fmap21 if refined_fmap21 is not None else fmap21
+            p2p12 = self.p2p_converter(fmap21_for_p2p, shape_b.basis, shape_a.basis)
 
         return CorrespondenceResult(
             fmap12=fmap12,
@@ -112,7 +133,10 @@ class FunctionalMapMatcher(BaseMatcher):
             p2p12=p2p12,
             descr_a=descr_a,
             descr_b=descr_b,
+            refined_fmap12=refined_fmap12,
+            refined_fmap21=refined_fmap21,
         )
+
 
 class ZoomOutMatcher(BaseMatcher):
     """ZoomOut functional map matcher.

@@ -180,7 +180,7 @@ class ShapeDataset(Dataset):
             shape_data.update({"corr": gs.array(self.corrs[filename])})
             if self.landmark_indices is not None:
                 shape.landmark_indices = gs.to_device(
-                    self.corrs[filename][self.landmark_indices], self.device
+                    gs.array(self.corrs[filename][self.landmark_indices]), self.device
                 )
 
         if self.distances:
