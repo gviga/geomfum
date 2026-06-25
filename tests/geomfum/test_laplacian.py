@@ -5,7 +5,7 @@ import random
 import pytest
 from polpo.testing import DataBasedParametrizer
 
-from geomfum.laplacian import LaplacianFinder, LaplacianSpectrumFinder
+from geomfum.operator.laplacian import LaplacianFinder, LaplacianSpectrumFinder
 from tests.cases.cmp import (
     LaplacianFinderCmpCase,
     LaplacianSpectrumFinderCmpCase,

@@ -1,0 +1,27 @@
+{
+  "_name": "Unsupervised learning methods on SMAL_r",
+  "_description": "Trains and evaluates 6 deep functional-map methods on the remeshed SMAL_r animal dataset: SURFMNet, GeomFMaps (supervised baseline), ULRSSM, DUO-FM, HybridFMaps and AttentiveFMaps. Each method = model JSON + trainer JSON. NOTE: this is a heavy compute job (DiffusionNet + per-shape elastic/connection eigendecompositions for Hybrid/DUO-FM + geodesic matrices). Run e.g.:  python -m benchfum.challenges.deep_fmap.run --config benchfum/configs/benchmarks/learning/smal_r_unsup.json --train --device cuda . train_root/val_root point at SMAL_r; the dataset split applies to all splits, so adjust split or point train_root/val_root at split-specific dirs for a strict train/test separation.",
+  "train": true,
+  "dataset": {
+    "type": "SmalrDataset",
+    "root": "C:\\Users\\giuli\\OneDrive\\Research\\datasets\\full_meshes\\SMAL_r",
+    "train_root": "C:\\Users\\giuli\\OneDrive\\Research\\datasets\\full_meshes\\SMAL_r",
+    "val_root": "C:\\Users\\giuli\\OneDrive\\Research\\datasets\\full_meshes\\SMAL_r",
+    "spectral": true,
+    "k": 200,
+    "distances": true,
+    "split": "test",
+    "category": true
+  },
+  "methods": [
+    {"name": "SURFMNet",       "model_config": "../../models/fmnet.json",          "trainer_config": "../../training/surfmnet.json"},
+    {"name": "GeomFMaps",      "model_config": "../../models/fmnet.json",          "trainer_config": "../../training/geomfmaps.json"},
+    {"name": "ULRSSM",         "model_config": "../../models/robust_fmnet.json",   "trainer_config": "../../training/urrsm.json"},
+    {"name": "DUO-FM",         "model_config": "../../models/duofm.json",          "trainer_config": "../../training/duofm.json"},
+    {"name": "HybridFMaps",    "model_config": "../../models/hybrid_fmaps.json",   "trainer_config": "../../training/unsupervised_standard.json"},
+    {"name": "AttentiveFMaps", "model_config": "../../models/attentive_fmaps.json","trainer_config": "../../training/unsupervised_standard.json"}
+  ],
+  "metrics": ["geodesic_error", "euclidean_error", "coverage"],
+  "bidirectional": false,
+  "pair_mode": "all"
+}

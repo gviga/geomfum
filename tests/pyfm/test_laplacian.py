@@ -2,7 +2,7 @@ import pytest
 from polpo.testing import DataBasedParametrizer
 from pyFM.mesh import TriMesh
 
-from geomfum.laplacian import LaplacianFinder
+from geomfum.operator.laplacian import LaplacianFinder
 from tests.cases.cmp import LaplacianFinderCmpCase
 from tests.geomfum.data.laplacian import LaplacianFinderCmpData
 

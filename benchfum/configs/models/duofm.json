@@ -1,0 +1,7 @@
+{
+  "_name": "DUO-FM (Donati et al.)",
+  "_description": "Complex/orientation-aware deep functional maps: real fmap (Laplacian basis) + complex fmap (connection-Laplacian basis via spectral gradient).",
+  "type": "DUOFMNet",
+  "feature_extractor": {"type": "FeatureExtractor", "which": "diffusionnet", "in_channels": 3, "out_channels": 128, "k": 60},
+  "n_fmap": 50, "n_cfmap": 20, "lambda_": 1e-3, "resolvent_gamma": 0.5
+}

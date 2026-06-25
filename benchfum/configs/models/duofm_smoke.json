@@ -1,0 +1,6 @@
+{
+  "_name": "DUO-FM smoke",
+  "type": "DUOFMNet",
+  "feature_extractor": {"type": "FeatureExtractor", "which": "diffusionnet", "in_channels": 3, "out_channels": 64, "k": 40},
+  "n_fmap": 30, "n_cfmap": 12, "lambda_": 1e-3, "resolvent_gamma": 0.5
+}

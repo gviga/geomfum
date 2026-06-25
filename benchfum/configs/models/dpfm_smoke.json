@@ -1,0 +1,7 @@
+{
+  "_name": "DPFM smoke",
+  "type": "DPFMNet",
+  "feature_extractor": {"type": "FeatureExtractor", "which": "diffusionnet", "in_channels": 3, "out_channels": 64, "k": 40},
+  "n_fmap": 30, "num_head": 4, "gnn_dim": 128, "n_layers": 1,
+  "lambda_": 1e-3, "resolvent_gamma": 0.5, "robust": true
+}

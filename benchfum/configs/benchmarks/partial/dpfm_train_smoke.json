@@ -1,0 +1,11 @@
+{
+  "_name": "SHREC16 DPFM TRAIN smoke",
+  "device": "cuda:0",
+  "train": true,
+  "dataset": {"root": null, "format": "shrec16", "partial_split": "cuts", "spectral": true, "k": 30},
+  "n_pairs": 1,
+  "methods": [
+    {"name": "DPFM (1ep)", "model_config": "../../models/dpfm_smoke.json", "trainer_config": "../../training/echo_match_smoke_1epoch.json"}
+  ],
+  "metrics": ["OverlapIoU"]
+}

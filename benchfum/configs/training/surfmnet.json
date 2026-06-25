@@ -1,0 +1,18 @@
+{
+  "_name": "SURFMNet (Roufosse et al. 2019)",
+  "_description": "Unsupervised structured FMNet: orthogonality + Laplacian commutativity + descriptor commutativity + bijectivity.",
+  "optimizer": {"type": "Adam", "lr": 1e-3},
+  "epochs": 1,
+  "monitor_metric": "OrthonormalityLoss",
+  "mode": "min",
+  "train_loss_manager": {
+    "type": "LossManager",
+    "losses": [
+      {"type": "OrthonormalityLoss", "weight": 1.0},
+      {"type": "LaplacianCommutativityLoss", "weight": 1.0},
+      {"type": "DescriptorCommutativityLoss", "weight": 1.0},
+      {"type": "BijectivityLoss", "weight": 1.0}
+    ]
+  },
+  "val_loss_manager": {"type": "LossManager", "losses": [{"type": "OrthonormalityLoss", "weight": 1.0}]}
+}

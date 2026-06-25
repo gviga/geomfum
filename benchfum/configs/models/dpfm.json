@@ -1,0 +1,8 @@
+{
+  "_name": "DPFM (Attaiki et al. 2021)",
+  "_description": "Deep Partial Functional Maps: cross-attention feature refinement + overlap prediction + regularized fmap.",
+  "type": "DPFMNet",
+  "feature_extractor": {"type": "FeatureExtractor", "which": "diffusionnet", "in_channels": 3, "out_channels": 128, "k": 60},
+  "n_fmap": 50, "num_head": 4, "gnn_dim": 512, "n_layers": 2,
+  "lambda_": 1e-3, "resolvent_gamma": 0.5, "robust": true
+}

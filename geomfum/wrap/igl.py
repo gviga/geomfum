@@ -3,7 +3,7 @@
 import gsops.backend as gs
 import igl
 
-from geomfum.laplacian import BaseLaplacianFinder
+from geomfum.operator.laplacian import BaseLaplacianFinder
 
 
 class IglMeshLaplacianFinder(BaseLaplacianFinder):

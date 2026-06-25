@@ -1,0 +1,13 @@
+{
+  "_name": "DiscreteOpt vs ZoomOut/ICP on FAUST",
+  "dataset": {"type": "FaustDataset", "root": null, "spectral": true, "k": 120, "distances": false},
+  "base_matcher_config": "../../matchers/functional_maps/fmap_wks_k30_base.json",
+  "methods": [
+    {"name": "No Refinement", "refiner_config": "../../refiners/identity.json"},
+    {"name": "ICP",          "refiner_config": "../../refiners/icp10.json"},
+    {"name": "ZoomOut",      "refiner_config": "../../refiners/zoomout_k120.json"},
+    {"name": "DiscreteOpt",  "refiner_config": "../../refiners/discreteopt.json"}
+  ],
+  "metrics": ["euclidean_error"],
+  "n_pairs": 5
+}

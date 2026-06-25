@@ -7,6 +7,10 @@ References
 .. "EchoMatch: Partial-to-Partial Shape Matching via Correspondence Reflection" by Xie et al., CVPR 2025.
 """
 
+from .attentive import AttentiveFMNet
+from .dpfm import DPFMNet
+from .duofm import DUOFMNet
 from .echomatch import EchoMatchNet, EchoScorer, OverlapRefiner
 from .fmnet import FMNet
+from .hybrid import HybridFMNet
 from .robust import RobustFMNet

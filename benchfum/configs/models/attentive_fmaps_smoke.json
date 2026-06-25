@@ -1,0 +1,8 @@
+{
+  "_name": "AttentiveFMaps smoke",
+  "type": "AttentiveFMNet",
+  "feature_extractor": {"type": "FeatureExtractor", "which": "diffusionnet", "in_channels": 3, "out_channels": 64, "k": 50},
+  "spectral_dims": [10, 20, 30, 40],
+  "reg": 1e-3,
+  "nfeatures": 64
+}

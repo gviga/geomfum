@@ -1,0 +1,9 @@
+{
+  "_name": "DiscreteOpt",
+  "_description": "Discrete Optimization for Shape Matching (Ren et al., SGP 2021). Bijective-coupled bidirectional ZoomOut generalization.",
+  "type": "DiscreteOptimizationRefiner",
+  "nit": 10,
+  "step": 10,
+  "bij_weight": 1.0,
+  "orthogonal": true
+}

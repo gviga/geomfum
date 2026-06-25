@@ -1,0 +1,14 @@
+{
+  "_name": "DUO-FM unsupervised (1 epoch smoke)",
+  "_description": "DUO-FM loss: real fmap orthonormality + complex fmap orthonormality + bijectivity.",
+  "optimizer": {"type": "Adam", "lr": 1e-3},
+  "epochs": 1,
+  "monitor_metric": "OrthonormalityLoss",
+  "mode": "min",
+  "train_loss_manager": {"type": "LossManager", "losses": [
+    {"type": "OrthonormalityLoss", "weight": 1.0},
+    {"type": "ComplexOrthonormalityLoss", "weight": 1.0},
+    {"type": "BijectivityLoss", "weight": 1.0}
+  ]},
+  "val_loss_manager": {"type": "LossManager", "losses": [{"type": "OrthonormalityLoss", "weight": 1.0}]}
+}

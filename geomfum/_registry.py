@@ -305,6 +305,19 @@ class HeatKernelSignatureRegistry(Registry):
     MAP = {}
 
 
+class ElasticShellHessianRegistry(Registry):
+    # Pure-Python translation is the built-in default; a "pyshell" wrap can be
+    # registered as an alternative implementation when available.
+    has_internal = True
+    MAP = {}
+
+
+class ConnectionLaplacianFinderRegistry(Registry):
+    # Built-in pure-Python connection (vector) Laplacian; wraps may be added.
+    has_internal = True
+    MAP = {}
+
+
 class LandmarkHeatKernelSignatureRegistry(Registry):
     has_internal = True
     MAP = {}

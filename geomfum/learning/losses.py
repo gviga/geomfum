@@ -126,6 +126,37 @@ class OrthonormalityLoss(nn.Module):
         )
 
 
+class ComplexOrthonormalityLoss(nn.Module):
+    """Orthonormality error of complex (Q) functional maps.
+
+    Measures the mean squared Frobenius norm between ``Q Q^H`` and the identity,
+    for both directions. This is the orientation-aware regularization of the
+    complex functional map in DUO-FM (Donati et al.).
+
+    Parameters
+    ----------
+    weight : float, optional
+        Weight for the loss term (default: 1).
+    """
+
+    required_inputs = ["cfmap12", "cfmap21"]
+
+    def __init__(self, weight=1):
+        super().__init__()
+        self.weight = weight
+
+    @staticmethod
+    def _orth(q):
+        qqh = q @ torch.conj(q.transpose(-2, -1))
+        eye = torch.eye(qqh.shape[-1], device=q.device, dtype=qqh.dtype)
+        diff = qqh - eye
+        return torch.mean(diff.real**2 + diff.imag**2)
+
+    def forward(self, cfmap12, cfmap21):
+        """Compute the complex-orthonormality loss for both directions."""
+        return self.weight * (self._orth(cfmap12) + self._orth(cfmap21))
+
+
 class BijectivityLoss(nn.Module):
     """
     Computes the bijectivity error of two functional maps by measuring the mean squared Frobenius norm between fmap12 fmap21 and the identity matrix, and between fmap21 fmap12 and the identity matrix.

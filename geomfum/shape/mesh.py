@@ -52,6 +52,14 @@ class TriangleMesh(Shape):
         self._at_init()
 
     def _at_init(self):
+        # Mesh-specific spectral operators (faces required); lazy — no compute
+        # until ``.find``/``.basis`` is accessed (parallels ``self.laplacian``).
+        from geomfum.operator.connection import ConnectionLaplacian
+        from geomfum.operator.elastic import ElasticShellHessian
+
+        self.elastic_hessian = ElasticShellHessian(self)
+        self.connection_laplacian = ConnectionLaplacian(self)
+
         self.equip_with_operator(
             "face_valued_gradient", FaceValuedGradient.from_registry
         )

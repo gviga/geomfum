@@ -1,0 +1,6 @@
+{
+  "_name": "HybridFMaps smoke",
+  "type": "HybridFMNet",
+  "feature_extractor": {"type": "FeatureExtractor", "which": "diffusionnet", "in_channels": 3, "out_channels": 64, "k": 40},
+  "n_fmap": 15, "n_elas": 8, "lambda_lb": 100.0, "lambda_elas": 100.0, "resolvent_gamma": 0.5, "bending_weight": 1e-2
+}

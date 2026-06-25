@@ -8,7 +8,7 @@ import pyFM.signatures
 
 from geomfum.descriptor import SpectralDescriptor
 from geomfum.descriptor.spectral import WksDefaultDomain, hks_default_domain
-from geomfum.laplacian import BaseLaplacianFinder
+from geomfum.operator.laplacian import BaseLaplacianFinder
 from geomfum.operator import FunctionalOperator, VectorFieldOperator
 from geomfum.sample import BaseSampler
 

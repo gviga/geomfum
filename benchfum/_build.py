@@ -143,11 +143,13 @@ def _build_component_registry():
     from geomfum.refine import (
         AdjointBijectiveZoomOut,
         CorrespondenceRefinementPipeline,
+        DiscreteOptimizationRefiner,
         IcpRefiner,
         IdentityRefiner,
         NeuralZoomOut,
         OrthogonalRefiner,
         RefinementPipeline,
+        SmoothDiscreteOptimizationRefiner,
         ZoomOut,
     )
 
@@ -191,6 +193,8 @@ def _build_component_registry():
         "ZoomOut": ZoomOut,
         "NeuralZoomOut": NeuralZoomOut,  # NeuralZoomOut is just ZoomOut with different params
         "AdjointBijectiveZoomOut": AdjointBijectiveZoomOut,
+        "DiscreteOptimizationRefiner": DiscreteOptimizationRefiner,
+        "SmoothDiscreteOptimizationRefiner": SmoothDiscreteOptimizationRefiner,
         "RefinementPipeline": RefinementPipeline,
         "CorrespondenceRefinementPipeline": CorrespondenceRefinementPipeline,
         # --- Converters ---
@@ -234,6 +238,7 @@ def _build_component_registry():
             GroundTruthSupervisionLoss,
             LaplacianCommutativityLoss,
             LossManager,
+            ComplexOrthonormalityLoss,
             OrthonormalityLoss,
             OverlapIoU,
             PartialGeodesicError,
@@ -242,9 +247,13 @@ def _build_component_registry():
             WeightedBCELoss,
         )
         from geomfum.learning.models import (
+            AttentiveFMNet,
+            DPFMNet,
+            DUOFMNet,
             EchoMatchNet,
             EchoScorer,
             FMNet,
+            HybridFMNet,
             OverlapRefiner,
             RobustFMNet,
         )
@@ -261,12 +270,17 @@ def _build_component_registry():
                 # --- Full-shape models ---
                 "FMNet": FMNet,
                 "RobustFMNet": RobustFMNet,
+                "AttentiveFMNet": AttentiveFMNet,
+                "HybridFMNet": HybridFMNet,
+                "DPFMNet": DPFMNet,
+                "DUOFMNet": DUOFMNet,
                 # --- EchoMatch partial-shape model ---
                 "EchoMatchNet": EchoMatchNet,
                 "EchoScorer": EchoScorer,
                 "OverlapRefiner": OverlapRefiner,
                 # --- Full-shape losses ---
                 "OrthonormalityLoss": OrthonormalityLoss,
+                "ComplexOrthonormalityLoss": ComplexOrthonormalityLoss,
                 "BijectivityLoss": BijectivityLoss,
                 "LaplacianCommutativityLoss": LaplacianCommutativityLoss,
                 "DescriptorCommutativityLoss": DescriptorCommutativityLoss,

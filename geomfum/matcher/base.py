@@ -63,6 +63,10 @@ class CorrespondenceResult:
     soft_perm_ba: "gs.ndarray" = None
     overlap_ab: "gs.ndarray" = None
     overlap_ba: "gs.ndarray" = None
+    cfmap12: "gs.ndarray" = None
+    cfmap21: "gs.ndarray" = None
+    elastic_fmap12: "gs.ndarray" = None
+    elastic_fmap21: "gs.ndarray" = None
 
     def to_dict(self):
         """Convert to dictionary (for backward compatibility).

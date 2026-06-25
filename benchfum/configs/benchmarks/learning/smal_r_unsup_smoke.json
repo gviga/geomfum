@@ -1,0 +1,25 @@
+{
+  "_name": "Unsupervised learning methods on SMAL_r (eval-only smoke)",
+  "_description": "Feasibility smoke: build and evaluate SURFMNet, GeomFMaps, ULRSSM, DUO-FM, HybridFMaps and AttentiveFMaps on a tiny SMAL_r subset (untrained, euclidean error). Proves the 6 methods run end-to-end through the runner on SMAL_r. Replace with the full smal_r_unsup.json (train:true) for a real benchmark.",
+  "train": false,
+  "dataset": {
+    "type": "SmalrDataset",
+    "root": "..\\..\\..\\..\\..\\datasets\\smal_r_mini",
+    "spectral": true,
+    "k": 50,
+    "distances": false,
+    "split": "test",
+    "category": true
+  },
+  "methods": [
+    {"name": "SURFMNet",    "model_config": "../../models/fmnet_smoke.json"},
+    {"name": "GeomFMaps",   "model_config": "../../models/fmnet_smoke.json"},
+    {"name": "ULRSSM",      "model_config": "../../models/robust_fmnet_smoke.json"},
+    {"name": "DUO-FM",      "model_config": "../../models/duofm_smoke.json"},
+    {"name": "HybridFMaps", "model_config": "../../models/hybrid_fmaps_smoke.json"},
+    {"name": "AttentiveFMaps", "model_config": "../../models/attentive_fmaps_smoke.json"}
+  ],
+  "metrics": ["euclidean_error"],
+  "bidirectional": false,
+  "n_pairs": 2
+}

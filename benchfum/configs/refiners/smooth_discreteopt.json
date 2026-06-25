@@ -1,0 +1,12 @@
+{
+  "_name": "SmoothDiscreteOpt",
+  "_description": "Smooth Discrete Optimization (Magnet & Ovsjanikov). DiscreteOpt + Dirichlet-smoothed spatial coupling.",
+  "type": "SmoothDiscreteOptimizationRefiner",
+  "nit": 10,
+  "step": 10,
+  "bij_weight": 1.0,
+  "orthogonal": false,
+  "smooth_weight": 1e-3,
+  "sm_couple_weight": 1.0,
+  "primal_weight_range": [0.01, 1.0]
+}

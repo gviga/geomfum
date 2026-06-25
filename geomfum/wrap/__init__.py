@@ -1,6 +1,7 @@
 """Registration of various wrapped components in GeomFum."""
 
 from geomfum._registry import (
+    register_elastic_shell_hessian,
     register_face_divergence_operator,
     register_face_orientation_operator,
     register_face_valued_gradient,
@@ -36,6 +37,10 @@ register_laplacian_finder(
 )
 
 register_laplacian_finder("mesh", "igl", "IglMeshLaplacianFinder", requires="igl")
+
+# Elastic shell Hessian: pure-Python is the built-in default; pyshell (C++) is
+# registered as an optional cross-validation backend.
+register_elastic_shell_hessian("pyshell", "PyShellHessianFinder", requires="pyshell")
 
 
 register_laplacian_finder(

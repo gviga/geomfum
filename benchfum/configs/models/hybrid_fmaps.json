@@ -1,0 +1,7 @@
+{
+  "_name": "HybridFMaps (Xie et al. 2024)",
+  "_description": "Hybrid functional maps: Laplace-Beltrami basis + crease-aware elastic basis.",
+  "type": "HybridFMNet",
+  "feature_extractor": {"type": "FeatureExtractor", "which": "diffusionnet", "in_channels": 3, "out_channels": 128, "k": 60},
+  "n_fmap": 20, "n_elas": 10, "lambda_lb": 100.0, "lambda_elas": 100.0, "resolvent_gamma": 0.5, "bending_weight": 1e-2
+}

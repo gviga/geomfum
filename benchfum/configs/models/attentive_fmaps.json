@@ -1,0 +1,9 @@
+{
+  "_name": "AttentiveFMaps (Li et al. 2022)",
+  "_description": "Multi-resolution functional maps with spectral attention. DiffusionNet features.",
+  "type": "AttentiveFMNet",
+  "feature_extractor": {"type": "FeatureExtractor", "which": "diffusionnet", "in_channels": 3, "out_channels": 128, "k": 130},
+  "spectral_dims": [20, 40, 60, 80, 100, 120],
+  "reg": 1e-3,
+  "nfeatures": 128
+}

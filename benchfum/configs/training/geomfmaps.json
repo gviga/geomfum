@@ -1,0 +1,13 @@
+{
+  "_name": "GeomFMaps (Donati et al. 2020)",
+  "_description": "Supervised deep functional maps: ground-truth functional-map supervision.",
+  "optimizer": {"type": "Adam", "lr": 1e-3},
+  "epochs": 1,
+  "monitor_metric": "FmapDescriptorsSupervisionLoss",
+  "mode": "min",
+  "train_loss_manager": {
+    "type": "LossManager",
+    "losses": [{"type": "FmapDescriptorsSupervisionLoss", "weight": 1.0}]
+  },
+  "val_loss_manager": {"type": "LossManager", "losses": [{"type": "FmapDescriptorsSupervisionLoss", "weight": 1.0}]}
+}
